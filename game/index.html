@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d1530" />
+    <title>Army Rush</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="overlay"></div>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div class="hud-top">
+        <button id="btn-pause" class="icon-btn" aria-label="Pause">II</button>
+        <div class="hud-level"><span id="hud-world"></span><span id="hud-lvl"></span></div>
+        <div class="coin-pill"><span class="coin-ic"></span><span id="hud-coins">0</span></div>
+      </div>
+      <div class="hud-weapon"><span id="hud-weapon">Pistol</span><span id="hud-mults"></span></div>
+      <div id="hint" class="hint">Drag to steer &bull; Shoot gates to raise their numbers</div>
+      <div id="world-mod" class="world-mod"></div>
+    </div>
+
+    <!-- Main menu -->
+    <section id="scr-menu" class="screen">
+      <div class="menu-bg"></div>
+      <div class="title">
+        <div class="title-top">ARMY</div>
+        <div class="title-bot">RUSH</div>
+        <div class="subtitle">Worlds at War</div>
+      </div>
+      <div class="coin-pill big"><span class="coin-ic"></span><span class="coins-total">0</span></div>
+      <button id="btn-play" class="btn primary huge">PLAY <small id="play-sub"></small></button>
+      <div class="menu-grid">
+        <button class="btn" data-go="worlds">Worlds</button>
+        <button class="btn" data-go="armory">Armory</button>
+        <button class="btn" data-go="upgrades">Upgrades</button>
+        <button class="btn" data-go="settings">Settings</button>
+      </div>
+      <div class="diff-row" id="menu-diff"></div>
+    </section>
+
+    <!-- Worlds -->
+    <section id="scr-worlds" class="screen hidden">
+      <header><button class="icon-btn" data-go="menu">&lsaquo;</button><h2>Worlds</h2><div class="coin-pill"><span class="coin-ic"></span><span class="coins-total">0</span></div></header>
+      <div class="diff-row" id="worlds-diff"></div>
+      <div id="world-list" class="list"></div>
+    </section>
+
+    <!-- Armory -->
+    <section id="scr-armory" class="screen hidden">
+      <header><button class="icon-btn" data-go="menu">&lsaquo;</button><h2>Armory</h2><div class="coin-pill"><span class="coin-ic"></span><span class="coins-total">0</span></div></header>
+      <p class="note">Buy a weapon to start every level with it. Weapon boards in levels can still upgrade you further.</p>
+      <div id="weapon-list" class="list"></div>
+    </section>
+
+    <!-- Upgrades -->
+    <section id="scr-upgrades" class="screen hidden">
+      <header><button class="icon-btn" data-go="menu">&lsaquo;</button><h2>Upgrades</h2><div class="coin-pill"><span class="coin-ic"></span><span class="coins-total">0</span></div></header>
+      <div id="upgrade-list" class="list"></div>
+    </section>
+
+    <!-- Settings -->
+    <section id="scr-settings" class="screen hidden">
+      <header><button class="icon-btn" data-go="menu">&lsaquo;</button><h2>Settings</h2><div></div></header>
+      <div class="list">
+        <div class="card row"><span>Sound</span><button id="set-sound" class="btn small"></button></div>
+        <div class="card row"><span>Vibration</span><button id="set-vibe" class="btn small"></button></div>
+        <div class="card row"><span>Graphics</span><button id="set-quality" class="btn small"></button></div>
+        <div class="card row"><span>Reset all progress</span><button id="set-reset" class="btn small danger">Reset</button></div>
+        <p class="note">No ads. No purchases. Everything is earned by playing.</p>
+      </div>
+    </section>
+
+    <!-- Pause -->
+    <section id="scr-pause" class="screen modal hidden">
+      <div class="panel">
+        <h2>Paused</h2>
+        <button id="btn-resume" class="btn primary">Resume</button>
+        <button id="btn-restart" class="btn">Restart</button>
+        <button id="btn-quit" class="btn">Quit to menu</button>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section id="scr-result" class="screen modal hidden">
+      <div class="panel">
+        <h2 id="res-title">Victory!</h2>
+        <div id="res-stars" class="stars"></div>
+        <table class="res-table">
+          <tr><td>Survivors</td><td id="res-surv"></td></tr>
+          <tr><td>Enemies defeated</td><td id="res-kills"></td></tr>
+          <tr><td>Final weapon</td><td id="res-weapon"></td></tr>
+          <tr><td>Coins earned</td><td id="res-coins"></td></tr>
+        </table>
+        <button id="btn-next" class="btn primary">Next level</button>
+        <button id="btn-retry" class="btn">Retry</button>
+        <button id="btn-menu" class="btn">Menu</button>
+      </div>
+    </section>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

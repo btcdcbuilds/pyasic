@@ -1,0 +1,633 @@
+// Pure gameplay simulation (no rendering). The renderer reads this state every frame.
+// Coordinates: d = distance along the track (forward), x = lateral position in [-HW, HW].
+import { WORLDS, DIFFICULTIES, WEAPONS, weaponById, LEVELS_PER_WORLD } from './data.js';
+
+export const HW = 5;
+export const SPEED = 10;
+export const HERO_POWER = 12; // a hero shoots like this many soldiers
+export const HERO_HP = 10; // soldiers a hero is worth when the army is wiped
+export const MAX_ARMY = 9999;
+
+export function armyRadius(n) {
+  return Math.min(4.3, 0.33 * Math.sqrt(Math.max(1, Math.min(n, 320))) + 0.25);
+}
+
+export function mulberry32(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+
+export function levelIndex(wi, li) {
+  return wi * LEVELS_PER_WORLD + li;
+}
+
+// ---------------------------------------------------------------- level generation
+export function generateLevel(wi, li, diffId, seedExtra = 0) {
+  const world = WORLDS[wi];
+  const diff = DIFFICULTIES.find((d) => d.id === diffId) || DIFFICULTIES[1];
+  const mod = world.mod;
+  const L = levelIndex(wi, li);
+  const rng = mulberry32(7919 + L * 104729 + seedExtra * 31337);
+  const ri = (a, b) => a + Math.floor(rng() * (b - a + 1));
+  const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+  const D = diff.hp;
+  const hpScale = (1 + 0.3 * L) * D;
+  const rows = 10 + Math.min(9, Math.floor(L / 3)) + li;
+  const ents = [];
+  let id = 0;
+  const add = (e) => {
+    e.id = id++;
+    e.alive = true;
+    e.passed = false;
+    ents.push(e);
+    return e;
+  };
+  const pBad = Math.min(0.7, (0.2 + L * 0.015) * diff.bad);
+  const maxTier = Math.min(9, 1 + wi + (mod.boardWeight ? 1 : 0));
+
+  const goodGate = (i, allowMul) => {
+    const r = rng();
+    if (allowMul && r < 0.14) return { op: 'x', v: rng() < 0.1 + L * 0.004 ? 3 : 2 };
+    if (r < 0.34 && L > 0) return { op: rng() < 0.5 ? 'rate' : 'dmg', v: ri(10, 20) + Math.floor(L / 3) };
+    return { op: '+', v: ri(6, 12) + Math.floor(L * 1.6) + i * 2 };
+  };
+  const badGate = (i) => {
+    if (rng() < 0.25 && i > 2) return { op: '÷', v: 2 };
+    return { op: '-', v: Math.round((ri(6, 12) + L * 2 + i * 2.5) * diff.bad) };
+  };
+  const gateRow = (i, dd) => {
+    let a = goodGate(i, i >= 1);
+    let b = i > 0 && rng() < pBad ? badGate(i) : goodGate(i, false);
+    if (rng() < 0.5) [a, b] = [b, a];
+    const row = id;
+    add({ type: 'gate', d: dd, x0: -HW, x1: 0, row, ...a, acc: 0, step: 3 * hpScale });
+    add({ type: 'gate', d: dd, x0: 0, x1: HW, row, ...b, acc: 0, step: 3 * hpScale });
+  };
+  const boardRow = (i, dd) => {
+    const left = rng() < 0.5;
+    const wx = left ? [-HW, -0.1] : [0.1, HW];
+    const ox = left ? [0.1, HW] : [-HW, -0.1];
+    const tier = clamp(ri(Math.max(1, wi), maxTier), 1, 9);
+    add({ type: 'board', d: dd, x0: wx[0], x1: wx[1], weapon: WEAPONS[tier].id, hp: (14 + 5 * i) * hpScale });
+    const other = rng();
+    if (other < 0.4) add({ type: 'hero', d: dd, x0: ox[0], x1: ox[1], hp: (40 + 10 * i) * hpScale });
+    else if (other < 0.75) add({ type: 'cage', d: dd, x0: ox[0], x1: ox[1], hp: (10 + 4 * i) * hpScale, allies: 6 + Math.floor(L * 1.2) + i * 2 });
+    else {
+      const g = goodGate(i, false);
+      add({ type: 'gate', d: dd, x0: ox[0], x1: ox[1], row: id, ...g, acc: 0, step: 3 * hpScale });
+    }
+  };
+  const squadRow = (i, dd) => {
+    const m = Math.round((6 + i * 3.5 + L * 3.4) * Math.sqrt(D));
+    add({ type: 'squad', d: dd + 6, x: (rng() - 0.5) * 5, m, m0: m, hpEach: 1.4 * (1 + 0.1 * L) * Math.sqrt(D) * (mod.shield || 1), acc: 0, contact: false });
+  };
+  const wallRow = (i, dd) => {
+    const gap = ri(0, 2); // lane index left free (3 lanes)
+    for (let lane = 0; lane < 3; lane++) {
+      if (lane === gap) continue;
+      const x0 = -HW + lane * (2 * HW / 3);
+      if (rng() < 0.45 + (mod.barrelWeight ? 0.25 : 0)) {
+        add({ type: 'barrel', d: dd, x0: x0 + 0.9, x1: x0 + 2.4, hp: 4 * hpScale });
+      } else {
+        add({ type: 'wall', d: dd, x0: x0 + 0.15, x1: x0 + 2 * HW / 3 - 0.15, hp: (16 + 4 * i) * hpScale });
+      }
+    }
+    if (rng() < 0.6) {
+      const lx = -HW + gap * (2 * HW / 3) + HW / 3;
+      for (let k = 0; k < 4; k++) add({ type: 'coin', d: dd - 6 + k * 3, x0: lx - 0.6, x1: lx + 0.6, value: 2 + Math.floor(L / 4) });
+    }
+  };
+  const hazardRow = (i, dd) => {
+    const kinds = ['saw'];
+    if (mod.boulders) kinds.push('boulder', 'boulder');
+    if (mod.geysers) kinds.push('geyser', 'geyser');
+    if (mod.saws) kinds.push('saw');
+    const k = pick(kinds);
+    if (k === 'geyser') {
+      const lanes = [0, 1, 2].sort(() => rng() - 0.5).slice(0, 2);
+      lanes.forEach((lane, n) => {
+        const x0 = -HW + lane * (2 * HW / 3);
+        add({ type: 'geyser', d: dd, x0, x1: x0 + 2 * HW / 3, phase: n * 1.2 + rng(), period: 2.4, on: 1.0 });
+      });
+    } else {
+      add({ type: k, d: dd, x0: 0, x1: 0, phase: rng() * 6.28, w: k === 'boulder' ? 1.4 : 2.2, half: k === 'boulder' ? 1.3 : 0.9 });
+    }
+    // a small squad behind the hazard keeps pressure on
+    if (L > 3 && rng() < 0.5) squadRow(Math.max(0, i - 2), dd + 12);
+  };
+
+  let dd = 45;
+  for (let i = 0; i < rows; i++) {
+    if (i % 2 === 0) {
+      gateRow(i, dd);
+    } else {
+      const opts = [['board', 3 * (mod.boardWeight || 1)], ['squad', 3 + L * 0.08], ['wall', 2 + (mod.barrelWeight || 0)], ['cage', 0.6 * (mod.cageWeight || 1)], ['hazard', L > 0 ? 1.6 : 0]];
+      let tot = opts.reduce((s, o) => s + o[1], 0);
+      let r = rng() * tot;
+      let kind = 'board';
+      for (const [k, w] of opts) {
+        if ((r -= w) <= 0) { kind = k; break; }
+      }
+      if (i === 1) kind = 'board';
+      if (kind === 'board') boardRow(i, dd);
+      else if (kind === 'squad') squadRow(i, dd);
+      else if (kind === 'wall') wallRow(i, dd);
+      else if (kind === 'hazard') hazardRow(i, dd);
+      else {
+        const left = rng() < 0.5;
+        add({ type: 'cage', d: dd, x0: left ? -HW : 0.1, x1: left ? -0.1 : HW, hp: (10 + 4 * i) * hpScale, allies: 8 + Math.floor(L * 1.5) + i * 2 });
+        add({ type: 'wall', d: dd, x0: left ? 0.1 : -HW, x1: left ? HW : -0.1, hp: (12 + 3 * i) * hpScale });
+      }
+    }
+    dd += 30;
+  }
+  squadRow(rows, dd);
+  dd += 34;
+  const bossHp = Math.round(320 * Math.pow(1 + 0.42 * L, 1.45) * D);
+  const boss = add({
+    type: 'boss', d: dd + 8, x: 0, half: 2.2, hp: bossHp, maxHp: bossHp,
+    stompKill: Math.ceil((5 + L * 1.6) * Math.sqrt(D)), stompEvery: 1.15, stompT: 0, contact: false,
+  });
+  ents.sort((a, b) => a.d - b.d);
+  return { wi, li, L, world, diff, entities: ents, boss, length: dd + 8, hpScale, seed: seedExtra };
+}
+
+// ---------------------------------------------------------------- simulation
+export class Sim {
+  // stats: { startTroops, weapon, dmgMult, rateMult, armor (0..1 loss reduction) }
+  constructor(level, stats) {
+    this.level = level;
+    this.world = level.world;
+    this.mod = level.world.mod;
+    this.ents = level.entities;
+    this.boss = level.boss;
+    this.n = stats.startTroops;
+    this.peak = this.n;
+    this.heroes = 0;
+    this.weapon = weaponById[stats.weapon] || WEAPONS[0];
+    this.dmgMult = stats.dmgMult;
+    this.rateMult = stats.rateMult;
+    this.lossMult = 1 - stats.armor;
+    this.x = 0;
+    this.vx = 0;
+    this.d = 0;
+    this.t = 0;
+    this.fireT = 0;
+    this.proj = [];
+    this.events = [];
+    this.kills = 0;
+    this.coins = 0;
+    this.state = 'run';
+    this.clashing = false;
+    this.soldierValue = 2.2 * level.hpScale;
+  }
+
+  get radius() {
+    return armyRadius(this.n);
+  }
+
+  emit(type, data = {}) {
+    this.events.push({ type, ...data });
+  }
+
+  lose(k) {
+    k = Math.max(0, Math.round(k));
+    if (k <= 0) return;
+    this.n -= k;
+    while (this.n <= 0 && this.heroes > 0) {
+      this.heroes--;
+      this.n += HERO_HP;
+      this.emit('heroDown');
+    }
+    if (this.n < 0) this.n = 0;
+    this.emit('lose', { k });
+  }
+
+  gain(k) {
+    this.n = Math.min(MAX_ARMY, this.n + Math.round(k));
+    this.peak = Math.max(this.peak, this.n);
+  }
+
+  windForce() {
+    return this.mod.wind ? Math.sin(this.t * 0.45) * 2.4 + Math.sin(this.t * 1.3) * 0.8 : 0;
+  }
+
+  update(dt, targetX) {
+    if (this.state !== 'run') return;
+    dt = Math.min(dt, 0.05);
+    this.t += dt;
+    const R = this.radius;
+    const lim = HW - R * 0.75;
+    const tx = clamp(targetX, -lim, lim);
+    if (this.mod.ice) {
+      this.vx += (tx - this.x) * 9 * dt;
+      this.vx *= Math.max(0, 1 - 2.4 * dt);
+      this.x += this.vx * dt;
+    } else {
+      this.x += (tx - this.x) * Math.min(1, dt * 12);
+    }
+    this.x += this.windForce() * dt;
+    this.x = clamp(this.x, -lim, lim);
+
+    // movement
+    const b = this.boss;
+    let speed = this.clashing ? 2.5 : SPEED;
+    this.d += speed * dt;
+    if (b.alive) this.d = Math.min(this.d, b.d - b.half - R * 0.8);
+
+    this.fire(dt);
+    this.updateProjectiles(dt);
+    this.updateEntities(dt);
+    this.collide();
+
+    if (this.n <= 0 && this.heroes <= 0) {
+      this.state = 'lost';
+      this.emit('lost');
+    } else if (!b.alive) {
+      this.state = 'won';
+      this.emit('won');
+    }
+  }
+
+  range() {
+    return this.weapon.range * (this.mod.rangeMult || 1);
+  }
+
+  fire(dt) {
+    const w = this.weapon;
+    const interval = 1 / (w.rate * this.rateMult);
+    this.fireT += dt;
+    if (this.fireT < interval) return;
+    let volleys = Math.floor(this.fireT / interval);
+    this.fireT -= volleys * interval;
+    volleys = Math.min(volleys, 3);
+    const R = this.radius;
+    const shooters = this.n + this.heroes * HERO_POWER;
+    const streams = Math.min(Math.ceil(this.n), 9) + this.heroes;
+    const pellets = w.pellets || 1;
+    const dmg = (shooters * w.dmg * this.dmgMult) / (streams * pellets);
+    const range = this.range();
+    for (let v = 0; v < volleys; v++) {
+      for (let s = 0; s < streams; s++) {
+        const hero = s >= streams - this.heroes;
+        const sx = hero ? this.heroX(streams - 1 - s) : this.x + (Math.random() * 2 - 1) * R * 0.85;
+        for (let p = 0; p < pellets; p++) {
+          const spread = pellets > 1 ? ((p / (pellets - 1)) - 0.5) * (w.spread || 0) : 0;
+          this.proj.push({
+            x: clamp(sx + spread, -HW, HW), d: this.d + R * 0.5, d0: this.d, dmg, range, speed: w.speed,
+            pierce: w.pierce || 0, hit: null, w, hero,
+          });
+        }
+      }
+    }
+    this.emit('shot', { w: w.id });
+  }
+
+  heroX(i) {
+    const R = this.radius;
+    const side = i % 2 === 0 ? 1 : -1;
+    return clamp(this.x + side * (R + 0.6 + Math.floor(i / 2) * 0.9), -HW + 0.4, HW - 0.4);
+  }
+
+  shootable(e) {
+    return e.alive && e.type !== 'coin' && e.type !== 'saw' && e.type !== 'boulder' && e.type !== 'geyser';
+  }
+
+  spanOf(e) {
+    if (e.type === 'squad') {
+      const r = armyRadius(e.m);
+      return [e.x - r, e.x + r, e.d - r, e.d + r];
+    }
+    if (e.type === 'boss') return [e.x - e.half, e.x + e.half, e.d - 1, e.d + 1];
+    return [e.x0, e.x1, e.d - 0.4, e.d + 0.4];
+  }
+
+  updateProjectiles(dt) {
+    const out = [];
+    for (const p of this.proj) {
+      const prev = p.d;
+      p.d += p.speed * dt;
+      let best = null;
+      let bestD = Infinity;
+      for (const e of this.ents) {
+        if (!this.shootable(e) || (p.hit && p.hit.has(e.id))) continue;
+        if (e.d - 8 > p.d) break; // entities are roughly sorted by d
+        const [x0, x1, d0, d1] = this.spanOf(e);
+        if (p.x < x0 || p.x > x1) continue;
+        if (d1 < prev || d0 > p.d) continue;
+        if (d0 < bestD) { bestD = d0; best = e; }
+      }
+      if (best) {
+        this.damage(best, p.dmg, p);
+        this.emit('hit', { x: p.x, d: Math.max(prev, bestD), w: p.w.id, ent: best.type });
+        if (p.w.splash) this.splash(p.x, bestD, p.w.splash, p.dmg * 0.6, best);
+        if (p.w.chain) this.chain(p.x, bestD, p.w.chain, p.dmg * 0.7, best);
+        if (p.pierce > 0) {
+          p.pierce--;
+          (p.hit ||= new Set()).add(best.id);
+          out.push(p);
+        }
+        continue;
+      }
+      if (p.d - p.d0 < p.range) out.push(p);
+    }
+    this.proj = out;
+  }
+
+  splash(x, d, r, dmg, skip) {
+    for (const e of this.ents) {
+      if (e === skip || !this.shootable(e) || e.type === 'gate') continue;
+      if (Math.abs(e.d - d) > r + 1.5) continue;
+      const [x0, x1] = this.spanOf(e);
+      if (x < x0 - r || x > x1 + r) continue;
+      this.damage(e, dmg, null);
+    }
+    this.emit('boom', { x, d, r });
+  }
+
+  chain(x, d, count, dmg, skip) {
+    const targets = [];
+    for (const e of this.ents) {
+      if (e === skip || !this.shootable(e) || e.type === 'gate') continue;
+      const ex = e.type === 'squad' || e.type === 'boss' ? e.x : (e.x0 + e.x1) / 2;
+      const dist = Math.hypot(ex - x, e.d - d);
+      if (dist < 10) targets.push([dist, e, ex]);
+    }
+    targets.sort((a, b) => a[0] - b[0]);
+    for (const [, e, ex] of targets.slice(0, count)) {
+      this.damage(e, dmg, null);
+      this.emit('arc', { x0: x, d0: d, x1: ex, d1: e.d });
+    }
+  }
+
+  damage(e, dmg, p) {
+    switch (e.type) {
+      case 'gate': {
+        if (e.op === 'x' || e.op === '÷') return;
+        e.acc += dmg;
+        // each point costs more than the last, so shooting gates helps but can't snowball
+        while (e.acc >= e.step * (1 + e.v / 8)) {
+          e.acc -= e.step * (1 + e.v / 8);
+          if (e.op === '-') {
+            e.v -= 1;
+            if (e.v <= 0) { e.op = '+'; e.v = 1; this.emit('gateFlip', { e }); }
+          } else e.v += 1;
+        }
+        e.dirty = true;
+        return;
+      }
+      case 'squad': {
+        e.acc += dmg;
+        const k = Math.min(e.m, Math.floor(e.acc / e.hpEach));
+        if (k > 0) {
+          e.m -= k;
+          e.acc -= k * e.hpEach;
+          this.kills += k;
+          this.emit('kill', { e, k });
+        }
+        if (e.m <= 0) { e.alive = false; e.acc = 0; }
+        return;
+      }
+      case 'boss':
+        e.hp -= dmg;
+        if (e.hp <= 0) { e.hp = 0; e.alive = false; this.emit('bossDown', { e }); }
+        return;
+      default:
+        e.hp -= dmg;
+        e.dirty = true;
+        if (e.hp <= 0) this.destroy(e, true);
+    }
+  }
+
+  destroy(e, byShot) {
+    if (!e.alive) return;
+    e.alive = false;
+    if (e.type === 'board' && byShot) {
+      const w = weaponById[e.weapon];
+      if (w.tier > this.weapon.tier) {
+        this.weapon = w;
+        this.emit('weapon', { w });
+      } else {
+        this.dmgMult *= 1.15;
+        this.emit('powerup', { text: '+15% DMG' });
+      }
+    } else if (e.type === 'hero' && byShot) {
+      this.heroes++;
+      this.emit('hero');
+    } else if (e.type === 'cage' && byShot) {
+      this.gain(e.allies);
+      this.emit('allies', { k: e.allies, e });
+    } else if (e.type === 'barrel') {
+      this.splash((e.x0 + e.x1) / 2, e.d, 4, 30 * this.level.hpScale, e);
+    }
+    this.emit('destroy', { e });
+  }
+
+  overlap(x0, x1) {
+    const R = this.radius;
+    const a = Math.max(x0, this.x - R);
+    const b = Math.min(x1, this.x + R);
+    return Math.max(0, b - a) / (2 * R);
+  }
+
+  hazardX(e) {
+    return Math.sin(this.t * e.w * 0.7 + e.phase) * (HW - e.half);
+  }
+
+  geyserOn(e) {
+    return ((this.t + e.phase) % e.period) < e.on;
+  }
+
+  updateEntities(dt) {
+    const R = this.radius;
+    this.clashing = false;
+    for (const e of this.ents) {
+      if (!e.alive) continue;
+      if (e.type === 'squad') {
+        const r = armyRadius(e.m);
+        const gap = e.d - r - (this.d + R * 0.8);
+        const lateral = Math.abs(e.x - this.x) < R + r * 0.9;
+        if (gap <= 0 && lateral) {
+          // clash: both sides lose soldiers at the same rate
+          this.clashing = true;
+          const rate = Math.max(18, (this.n + e.m) * 2.2);
+          const k = Math.min(this.n + this.heroes * HERO_HP, e.m, Math.ceil(rate * dt));
+          e.m -= k;
+          this.kills += k;
+          this.lose(k);
+          if (!e.contact) { e.contact = true; this.emit('clash', { e }); }
+          if (e.m <= 0) e.alive = false;
+        } else if (e.d < this.d - R - r - 1) {
+          e.alive = false; // dodged
+          this.emit('dodge', { e });
+        } else if (e.d - this.d < 34) {
+          e.d -= 7 * dt;
+          e.x += clamp(this.x - e.x, -1, 1) * 2.2 * dt;
+          e.x = clamp(e.x, -HW + r * 0.7, HW - r * 0.7);
+        }
+      } else if (e.type === 'boss') {
+        if (e.d - this.d < 34) e.d -= 2.2 * dt;
+        const touching = e.d - e.half - (this.d + R * 0.8) <= 0.05;
+        if (touching) {
+          if (!e.contact) { e.contact = true; e.stompT = 0.4; }
+          e.stompT -= dt;
+          if (e.stompT <= 0) {
+            e.stompT = e.stompEvery;
+            this.lose(Math.min(this.n, e.stompKill * this.lossMult) || 1);
+            this.emit('stomp', { e });
+          }
+        }
+      }
+    }
+  }
+
+  collide() {
+    const R = this.radius;
+    const front = this.d + R * 0.6;
+    for (const e of this.ents) {
+      if (!e.alive || e.passed) continue;
+      if (e.type === 'squad' || e.type === 'boss') continue;
+      if (e.d > front) break;
+      e.passed = true;
+      switch (e.type) {
+        case 'gate': {
+          if (!(this.x >= e.x0 && this.x <= e.x1)) {
+            // the army missed this half; the other half of the row handles it
+            const other = this.ents.find((o) => o !== e && o.type === 'gate' && o.row === e.row && o.alive);
+            if (other) continue;
+            // single gate next to a board: only applies if overlapping enough
+            if (this.overlap(e.x0, e.x1) < 0.5) { e.alive = false; continue; }
+          }
+          this.applyGate(e);
+          for (const o of this.ents) if (o.type === 'gate' && o.row === e.row) { o.alive = false; o.passed = true; }
+          break;
+        }
+        case 'board': case 'hero': case 'cage': case 'wall': {
+          const f = this.overlap(e.x0, e.x1);
+          if (f > 0) {
+            const loss = Math.min(Math.ceil(this.n * f), Math.ceil(e.hp / this.soldierValue)) * this.lossMult;
+            this.lose(Math.max(1, loss));
+            e.alive = false;
+            this.emit('crash', { e });
+          }
+          break;
+        }
+        case 'barrel': {
+          if (this.overlap(e.x0, e.x1) > 0) {
+            this.lose(6 * this.lossMult);
+            this.destroy(e, false);
+          }
+          break;
+        }
+        case 'coin': {
+          if (this.overlap(e.x0, e.x1) > 0) {
+            this.coins += e.value;
+            e.alive = false;
+            this.emit('coin', { e });
+          }
+          break;
+        }
+        case 'saw': case 'boulder': {
+          const hx = this.hazardX(e);
+          if (this.overlap(hx - e.half, hx + e.half) > 0) {
+            this.lose((Math.ceil(this.n * (e.type === 'boulder' ? 0.2 : 0.14)) + 2) * this.lossMult);
+            this.emit('crash', { e });
+          }
+          break;
+        }
+        case 'geyser': {
+          if (this.geyserOn(e) && this.overlap(e.x0, e.x1) > 0.15) {
+            this.lose((Math.ceil(this.n * 0.2) + 3) * this.lossMult);
+            this.emit('burn', { e });
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  applyGate(e) {
+    const before = this.n;
+    switch (e.op) {
+      case '+': this.gain(e.v); break;
+      case 'x': this.gain(this.n * (e.v - 1)); break;
+      case '-': this.lose(Math.min(this.n, e.v)); break;
+      case '÷': this.lose(this.n - Math.ceil(this.n / e.v)); break;
+      case 'rate': this.rateMult *= 1 + e.v / 100; break;
+      case 'dmg': this.dmgMult *= 1 + e.v / 100; break;
+    }
+    this.emit('gate', { e, good: e.op === '+' || e.op === 'x' || e.op === 'rate' || e.op === 'dmg', delta: this.n - before });
+  }
+
+  stars() {
+    if (this.state !== 'won') return 0;
+    return 1 + (this.n >= this.peak * 0.3 ? 1 : 0) + (this.n >= this.peak * 0.6 ? 1 : 0);
+  }
+}
+
+// Simple AI used for balance testing (and could be used for an attract mode).
+export function botTarget(sim) {
+  let bestX = sim.x;
+  let bestScore = -Infinity;
+  const R = sim.radius;
+  for (let cx = -4; cx <= 4.001; cx += 0.5) {
+    let score = -Math.abs(cx - sim.x) * 0.3;
+    for (const e of sim.ents) {
+      if (!e.alive || e.passed) continue;
+      const ahead = e.d - sim.d;
+      if (ahead < -1) continue;
+      if (ahead > 45) break;
+      const near = ahead < 14;
+      const x0 = cx - R;
+      const x1 = cx + R;
+      const ov = (a, b) => Math.max(0, Math.min(b, x1) - Math.max(a, x0)) / (2 * R);
+      switch (e.type) {
+        case 'gate': {
+          if (cx < e.x0 || cx > e.x1) break;
+          let val = 0;
+          if (e.op === '+') val = e.v;
+          else if (e.op === 'x') val = sim.n * (e.v - 1);
+          else if (e.op === '-') val = -e.v;
+          else if (e.op === '÷') val = -sim.n / 2;
+          else val = sim.n * e.v / 100 * 1.5;
+          score += val * (near ? 3 : 1);
+          break;
+        }
+        case 'board': case 'hero': case 'cage':
+          if (near) score -= ov(e.x0, e.x1) * Math.min(sim.n, e.hp / sim.soldierValue) * 2;
+          else score += ov(e.x0, e.x1) * 15;
+          break;
+        case 'wall': case 'barrel':
+          if (near) score -= ov(e.x0, e.x1) * Math.min(sim.n, e.hp / sim.soldierValue + 6) * 3;
+          break;
+        case 'coin':
+          score += ov(e.x0, e.x1) * 2;
+          break;
+        case 'saw': case 'boulder':
+          if (near) {
+            const hx = sim.hazardX(e);
+            score -= ov(hx - e.half, hx + e.half) * sim.n * 0.4;
+          }
+          break;
+        case 'geyser':
+          if (near) score -= ov(e.x0, e.x1) * sim.n * 0.3;
+          break;
+        case 'squad': {
+          const r = armyRadius(e.m);
+          if (Math.abs(e.x - cx) < R + r) score -= Math.min(e.m, sim.n) * 0.2;
+          break;
+        }
+      }
+    }
+    if (score > bestScore) { bestScore = score; bestX = cx; }
+  }
+  return bestX;
+}
