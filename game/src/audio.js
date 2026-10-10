@@ -88,6 +88,7 @@ export class Sfx {
   win() { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.15, null, i * 0.11)); }
   lose() { [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.3, 'sawtooth', 0.08, null, i * 0.16)); }
   click() { this.tone(900, 0.04, 'square', 0.05); }
+  warning() { this.tone(110, 0.18, 'square', 0.12, 80); this.tone(110, 0.18, 'square', 0.12, 80, 0.22); this.noise(0.15, 150, 0.5, 0.3, 'lowpass'); }
   unlockReward() { [660, 880, 1320].forEach((f, i) => this.tone(f, 0.1, 'triangle', 0.1, null, i * 0.05)); }
   pickup(big) {
     if (!this.ok()) return;

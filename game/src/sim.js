@@ -145,7 +145,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
   };
   // Three walled lanes, like the bridge in the ads: a +1 strip, an enemy horde with a weapon
   // at the end, and a lane of big bonuses guarded by a hero board or wall. You can't switch
-  // lanes once inside, so the choice at the entrance matters.
+  // lanes once inside, but the horde can jump the low walls, so there's no hiding from it.
   const gauntlet = (i, dd) => {
     const len = 66;
     const order = [0, 1, 2].sort(() => rng() - 0.5);
@@ -154,7 +154,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
     strip(stripLane, dd + 4, 16, 1 + Math.floor(L / 15));
     const hc = (hordeLane[0] + hordeLane[1]) / 2;
     const hm = squadSize(i + 2);
-    for (let k = 0; k < 3; k++) squad(dd + 14 + k * 16, hc, Math.round(hm * (0.6 + k * 0.25)), hordeLane);
+    for (let k = 0; k < 3; k++) squad(dd + 14 + k * 16, hc, Math.round(hm * (0.6 + k * 0.25)));
     weaponBoard(hordeLane, dd + len - 4, i, 1);
     const g = rng() < 0.5
       ? add({ type: 'hero', d: dd + 8, x0: bigLane[0] + 0.15, x1: bigLane[1] - 0.15, hp: (50 + 8 * i) * hpScale })
@@ -201,13 +201,15 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
   squad(dd + 4, 3, squadSize(rows));
   dd += 40;
   // tuned with tools/balance.mjs so a typical army needs roughly 8-15 s of fire
-  const bossHp = Math.round(7000 * Math.pow(1 + 0.25 * L, 1.45) * D);
+  // about 10 s of a typical army's fire at this level (measured with tools/balance.mjs)
+  const bossHp = Math.round(13000 * Math.exp(0.145 * L) * Math.sqrt(D));
   const boss = add({
-    type: 'boss', d: dd + 8, x: 0, half: 2.4, hp: bossHp, maxHp: bossHp,
+    type: 'boss', d: dd + 8, x: 0, half: 2.8, hp: bossHp, maxHp: bossHp,
     stompKill: Math.ceil((4 + L * 1.3) * Math.sqrt(D)), stompEvery: 1.3, stompT: 0, contact: false,
+    minions: Math.round((4 + L * 1.1) * Math.sqrt(D)), callEvery: Math.max(2.2, 4 - L * 0.04),
   });
   ents.sort((a, b) => a.d - b.d);
-  return { wi, li, L, world, diff, entities: ents, dividers, boss, length: dd + 8, hpScale, seed: seedExtra };
+  return { wi, li, L, world, diff, entities: ents, dividers, boss, length: dd + 8, hpScale, enemyHp, nextId: id, seed: seedExtra };
 }
 
 // ---------------------------------------------------------------- simulation
@@ -240,6 +242,8 @@ export class Sim {
     this.state = 'run';
     this.clashing = false;
     this.lock = null;
+    this.cursor = 0;
+    this.danger = 0;
     this.soldierValue = 2.2 * level.hpScale;
   }
 
@@ -350,6 +354,7 @@ export class Sim {
     const maxVis = w.rate <= 1.2 ? 14 : w.rate < 3 ? 30 : 60;
     const perSec = clamp(this.n * w.rate * this.rateMult, 3, maxVis);
     const dmg = this.dps() / (perSec * pellets);
+    const target = this.aimTarget(range);
     this.fireAcc += perSec * dt;
     let shots = 0;
     while (this.fireAcc >= 1) {
@@ -361,7 +366,7 @@ export class Sim {
       const sd = this.d + Math.sin(a) * r * 0.85;
       for (let p = 0; p < pellets; p++) {
         const spread = pellets > 1 ? ((p / (pellets - 1)) - 0.5) * (w.spread || 0) : 0;
-        this.spawn(sx + spread, sd, dmg, range, w, false);
+        this.spawn(sx + spread, sd, dmg, range, w, false, target);
       }
     }
     // heroes fire their own minigun streams
@@ -373,14 +378,39 @@ export class Sim {
       while (this.heroAcc >= 1) {
         this.heroAcc -= 1;
         const i = Math.floor(Math.random() * this.heroes);
-        this.spawn(this.heroX(i), this.d + 0.5, heroDps / hs, mg.range, mg, true);
+        this.spawn(this.heroX(i), this.d + 0.5, heroDps / hs, mg.range, mg, true, this.aimTarget(mg.range));
       }
     }
     if (shots) this.emit('shot', { w: w.id, k: shots });
   }
 
-  spawn(x, d, dmg, range, w, hero) {
-    this.proj.push({ x: clamp(x, -HW, HW), d, d0: d, dmg, range, speed: w.speed, pierce: w.pierce || 0, hit: null, w, hero });
+  // Soldiers aim at the nearest enemy squad or boss roughly in front of them (like the ads);
+  // gates, boards and walls still need you to steer into their lane.
+  aimTarget(range) {
+    const R = this.radius;
+    let best = null;
+    let bestD = Infinity;
+    for (let i = this.cursor; i < this.ents.length; i++) {
+      const e = this.ents[i];
+      if (e.d - this.d > range) break;
+      if (!e.alive || (e.type !== 'squad' && e.type !== 'boss')) continue;
+      const half = e.type === 'boss' ? e.half : armyRadius(e.m);
+      if (Math.abs(e.x - this.x) > R + half + 3 || e.d < this.d) continue;
+      if (e.d < bestD) { bestD = e.d; best = e; }
+    }
+    return best;
+  }
+
+  spawn(x, d, dmg, range, w, hero, target = null) {
+    x = clamp(x, -HW, HW);
+    let vx = 0;
+    if (target) {
+      const half = target.type === 'boss' ? target.half * 0.7 : armyRadius(target.m) * 0.7;
+      const tx = target.x + (Math.random() * 2 - 1) * half;
+      const t = Math.max(0.05, (target.d - d) / w.speed);
+      vx = (tx - x) / t;
+    }
+    this.proj.push({ x, vx, d, d0: d, dmg, range, speed: w.speed, pierce: w.pierce || 0, hit: null, w, hero });
   }
 
   heroX(i) {
@@ -406,13 +436,17 @@ export class Sim {
   }
 
   updateProjectiles(dt) {
+    while (this.cursor < this.ents.length - 1 && this.ents[this.cursor].d < this.d - 15 && this.ents[this.cursor].type !== 'boss') this.cursor++;
     const out = [];
     for (const p of this.proj) {
       const prev = p.d;
       p.d += p.speed * dt;
+      if (p.vx) p.x += p.vx * dt;
       let best = null;
       let bestD = Infinity;
-      for (const e of this.ents) {
+      const ents = this.ents;
+      for (let i = this.cursor; i < ents.length; i++) {
+        const e = ents[i];
         if (e.d - 8 > p.d) break; // entities are roughly sorted by d
         if (!this.shootable(e) || (p.hit && p.hit.has(e.id))) continue;
         const [x0, x1, d0, d1] = this.spanOf(e);
@@ -556,9 +590,19 @@ export class Sim {
     return ((this.t + e.phase) % e.period) < e.on;
   }
 
+  spawnSquad(d, x, m) {
+    const e = { type: 'squad', d, x, m, m0: m, hpEach: this.level.enemyHp, acc: 0, contact: false, alive: true, passed: false, id: this.level.nextId++ };
+    let i = this.ents.length;
+    while (i > 0 && this.ents[i - 1].d > d) i--;
+    this.ents.splice(i, 0, e);
+    this.emit('spawn', { e });
+    return e;
+  }
+
   updateEntities(dt) {
     const R = this.radius;
     this.clashing = false;
+    this.danger = 0;
     for (const e of this.ents) {
       if (!e.alive) continue;
       if (e.type === 'squad') {
@@ -579,18 +623,28 @@ export class Sim {
         } else if (e.d < this.d - R - r - 1) {
           e.alive = false; // ran past
           this.emit('dodge', { e });
-        } else if (e.d - this.d < 34) {
-          e.d -= 7 * dt;
-          if (e.lane) {
-            e.x = clamp(e.x, e.lane[0] + r, e.lane[1] - r);
-          } else {
-            e.x += clamp(this.x - e.x, -1, 1) * 1.6 * dt;
-            e.x = clamp(e.x, -HW + r, HW - r);
+        } else if (e.d - this.d < 52) {
+          e.d -= 8 * dt;
+          // charge: run at the army and steer hard toward it
+          e.x += clamp(this.x - e.x, -1, 1) * 3.4 * dt;
+          e.x = clamp(e.x, -HW + r, HW - r);
+          e.charging = true;
+          if (Math.abs(e.x - this.x) < R + r + 1.5) {
+            const closeness = 1 - Math.max(0, gap) / 52;
+            this.danger = Math.max(this.danger, Math.min(1.5, e.m / Math.max(1, this.n)) * closeness);
           }
         }
       } else if (e.type === 'boss') {
         if (e.flash > 0) e.flash = Math.max(0, e.flash - dt * 8);
         if (e.d - this.d < 34) e.d -= 2.2 * dt;
+        // the boss keeps calling in reinforcements that charge your army
+        if (e.d - this.d < 48) {
+          e.callT = (e.callT ?? 1.5) - dt;
+          if (e.callT <= 0) {
+            e.callT = e.callEvery;
+            this.spawnSquad(e.d - e.half - 1.5, (Math.random() - 0.5) * 6, e.minions);
+          }
+        }
         const touching = e.d - e.half - (this.d + R * 0.8) <= 0.05;
         if (touching) {
           if (!e.contact) { e.contact = true; e.stompT = 0.6; }

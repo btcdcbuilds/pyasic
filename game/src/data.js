@@ -3,16 +3,16 @@
 export const WEAPONS = [
   // dmg = damage per bullet, rate = shots per second per soldier, range in world units.
   // pellets = bullets per shot, pierce = extra targets hit, splash = explosion radius, chain = extra arc targets.
-  { id: 'pistol',  name: 'Pistol',          tier: 0, dmg: 1,   rate: 2.0, range: 24, speed: 70, color: 0xffe08a, size: 0.9, price: 0 },
-  { id: 'smg',     name: 'SMG',             tier: 1, dmg: 1,   rate: 4.5, range: 24, speed: 75, color: 0xffd060, size: 0.8, price: 400 },
-  { id: 'rifle',   name: 'Assault Rifle',   tier: 2, dmg: 2.2, rate: 3.6, range: 30, speed: 85, color: 0xffb040, size: 1.0, price: 1200 },
-  { id: 'shotgun', name: 'Combat Shotgun',  tier: 3, dmg: 1.6, rate: 1.6, range: 20, speed: 70, color: 0xffa060, size: 0.8, pellets: 5, spread: 1.6, price: 2500 },
-  { id: 'minigun', name: 'Minigun',         tier: 4, dmg: 1.5, rate: 11,  range: 28, speed: 90, color: 0xfff27a, size: 0.8, price: 5000 },
-  { id: 'laser',   name: 'Laser Rifle',     tier: 5, dmg: 4.5, rate: 4,   range: 34, speed: 140, color: 0x5cf2ff, size: 1.6, pierce: 2, price: 9000 },
-  { id: 'rocket',  name: 'Rocket Launcher', tier: 6, dmg: 16,  rate: 1.0, range: 34, speed: 45, color: 0xff6a2a, size: 1.8, splash: 3.2, price: 15000 },
-  { id: 'plasma',  name: 'Plasma Cannon',   tier: 7, dmg: 9,   rate: 2.6, range: 32, speed: 60, color: 0xc05cff, size: 1.6, splash: 1.8, pierce: 1, price: 24000 },
-  { id: 'tesla',   name: 'Tesla Arc',       tier: 8, dmg: 7,   rate: 3.2, range: 26, speed: 120, color: 0x8ad8ff, size: 1.2, chain: 3, price: 36000 },
-  { id: 'railgun', name: 'Railgun',         tier: 9, dmg: 40,  rate: 0.9, range: 46, speed: 220, color: 0x7affc8, size: 2.6, pierce: 6, price: 55000 },
+  { id: 'pistol',  name: 'Pistol',          tier: 0, dmg: 1,   rate: 2.0, range: 42, speed: 91, color: 0xffe08a, size: 0.9, price: 0 },
+  { id: 'smg',     name: 'SMG',             tier: 1, dmg: 1,   rate: 4.5, range: 42, speed: 98, color: 0xffd060, size: 0.8, price: 400 },
+  { id: 'rifle',   name: 'Assault Rifle',   tier: 2, dmg: 2.2, rate: 3.6, range: 52, speed: 110, color: 0xffb040, size: 1.0, price: 1200 },
+  { id: 'shotgun', name: 'Combat Shotgun',  tier: 3, dmg: 1.6, rate: 1.6, range: 35, speed: 91, color: 0xffa060, size: 0.8, pellets: 5, spread: 1.6, price: 2500 },
+  { id: 'minigun', name: 'Minigun',         tier: 4, dmg: 1.5, rate: 11,  range: 49, speed: 117, color: 0xfff27a, size: 0.8, price: 5000 },
+  { id: 'laser',   name: 'Laser Rifle',     tier: 5, dmg: 4.5, rate: 4,   range: 60, speed: 182, color: 0x5cf2ff, size: 1.6, pierce: 2, price: 9000 },
+  { id: 'rocket',  name: 'Rocket Launcher', tier: 6, dmg: 16,  rate: 1.0, range: 60, speed: 58, color: 0xff6a2a, size: 1.8, splash: 3.2, price: 15000 },
+  { id: 'plasma',  name: 'Plasma Cannon',   tier: 7, dmg: 9,   rate: 2.6, range: 56, speed: 78, color: 0xc05cff, size: 1.6, splash: 1.8, pierce: 1, price: 24000 },
+  { id: 'tesla',   name: 'Tesla Arc',       tier: 8, dmg: 7,   rate: 3.2, range: 46, speed: 156, color: 0x8ad8ff, size: 1.2, chain: 3, price: 36000 },
+  { id: 'railgun', name: 'Railgun',         tier: 9, dmg: 40,  rate: 0.9, range: 80, speed: 286, color: 0x7affc8, size: 2.6, pierce: 6, price: 55000 },
 ];
 export const weaponById = Object.fromEntries(WEAPONS.map((w) => [w.id, w]));
 export const weaponDps = (w) => w.dmg * w.rate * (w.pellets || 1) * (1 + (w.pierce || 0) * 0.25 + (w.splash ? 0.5 : 0) + (w.chain || 0) * 0.25);

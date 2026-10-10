@@ -14,6 +14,8 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ink); color: var(--text); font-family: "Arial Black", "Segoe UI", Roboto, sans-serif; touch-action: none; }
 #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 #overlay { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+#danger { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, rgba(255,0,0,0) 55%, rgba(255,0,0,0.55) 100%); }
+.enemy-label.charging { animation: pulse .25s ease-in-out infinite alternate; box-shadow: 0 0 12px #ff2020; }
 .hidden { display: none !important; }
 
 /* labels over 3D objects */

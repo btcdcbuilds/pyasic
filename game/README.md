@@ -33,7 +33,7 @@ Then go to repo **Settings → Secrets and variables → Actions** and add these
 | Action | Effect |
 |---|---|
 | Drag left/right | Steer your army (arrow keys or A/D on desktop) |
-| Your army fires automatically | Every soldier shoots on its own rhythm, so bullets stream out continuously. Bullets only hit things in front of your army, so the lane you are in decides what you shoot |
+| Your army fires automatically | Every soldier shoots on its own rhythm, so bullets stream out continuously. Soldiers aim at enemy squads and bosses near your path; gates, boards and walls only get hit if you are in their lane |
 | Shoot a blue `+` gate | Raises its number, up to double its starting value ("MAX") |
 | Shoot a red `-` gate | Lowers the penalty until it flips to a `+` gate |
 | `x2`, `÷2`, % DAMAGE and % FIRE RATE gates | Can't be changed by shooting |
@@ -41,9 +41,9 @@ Then go to repo **Settings → Secrets and variables → Actions** and add these
 | Shoot a cage to 0 | The prisoners wait in their lane. Run into them to add them to your army |
 | Run into a board/wall that still has HP | You lose soldiers in proportion to how much of your army hits it |
 | `+1` / `+N` bonus strips | Blocks lined up in one lane. Run through as many as you can |
-| Walled 3-lane sections | Once inside you can't switch lanes. One lane has a `+1` strip, one has an enemy horde with a better weapon at the end, and one has big `+N` bonuses behind a hero board or wall |
-| Enemy squad | Shoot it down before contact. On contact both sides lose soldiers 1:1 |
-| Boss | Stops your army. Stomps kill a fixed number of soldiers plus 5% of your army every 1.3 s until it dies |
+| Walled 3-lane sections | Once inside you can't switch lanes, but the enemy horde jumps the low walls to reach you. One lane has a `+1` strip, one has the horde with a better weapon at the end, and one has big `+N` bonuses behind a hero board or wall |
+| Enemy squad | Charges at you from about 50 m and steers toward your army (a red warning pulses when a big one is coming). Shoot it down before contact. On contact both sides lose soldiers 1:1 |
+| Boss | Stops your army, keeps calling in squads of reinforcements that charge you, and stomps (a fixed number of soldiers plus 5% of your army every 1.3 s) until it dies |
 
 ## Worlds (8 worlds × 5 levels = 40 levels)
 
@@ -62,16 +62,16 @@ Then go to repo **Settings → Secrets and variables → Actions** and add these
 
 | Weapon | Damage | Shots/s | Range | Special | Armory unlock | Price |
 |---|---|---|---|---|---|---|
-| Pistol | 1 | 2.0 | 24 | - | start | free |
-| SMG | 1 | 4.5 | 24 | - | W1-5 | 400 |
-| Assault Rifle | 2.2 | 3.6 | 30 | - | W2-4 | 1,200 |
-| Combat Shotgun | 1.6 ×5 | 1.6 | 20 | 5 pellets in a spread | W3-3 | 2,500 |
-| Minigun | 1.5 | 11 | 28 | - | W4-2 | 5,000 |
-| Laser Rifle | 4.5 | 4 | 34 | pierces 2 targets | W5-1 | 9,000 |
-| Rocket Launcher | 16 | 1.0 | 34 | explosive splash | W5-5 | 15,000 |
-| Plasma Cannon | 9 | 2.6 | 32 | splash + pierce | W6-4 | 24,000 |
-| Tesla Arc | 7 | 3.2 | 26 | chains to 3 extra targets | W7-3 | 36,000 |
-| Railgun | 40 | 0.9 | 46 | pierces 6 targets | W8-2 | 55,000 |
+| Pistol | 1 | 2 | 42 | - | start | free |
+| SMG | 1 | 4.5 | 42 | - | W1-5 | 400 |
+| Assault Rifle | 2.2 | 3.6 | 52 | - | W2-4 | 1,200 |
+| Combat Shotgun | 1.6 ×5 | 1.6 | 35 | 5 pellets in a spread | W3-3 | 2,500 |
+| Minigun | 1.5 | 11 | 49 | - | W4-2 | 5,000 |
+| Laser Rifle | 4.5 | 4 | 60 | pierces 2 targets | W5-1 | 9,000 |
+| Rocket Launcher | 16 | 1 | 60 | explosive splash | W5-5 | 15,000 |
+| Plasma Cannon | 9 | 2.6 | 56 | splash + pierce | W6-4 | 24,000 |
+| Tesla Arc | 7 | 3.2 | 46 | chains to 3 extra targets | W7-3 | 36,000 |
+| Railgun | 40 | 0.9 | 80 | pierces 6 targets | W8-2 | 55,000 |
 
 Damage values are per soldier. Weapon boards inside levels can hand out any of these, scaled to the world you are in.
 
@@ -90,12 +90,12 @@ On top of that, every level scales up. Obstacle HP grows +30% per level, enemy t
 
 `node tools/balance.mjs <difficulty> career` runs a bot through all 40 levels × 3 random layouts (120 runs). At each level it gets the upgrades and weapon a player could plausibly own by then (upgrade level = level number ÷ 3, weapon tier = level number ÷ 6). The bot steers greedily, so real players will do somewhat worse.
 
-| Difficulty | Bot wins (of 120) | Average level length | Average boss fight (wins) |
+| Difficulty | Bot wins (of 120) | Average level length | Average boss fight (wins, from first hit) |
 |---|---|---|---|
-| Recruit | 114 | 119 s | 4.5 s |
-| Soldier | 107 | 122 s | 6.2 s |
-| Veteran | 74 | 129 s | 8.9 s |
-| Nightmare | 30 | 133 s | 9.9 s |
+| Recruit | 108 | 119 s | 4.2 s |
+| Soldier | 98 | 120 s | 4.9 s |
+| Veteran | 63 | 113 s | 5.7 s |
+| Nightmare | 24 | 89 s | 6.9 s |
 
 ## Research notes (why it is built this way)
 

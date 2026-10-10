@@ -8,7 +8,7 @@ import { buildEnvironment } from './env.js';
 import { Particles } from './particles.js';
 
 const QUALITY = {
-  high: { army: 220, enemy: 450, pr: 2 },
+  high: { army: 220, enemy: 450, pr: 1.75 },
   medium: { army: 150, enemy: 300, pr: 1.5 },
   low: { army: 90, enemy: 180, pr: 1 },
 };
@@ -37,30 +37,27 @@ function colored(geo, hex) {
 const box = (w, h, d, x, y, z, hex) => colored(new THREE.BoxGeometry(w, h, d).translate(x, y, z), hex);
 const sph = (r, x, y, z, hex, ws = 10, hs = 7) => colored(new THREE.SphereGeometry(r, ws, hs).translate(x, y, z), hex);
 const cyl = (r1, r2, h, x, y, z, hex, seg = 8) => colored(new THREE.CylinderGeometry(r1, r2, h, seg).translate(x, y, z), hex);
-const cap = (r, len, x, y, z, hex, rx = 0, seg = 6) => colored(new THREE.CapsuleGeometry(r, len, 2, seg).rotateX(rx).translate(x, y, z), hex);
+const cap = (r, len, x, y, z, hex, rx = 0, seg = 6) => colored(new THREE.CapsuleGeometry(r, len, seg <= 4 ? 1 : 2, seg).rotateX(rx).translate(x, y, z), hex);
 
 // Rounded soldier: tinted part (uniform, helmet, pads) + fixed-colour part (skin, gun, boots).
 function soldierGeometries() {
+  // Low-poly but rounded (~300 triangles) so hundreds of soldiers stay smooth on phones.
   const tinted = mergeGeometries([
-    cap(0.075, 0.24, -0.09, 0.22, 0, 0x7d7d7d),
-    cap(0.075, 0.24, 0.09, 0.22, 0, 0x7d7d7d),
-    colored(new THREE.CapsuleGeometry(0.17, 0.18, 3, 8).scale(1, 1, 0.72).translate(0, 0.6, 0), 0xffffff),
-    cap(0.058, 0.22, -0.21, 0.6, -0.08, 0xeeeeee, 0.6),
-    cap(0.058, 0.22, 0.21, 0.6, -0.1, 0xeeeeee, 0.9),
-    sph(0.075, -0.18, 0.74, 0, 0xdcdcdc, 7, 5),
-    sph(0.075, 0.18, 0.74, 0, 0xdcdcdc, 7, 5),
-    colored(new THREE.SphereGeometry(0.155, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.9, 0), 0xffffff),
-    cyl(0.19, 0.19, 0.03, 0, 0.9, 0, 0xe0e0e0, 12),
+    cap(0.075, 0.24, -0.09, 0.22, 0, 0x7d7d7d, 0, 4),
+    cap(0.075, 0.24, 0.09, 0.22, 0, 0x7d7d7d, 0, 4),
+    colored(new THREE.CapsuleGeometry(0.17, 0.18, 2, 6).scale(1, 1, 0.72).translate(0, 0.6, 0), 0xffffff),
+    cap(0.058, 0.22, -0.21, 0.6, -0.08, 0xeeeeee, 0.6, 4),
+    cap(0.058, 0.22, 0.21, 0.6, -0.1, 0xeeeeee, 0.9, 4),
+    colored(new THREE.SphereGeometry(0.155, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.9, 0), 0xffffff),
+    cyl(0.19, 0.19, 0.03, 0, 0.9, 0, 0xe0e0e0, 8),
     box(0.22, 0.24, 0.1, 0, 0.62, 0.15, 0x9a9a9a),
   ]);
   const fixed = mergeGeometries([
-    sph(0.12, 0, 0.86, 0, 0xf0c39a, 9, 7),
-    box(0.06, 0.08, 0.52, 0.13, 0.64, -0.3, 0x24262b),
-    colored(new THREE.CylinderGeometry(0.022, 0.022, 0.22, 5).rotateX(Math.PI / 2).translate(0.13, 0.65, -0.64), 0x24262b),
+    sph(0.12, 0, 0.86, 0, 0xf0c39a, 7, 5),
+    box(0.06, 0.08, 0.62, 0.13, 0.64, -0.34, 0x24262b),
     box(0.05, 0.13, 0.06, 0.13, 0.56, -0.22, 0x24262b),
-    cyl(0.17, 0.17, 0.05, 0, 0.45, 0, 0x3a2a1a, 10),
-    sph(0.08, -0.09, 0.04, -0.03, 0x2a2a2a, 6, 4),
-    sph(0.08, 0.09, 0.04, -0.03, 0x2a2a2a, 6, 4),
+    box(0.15, 0.06, 0.2, -0.09, 0.03, -0.03, 0x2a2a2a),
+    box(0.15, 0.06, 0.2, 0.09, 0.03, -0.03, 0x2a2a2a),
   ]);
   return { tinted, fixed };
 }
@@ -84,6 +81,7 @@ function roundRect(ctx, x, y, w, h, r) {
 
 export function fmt(n) {
   n = Math.max(0, Math.round(n));
+  if (n >= 1e6) return (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M';
   if (n >= 10000) return (n / 1000).toFixed(n >= 100000 ? 0 : 1) + 'K';
   return n.toLocaleString('en-US');
 }
@@ -145,6 +143,14 @@ export class Renderer {
     window.addEventListener('resize', () => this.resize());
   }
 
+  // Called when frames are slow: render fewer pixels without reloading anything.
+  lowerResolution() {
+    if (this.prCap === 1) return false;
+    this.prCap = 1;
+    this.resize();
+    return true;
+  }
+
   setQuality(q) {
     this.quality = QUALITY[q] ? q : 'high';
     this.resize();
@@ -153,7 +159,7 @@ export class Renderer {
   resize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const pr = Math.min(window.devicePixelRatio || 1, QUALITY[this.quality].pr);
+    const pr = Math.min(window.devicePixelRatio || 1, QUALITY[this.quality].pr, this.prCap || 9);
     this.gl.setPixelRatio(pr);
     this.gl.setSize(w, h, false);
     this.camera.aspect = w / h;
@@ -578,6 +584,11 @@ export class Renderer {
     const armyZ = -sim.d;
     for (const ev of events) {
       switch (ev.type) {
+        case 'spawn': {
+          this.views.set(ev.e.id, this.buildEntity(ev.e, sim.world));
+          this.dust(ev.e.x, -ev.e.d, 1.2, 0x9a8a7a, 8);
+          break;
+        }
         case 'hit': {
           const w = weaponById[ev.w];
           if (Math.random() < 0.5 || w.rate < 3) this.spark(ev.x, 0.9 + Math.random() * 0.6, -ev.d, w.color, w.rate < 3 ? 4 : 2, 5, 0.3 + w.size * 0.12);
@@ -800,13 +811,14 @@ export class Renderer {
         v.shadow.scale.set(r * 2.6, r * 2.4, 1);
         const m = Math.min(e.m, 180, this.maxEnemy - ei);
         const cc = m > 1 ? (r * 0.92) / Math.sqrt(m) : 0;
-        const moving = e.d - sim.d < 34 && !e.contact;
+        const moving = e.charging && !e.contact;
+        if (v.label) v.label.classList.toggle('charging', !!moving);
         for (let k = 0; k < m; k++) {
           const rr = cc * Math.sqrt(k + 0.5);
           const th = k * 2.39996;
-          const ph = t * 12 + k * 1.7;
-          const bob = moving ? Math.abs(Math.sin(ph)) * 0.1 : Math.abs(Math.sin(t * 3 + k)) * 0.03;
-          tmpE.set(moving ? 0.12 : 0, Math.PI + Math.sin(k * 5.1) * 0.15, 0);
+          const ph = t * 15 + k * 1.7;
+          const bob = moving ? Math.abs(Math.sin(ph)) * 0.14 : Math.abs(Math.sin(t * 3 + k)) * 0.03;
+          tmpE.set(moving ? 0.28 : 0, Math.PI + Math.sin(k * 5.1) * 0.15, moving ? Math.sin(ph) * 0.08 : 0);
           tmpQ.setFromEuler(tmpE);
           tmpM.compose(tmpP.set(e.x + Math.cos(th) * rr, bob, -e.d + Math.sin(th) * rr * 0.9), tmpQ, tmpS.set(1, 1, 1));
           this.enemies.t.setMatrixAt(ei, tmpM);
@@ -841,11 +853,16 @@ export class Renderer {
         } else v.label.style.display = 'none';
       }
       if (!inView) continue;
-      if (e.dirty) {
+      if (e.dirty && t - (v.lastDraw || 0) > 0.08) {
         e.dirty = false;
-        if (e.type === 'gate') this.drawGate(v);
-        else if (e.type === 'board' || e.type === 'hero') this.drawBoard(v);
-        else if (e.type === 'wall') this.drawWall(v);
+        const key = e.type === 'gate' ? `${e.op}${e.v}${e.v >= e.cap}` : `${Math.ceil(e.hp)}${!!e.unlocked}`;
+        if (key !== v.key) {
+          v.key = key;
+          v.lastDraw = t;
+          if (e.type === 'gate') this.drawGate(v);
+          else if (e.type === 'board' || e.type === 'hero') this.drawBoard(v);
+          else if (e.type === 'wall') this.drawWall(v);
+        }
       }
       if (e.type === 'gate') {
         const s = 1 + (e.bump || 0) * 0.06;
@@ -908,8 +925,8 @@ export class Renderer {
       if (pi >= MAX_PROJ) break;
       const w = p.w;
       const sc = w.size * (p.hero ? 1.3 : 1);
-      tmpQ.identity();
-      tmpM.compose(tmpP.set(p.x, 0.7 + (p.hero ? 0.4 : 0), -p.d), tmpQ, tmpS.set(sc, sc, sc * (w.speed > 100 ? 2.4 : 1.2)));
+      tmpQ.setFromAxisAngle(UP, -Math.atan2(p.vx || 0, p.speed));
+      tmpM.compose(tmpP.set(p.x, 0.7 + (p.hero ? 0.4 : 0), -p.d), tmpQ, tmpS.set(sc, sc, sc * (w.speed > 120 ? 2.6 : 1.6)));
       this.projMesh.setMatrixAt(pi, tmpM);
       this.projMesh.setColorAt(pi, tmpC.set(w.color));
       pi++;
@@ -963,14 +980,14 @@ export class Renderer {
     // ---- camera: high and behind, like the ads
     const fight = b.alive && b.d - sim.d < 30;
     const camX = sim.x * 0.5;
-    const back = fight ? 14 : 11.5;
-    const height = fight ? 14 : 12.5;
+    const back = fight ? 15 : 13;
+    const height = fight ? 15.5 : 14;
     const cam = this.camera.position;
     const target = tmpP.set(camX, height, armyZ + back);
     if (!this.camInit) { cam.copy(target); this.camInit = true; } else cam.lerp(target, Math.min(1, dt * 4));
     this.shake = Math.max(0, this.shake - dt * 2);
     const sh = this.shake * this.shake * 0.6;
-    this.camera.lookAt(camX * 0.8 + (Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh, armyZ - 15);
+    this.camera.lookAt(camX * 0.8 + (Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh, armyZ - 17);
 
     this.gl.render(this.scene, this.camera);
   }
@@ -1044,7 +1061,7 @@ function buildHero() {
   const gun = new THREE.Mesh(barrels, mat);
   gun.position.set(0.34, 0.82, -0.75);
   g.add(gun);
-  g.scale.setScalar(1.6);
+  g.scale.setScalar(1.3);
   return g;
 }
 

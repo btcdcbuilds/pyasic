@@ -39,9 +39,11 @@ let sim = null;
 let current = null; // { wi, li }
 let targetX = 0;
 let paused = true;
-let acc = 0;
 let lastT = performance.now();
 let hintTimer = 0;
+let lastWarn = 0;
+let slowFrames = 0;
+const dangerEl = document.getElementById('danger');
 let autoplay = new URLSearchParams(location.search).has('autoplay');
 
 function vibrate(ms) {
@@ -53,6 +55,7 @@ function vibrate(ms) {
 // ------------------------------------------------------------------ screens
 const screens = ['menu', 'worlds', 'armory', 'upgrades', 'settings', 'pause', 'result'];
 function show(name) {
+  dangerEl.style.opacity = 0;
   for (const s of screens) $('#scr-' + s).classList.toggle('hidden', s !== name);
   $('#hud').classList.toggle('hidden', !!name && name !== 'pause' && name !== 'result');
   if (name === 'menu') renderMenu();
@@ -136,7 +139,7 @@ function statBars(w) {
   if (w.pierce) extras.push(`pierces ${w.pierce}`);
   if (w.splash) extras.push('explosive');
   if (w.chain) extras.push(`chains to ${w.chain}`);
-  return bar('Power', weaponDps(w) / maxDps) + bar('Rate', w.rate / 11) + bar('Range', w.range / 46) +
+  return bar('Power', weaponDps(w) / maxDps) + bar('Rate', w.rate / 11) + bar('Range', w.range / 80) +
     (extras.length ? `<div class="tagline">${extras.join(' &bull; ')}</div>` : '');
 }
 
@@ -249,7 +252,6 @@ function startLevel(wi, li) {
   updateWeaponHud();
   hideAll();
   paused = false;
-  acc = 0;
   lastT = performance.now();
 }
 
@@ -390,11 +392,20 @@ function frame(now) {
     if (keys.has('ArrowLeft') || keys.has('a')) targetX = Math.max(-6, targetX - dt * 12);
     if (keys.has('ArrowRight') || keys.has('d')) targetX = Math.min(6, targetX + dt * 12);
     if (autoplay) targetX = botTarget(sim);
-    acc += dt;
-    while (acc >= 1 / 60) {
-      sim.update(1 / 60, targetX);
-      acc -= 1 / 60;
+    // step the simulation by the real frame time (smooth on 60/90/120 Hz screens)
+    let left = dt;
+    while (left > 1e-4) {
+      const step = Math.min(left, 1 / 50);
+      sim.update(step, targetX);
+      left -= step;
     }
+    // danger warning when a big horde is charging you
+    const danger = Math.min(1, sim.danger || 0);
+    dangerEl.style.opacity = danger > 0.15 ? (0.35 + 0.65 * danger) * (0.75 + 0.25 * Math.sin(now / 90)) : 0;
+    if (danger > 0.45 && now - lastWarn > 1300) { lastWarn = now; sfx.warning(); vibrate(20); }
+    // if the phone can't keep up, drop the render resolution once
+    slowFrames = dt > 1 / 40 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
+    if (slowFrames > 90 && renderer.lowerResolution()) slowFrames = 0;
     handleSimEvents();
     if ($('#hud-weapon').textContent !== sim.weapon.name) updateWeaponHud();
     hintTimer += dt;
