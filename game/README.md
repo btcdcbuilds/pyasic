@@ -33,15 +33,17 @@ Then go to repo **Settings → Secrets and variables → Actions** and add these
 | Action | Effect |
 |---|---|
 | Drag left/right | Steer your army (arrow keys or A/D on desktop) |
-| Your army fires automatically | Bullets hit whatever is in their column |
-| Shoot a blue gate | Raises its number (each point costs a little more than the last) |
+| Your army fires automatically | Every soldier shoots on its own rhythm, so bullets stream out continuously. Bullets only hit things in front of your army, so the lane you are in decides what you shoot |
+| Shoot a blue `+` gate | Raises its number, up to double its starting value ("MAX") |
 | Shoot a red `-` gate | Lowers the penalty until it flips to a `+` gate |
-| Shoot a weapon board to 0 | Your whole army switches to that weapon (or gets +15% damage if it is a downgrade) |
-| Shoot a HERO board to 0 | A minigun hero joins you. Each hero fires like 12 soldiers and soaks one wipe |
-| Shoot a cage to 0 | Frees prisoners, who join your army |
+| `x2`, `÷2`, % DAMAGE and % FIRE RATE gates | Can't be changed by shooting |
+| Shoot a weapon / HERO board to 0 | It turns gold and says RUN IN!. You only get it if you then run through it. Miss it and it's gone |
+| Shoot a cage to 0 | The prisoners wait in their lane. Run into them to add them to your army |
 | Run into a board/wall that still has HP | You lose soldiers in proportion to how much of your army hits it |
-| Enemy squad | Shoot it down before contact; on contact both sides lose soldiers 1:1 |
-| Boss | Stops your army; stomps kill soldiers every ~1.15 s until it dies |
+| `+1` / `+N` bonus strips | Blocks lined up in one lane. Run through as many as you can |
+| Walled 3-lane sections | Once inside you can't switch lanes. One lane has a `+1` strip, one has an enemy horde with a better weapon at the end, and one has big `+N` bonuses behind a hero board or wall |
+| Enemy squad | Shoot it down before contact. On contact both sides lose soldiers 1:1 |
+| Boss | Stops your army. Stomps kill a fixed number of soldiers plus 5% of your army every 1.3 s until it dies |
 
 ## Worlds (8 worlds × 5 levels = 40 levels)
 
@@ -82,21 +84,18 @@ Damage values are per soldier. Weapon boards inside levels can hand out any of t
 | Veteran | ×1.6 | ×1.4 | ×1.5 |
 | Nightmare | ×2.8 | ×1.9 | ×2.2 |
 
-On top of that, every level scales up. Obstacle HP grows +30% per level index, boss HP grows faster, and later levels have more rows and more negative gates.
+On top of that, every level scales up. Obstacle HP grows +30% per level, enemy toughness +14% per level, boss HP grows faster, and later levels are longer (16 to 36 rows, with a walled 3-lane section every 6 rows) with more negative gates.
 
 ### Balance test results
 
-`node tools/balance.mjs <difficulty> <upgrade level> <start weapon>` runs a bot through all 40 levels × 3 random layouts (120 runs). The bot steers greedily, so real players will do somewhat worse.
+`node tools/balance.mjs <difficulty> career` runs a bot through all 40 levels × 3 random layouts (120 runs). At each level it gets the upgrades and weapon a player could plausibly own by then (upgrade level = level number ÷ 3, weapon tier = level number ÷ 6). The bot steers greedily, so real players will do somewhat worse.
 
-| Difficulty | Upgrades | Start weapon | Bot wins (of 120) |
+| Difficulty | Bot wins (of 120) | Average level length | Average boss fight (wins) |
 |---|---|---|---|
-| Recruit | none | Pistol | 108 |
-| Soldier | none | Pistol | 92 |
-| Veteran | none | Pistol | 42 |
-| Nightmare | none | Pistol | 6 |
-| Veteran | all Lv 6 | SMG | 118 |
-| Nightmare | all Lv 6 | SMG | 100 |
-| Nightmare | all Lv 12 | Assault Rifle | 120 |
+| Recruit | 114 | 119 s | 4.5 s |
+| Soldier | 107 | 122 s | 6.2 s |
+| Veteran | 74 | 129 s | 8.9 s |
+| Nightmare | 30 | 133 s | 9.9 s |
 
 ## Research notes (why it is built this way)
 
@@ -128,7 +127,9 @@ npm run build && npx cap sync android   # then open game/android in Android Stud
 |---|---|
 | `src/data.js` | Weapons, worlds, difficulties, upgrades |
 | `src/sim.js` | Level generator and gameplay simulation (no rendering, testable in Node) |
-| `src/render.js` | Three.js scene, environments, crowds, bosses, effects |
+| `src/render.js` | Three.js scene, crowds, bosses, effects |
+| `src/env.js` | Per-world scenery |
+| `src/particles.js` | Soft glow / smoke particles |
 | `src/main.js` | Menus, save data, input, game loop |
 | `src/audio.js` | Procedural sound effects (no audio files) |
 | `tools/balance.mjs` | Headless bot balance test |

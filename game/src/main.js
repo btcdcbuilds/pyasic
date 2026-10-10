@@ -283,12 +283,17 @@ function handleSimEvents() {
       case 'gate': ev.good ? sfx.good() : (sfx.bad(), vibrate(60)); weaponChanged = true; break;
       case 'weapon': case 'hero': sfx.weapon(); weaponChanged = true; vibrate(40); break;
       case 'powerup': case 'allies': sfx.good(); weaponChanged = true; break;
+      case 'unlock': sfx.unlockReward(); vibrate(25); break;
+      case 'collect': sfx.good(); break;
+      case 'missed': sfx.bad(); break;
+      case 'pickup': sfx.pickup(ev.e.big); break;
+      case 'kill': if (!ev.clash) sfx.kill(); break;
       case 'coin': sfx.coin(); $('#hud-coins').textContent = sim.coins; break;
       case 'crash': case 'burn': sfx.crash(); vibrate(80); break;
       case 'clash': sfx.clash(); vibrate(40); break;
       case 'stomp': sfx.stomp(); vibrate(120); break;
       case 'bossDown': sfx.boom(); vibrate(200); break;
-      case 'destroy': if (ev.e.type !== 'barrel') sfx.crash(); break;
+      case 'destroy': if (ev.e.type !== 'barrel') sfx.crash(); else { sfx.boom(); vibrate(30); } break;
       case 'won': case 'lost': {
         const s = sim; // ignore if the player restarted before the timer fired
         const won = ev.type === 'won';
@@ -311,7 +316,7 @@ function finish(won) {
   const stars = sim.stars();
   let coins;
   if (won) {
-    coins = (25 + L * 8 + sim.kills * 0.15 + sim.n * 0.25) * (1 + 0.25 * (stars - 1));
+    coins = (25 + L * 8 + sim.kills * 0.15 + sim.n * 0.1) * (1 + 0.25 * (stars - 1));
   } else {
     coins = (8 + L * 2 + sim.kills * 0.08) * Math.min(1, sim.d / sim.level.length);
   }
@@ -361,8 +366,8 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.addEventListener('pointermove', (e) => {
   if (!dragging) return;
-  const sens = 13 / Math.min(window.innerWidth, 600);
-  targetX = Math.max(-5, Math.min(5, dragStartTarget + (e.clientX - dragStartX) * sens));
+  const sens = 15 / Math.min(window.innerWidth, 600);
+  targetX = Math.max(-6, Math.min(6, dragStartTarget + (e.clientX - dragStartX) * sens));
 });
 const endDrag = () => { dragging = false; };
 canvas.addEventListener('pointerup', endDrag);
@@ -382,8 +387,8 @@ function frame(now) {
   let dt = Math.min(0.1, (now - lastT) / 1000);
   lastT = now;
   if (sim && !paused) {
-    if (keys.has('ArrowLeft') || keys.has('a')) targetX = Math.max(-5, targetX - dt * 10);
-    if (keys.has('ArrowRight') || keys.has('d')) targetX = Math.min(5, targetX + dt * 10);
+    if (keys.has('ArrowLeft') || keys.has('a')) targetX = Math.max(-6, targetX - dt * 12);
+    if (keys.has('ArrowRight') || keys.has('d')) targetX = Math.min(6, targetX + dt * 12);
     if (autoplay) targetX = botTarget(sim);
     acc += dt;
     while (acc >= 1 / 60) {

@@ -88,4 +88,19 @@ export class Sfx {
   win() { [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone(f, 0.25, 'triangle', 0.15, null, i * 0.11)); }
   lose() { [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.3, 'sawtooth', 0.08, null, i * 0.16)); }
   click() { this.tone(900, 0.04, 'square', 0.05); }
+  unlockReward() { [660, 880, 1320].forEach((f, i) => this.tone(f, 0.1, 'triangle', 0.1, null, i * 0.05)); }
+  pickup(big) {
+    if (!this.ok()) return;
+    const now = this.ctx.currentTime;
+    if (!big && now - (this.lastPick || 0) < 0.05) return;
+    this.lastPick = now;
+    this.tone(big ? 880 : 1100 + Math.random() * 300, big ? 0.15 : 0.05, 'triangle', big ? 0.12 : 0.05);
+  }
+  kill() {
+    if (!this.ok()) return;
+    const now = this.ctx.currentTime;
+    if (now - this.lastHit < 0.07) return;
+    this.lastHit = now;
+    this.noise(0.05, 2400, 2, 0.05);
+  }
 }

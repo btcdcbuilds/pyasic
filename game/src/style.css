@@ -23,6 +23,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ink); 
 .enemy-label { background: var(--red); border: 3px solid #fff; border-radius: 999px; padding: 1px 10px; font-size: 17px; }
 .cage-label { background: #8a6a3a; border: 3px solid #fff; border-radius: 10px; padding: 1px 8px; font-size: 16px; text-align: center; }
 .cage-label small { display: block; margin: 0; }
+.cage-label.open { background: #1f9a42; animation: pulse .6s ease-in-out infinite alternate; }
+@keyframes pulse { to { scale: 1.12; } }
 .pop { position: absolute; left: 0; top: 0; font-size: 26px; font-weight: 900; -webkit-text-stroke: 1.5px #000; animation: pop 1s ease-out forwards; white-space: nowrap; }
 .pop.good { color: #6cff6c; }
 .pop.bad { color: #ff4a4a; }
