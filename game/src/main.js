@@ -7,12 +7,29 @@ import { levelCoins } from './economy.js';
 import { drawWeaponIcon } from './icons.js';
 
 import { App } from '@capacitor/app';
-import { loadSave, persistSave, defaults, dailyStatus } from './save.js';
+import { Preferences } from '@capacitor/preferences';
+import { loadSave, persistSave, defaults, dailyStatus, sanitize, SAVE_KEY } from './save.js';
 
 // ------------------------------------------------------------------ save data
 let save = loadSave();
 function persist() {
   if (!persistSave(save)) toast('Could not save progress (storage full or blocked)');
+  // second copy in Android's native app storage, in case the WebView storage is ever cleared
+  try { Preferences.set({ key: SAVE_KEY, value: JSON.stringify(save) }).catch(() => {}); } catch { /* web */ }
+}
+// If the main copy is missing but the native backup exists, restore it.
+async function restoreBackup() {
+  let hasMain = false;
+  try { hasMain = !!localStorage.getItem(SAVE_KEY); } catch { /* ignore */ }
+  if (hasMain) return;
+  try {
+    const { value } = await Preferences.get({ key: SAVE_KEY });
+    if (!value) return;
+    save = sanitize(JSON.parse(value));
+    persistSave(save);
+    if (screen === 'menu') show('menu');
+    toast('Progress restored');
+  } catch { /* no backup */ }
 }
 const upLvl = (id) => save.upgrades[id] || 0;
 const TOTAL_LEVELS = WORLDS.length * LEVELS_PER_WORLD;
@@ -570,6 +587,7 @@ renderer.render(0);
 sim = null;
 show('menu');
 checkDaily();
+restoreBackup();
 requestAnimationFrame(frame);
 
 // expose for automated testing
