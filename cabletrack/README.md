@@ -1,51 +1,53 @@
 # CableTrack
 
-Installation tracking app for structured cabling jobs (built first for a data centre bulk-fibre contract, but every stage, cable type, crew and rack is configurable so it works for any cabling job).
+Installation tracking app for cabling contracts. It works for any cabling job: stages, cable types, points, pathways, crews and ITPs are all configurable. It was built first for a data centre bulk-fibre contract.
 
-Self-contained: this folder has no dependency on the rest of the repository and can be copied into its own repo as-is.
+The folder is self-contained and has no dependency on the rest of this repository. It can be copied into its own repo as-is.
 
 ## What it does
 
-| Area | Features |
-|---|---|
-| **Dashboard** | Live % complete per stage, metres roughed in, fibre-km installed, ribbon splices, hours, metres per man-hour, daily chart by crew, output per crew and per cable type. Filter today / 7 days / to date. |
-| **Log work** | Crew lead picks date, crew and stage, ticks cables and enters quantity. Partial metres are supported for long pulls (up to 300 m). Shows ribbon-splice and fibre-km equivalents. Undo per entry. |
-| **Hours** | Daily timesheet per crew (one tap fills the default shift), workers borrowed from other crews, weekly hours grid per worker. |
-| **Cable schedule** | Add, bulk-add a numbered range, or import a CSV cable schedule (template provided). Per-cable stage status, history, CSV export. |
-| **Floor layout** | Interactive plan: place rows of racks (Vertiv, APC, Panduit, Rittal or custom sizes), draw baskets/trays to scale, add drops into racks, highlight any cable's route. Pathways turn amber or red as they fill. |
-| **Rack elevations** | Front elevation with panels/enclosures by U, drop entry points, side view of the waterfall from basket to rack with the bend radius, and capacity (fibres, MPO connectors, ribbon splices vs ports). |
-| **Trays & baskets** | Fill % from cable cross-section vs usable area, illustrative packed cross-section, what-if "how many more fit", cable weight per metre. Presets for Cablofil, OBO, B-Line, Wyr-Grid and FiberRunner. |
-| **Cable library** | About 30 products from Corning, CommScope, Sumitomo, AFL, Prysmian, Panduit, Belden, Siemon, Nexans, Excel and Leviton: OD, bend radius, pull tension, weight, each with a source link. Install guide per cable type. Standards reference (TIA-569, TIA-568, NEC 392, EN 50174-2). |
-| **Reports** | Daily or date-range report (crews, labour, work log, project status) to print or save as PDF; progress and hours CSV exports. |
-| **Settings** | Project details, editable work stages (add your own), JSON backup and restore. |
-
-### Default stages and how they are measured
-
-| Stage | Unit | Target per cable |
+| Area | Screen | Features |
 |---|---|---|
-| Roughed in | metres | cable length |
-| Tied in | metres | cable length |
-| Spliced | fibres | fibre count x ends (864F x 2 = 1728 fibres = 144 x 12F ribbon splices) |
-| Terminated | connectors | ceil(fibres / fibres-per-connector) x ends (1728F MPO-16 = 108 x 2 = 216) |
-| Tested | fibres | fibre count x ends |
+| Track | **Dashboard** | Live % per stage, metres roughed in, fibre-km, ribbon splices, hours, metres per man-hour, daily chart by crew, crew and cable-type output, QA tiles (tested, labelled, hold points, issues) |
+| | **Log work** | Per crew, stage and date. Partial metres for long pulls. ITP hold-point warning or block. Records who logged each entry |
+| | **Hours** | Daily crew timesheets, weekly hours per worker |
+| | **Site diary** | Weather, notes, delays, safety, visitors, photos |
+| Install | **Cable schedule** | A/B points and ports, CSV import/export, bulk add. Route editor with **Auto-route** (shortest path, design length = route + drops + slack). Jacket marks for measured length, labels per end, drum, tests, photos |
+| | **Points & areas** | Any endpoint (rack, cabinet, frame, closure, outlet, pit, manhole, pole, building entry, pull box) in a site / building / floor / room tree. TIA-606 style codes, slack per point |
+| | **Pathways** | Tray, basket, ladder, raceway, trunking, conduit, duct, innerduct, riser, J-hooks, catenary. Drawn on a plan or entered as "from point A to point B, length". Fill vs limit (NEC Ch.9 by cable count for conduit), cross-section, spare capacity |
+| | **Floor layout** | One plan per area. Upload a floor plan image and set its scale with two points. Place rows of racks and any point type, draw pathways to scale, add drops, highlight a cable's route |
+| | **Rack elevations** | Devices by U, drop entries, side view of the drop with bend radius, capacity |
+| Quality | **ITP sign-off** | Editable ITP templates (default cabling ITP with cited criteria). Inspection lots linked to cables and pathways. Per-item contractor and client sign-off with on-screen signatures. Hold points release work stages. Printable A4 sign-off sheet, CSV |
+| | **Test results** | OLTS, OTDR, polarity, end-face, copper certification, splice loss, reel tests. Auto pass/fail against each link's loss budget. Import from tester CSV. Tester files attached |
+| | **Issues / punch** | Defects, punch list, NCRs, RFIs, safety, delays, with photos and close-out |
+| | **Reports & exports** | Daily or period report (crews, labour, status, diary, QA) to print or PDF. CSV exports: label schedule, ITP register, issues, test summary, hours, progress, full JSON |
+| Setup | **Library** | About 30 cable products and 14 rack models with source links, a drum register, and a standards reference |
+| | **Crews & people** | Crews, workers, and people who sign off |
+| | **Settings** | Your name, project, loss-budget allowances, slack, hold-point mode, job templates, stages, **Cloud & team**, backup |
 
-Each cable type chooses which stages apply. For example, the 864F ribbon cable has no "Terminated" stage and the pre-terminated MPO-16 cables have no "Spliced" stage.
+## Data, sync and multi-user
 
-## Data accuracy
+- **Offline first.** Data is stored on the device in IndexedDB. Photos are stored there too, compressed on the device.
+- **Cloud (optional).** Sign in under Settings > Cloud & team, create a cloud project, and invite people by email with a role:
 
-- The library spec values were collected on 2026-10-11 from search-engine extracts of the linked manufacturer pages, because direct page fetches were blocked in the build environment. Every entry is marked **check** until someone ticks "I have checked these values against the datasheet". Where a source didn't give a value, the field is blank and nothing is estimated.
-- The three contract cable types (1728F / 864F / 64F) start with brand "TBC" and no specs. Once the manufacturer is confirmed, use **Copy specs from** in the cable type editor.
-- Standards rules are quoted secondhand (the standards themselves are paywalled); each links to the page it was quoted from. Your project specification takes precedence.
+  | Role | Access |
+  |---|---|
+  | Admin | Everything, plus team management |
+  | Supervisor | Read and write |
+  | Crew lead | Read and write |
+  | Viewer | Read only |
 
-## Where data is stored (read this)
+  Changes sync to Supabase (Postgres + storage + realtime) and appear live on other devices. Edits made offline sync when the device is back online. Each record is last-write-wins.
+- **Backend setup (once).** Run [`supabase/001_init.sql`](supabase/001_init.sql) in the Supabase SQL editor. All objects are prefixed `ct_`, so they can sit inside an existing Supabase project. The app defaults to the POW_Construction project; change it under Settings > Cloud server settings.
 
-The MVP stores everything **in the browser on the device you use** (localStorage). It works offline. However:
+  Note: crew leads can currently edit any record. Narrower per-role editing is enforced only in the UI.
 
-- Data is not shared between devices or people yet. Pick one device (e.g. the supervisor's laptop or tablet) as the master.
-- **Download a backup every shift** (Settings > Download backup). Restore it on another device to move data.
-- Clearing browser data deletes it.
+## Where the reference data comes from
 
-Planned next step: a shared database (e.g. Supabase) so each crew lead logs from their own phone and the dashboard is live for everyone.
+- Every number and rule in the library, ITP criteria and standards tab came from web-search extracts of the linked source, dated 2026-10-11. The standards themselves are paywalled and were not read, so rules are quoted secondhand and each one names its source.
+- Cable specs are marked **check** until someone confirms them against the datasheet.
+- ITP inspection point codes (H/W/R) in the default template are **suggestions**, not from any standard. Agree them with the client.
+- Loss budget defaults are the TIA-568.3 maxima as quoted by FOA: 0.75 dB per mated pair, 0.3 dB per splice, 1.0 / 0.5 dB/km SM inside / outside plant, 3.5 / 1.5 dB/km MM. Change them to your project's acceptance limits in Settings.
 
 ## Run it
 
@@ -55,20 +57,25 @@ Requires Node 20+.
 cd cabletrack
 npm install
 npm run dev        # http://localhost:5173
-npm test           # calculation unit tests
+npm test           # unit tests (progress, routing, loss budget, conduit fill, ITP holds, migration)
 npm run build      # static site in dist/
 ```
 
-`dist/` is a static site using relative paths, so you can host it anywhere (Vercel, Netlify, GitHub Pages, a local web server). Once loaded it can be added to a phone home screen and works offline.
+`dist/` is a static site using relative paths. It can be hosted anywhere and installed to a phone home screen (PWA, works offline).
 
 ## Tech
 
-React 19 + TypeScript + Vite, Zustand (persisted state), plain CSS, SVG for drawings and charts. No backend.
+React 19 + TypeScript + Vite, Zustand persisted to IndexedDB, Supabase JS for sync, plain CSS, SVG for drawings.
 
 | File | Purpose |
 |---|---|
 | `src/types.ts` | Data model |
-| `src/lib/calc.ts` | Progress, crew output, pathway fill (unit-tested in `calc.test.ts`) |
-| `src/data/library.ts` | Cable, rack, pathway and standards reference data with sources |
-| `src/seed.ts` | Default stages and contract cable types |
+| `src/store.ts` | Store, change tracking, v1 migration |
+| `src/lib/calc.ts` | Progress, crew output, pathway fill |
+| `src/lib/route.ts` | Routing graph, auto-route, design length |
+| `src/lib/budget.ts` | Fibre loss budget |
+| `src/lib/itp.ts` | Hold points, lot progress |
+| `src/lib/sync.ts` | Supabase auth, sync, realtime, file upload |
+| `src/lib/files.ts` | Photo/file storage (IndexedDB) |
+| `src/data/library.ts`, `src/data/norms.ts` | Reference data and default ITP with sources |
 | `src/views/*` | One file per screen |

@@ -170,3 +170,5 @@ details summary { cursor: pointer; }
   .sig-img { height: 32px; }
   @page { size: A4 landscape; margin: 10mm; }
 }
+.side-layout > *, .grid > * { min-width: 0; }
+select { max-width: 100%; text-overflow: ellipsis; }

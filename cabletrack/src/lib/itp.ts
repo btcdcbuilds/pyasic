@@ -10,7 +10,7 @@ export function blockingHolds(data: AppData, cableId: ID, stageId: ID): { lot: I
     if (!lot.cableIds.includes(cableId)) continue;
     const tpl = data.itpTemplates.find((t) => t.id === lot.templateId);
     for (const item of tpl?.items ?? []) {
-      if (item.releasesStageId !== stageId) continue;
+      if (item.releasesStageId !== stageId || !isHold(item)) continue;
       const s = lot.signoffs[item.id];
       const released = s && (s.status === 'pass' || s.status === 'na') && (item.client !== 'H' || !!s.clientBy);
       if (!released) out.push({ lot, item });
