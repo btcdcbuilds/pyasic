@@ -70,7 +70,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0, opts = {}) {
 
   const goodGate = (i, allowMul) => {
     const r = rng();
-    if (allowMul && mulLeft > 0 && r < 0.12) { mulLeft--; return { op: 'x', v: 2 }; }
+    if (allowMul && mulLeft > 0 && r < (L >= 15 ? 0.06 : 0.12)) { mulLeft--; return { op: 'x', v: 2 }; }
     if (r < 0.3 && i > 0) return { op: rng() < 0.5 ? 'rate' : 'dmg', v: ri(8, 16) + Math.floor(L / 3) };
     return { op: '+', v: ri(4, 9) + Math.floor(L * 0.4) + Math.floor(i * 0.6) };
   };
@@ -222,7 +222,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0, opts = {}) {
     const hp = Math.round(baseBossHp * (final ? 5.5 : 1.7 + 0.55 * st));
     bosses.push(add({
       type: 'boss', d: dd + 8, x: 0, half: 2.8, hp, maxHp: hp, final, stage: st, stages,
-      hitBase: Math.ceil((2 + L * 0.5) * Math.sqrt(D)), ramp, fightSecs: final ? 14 : 8, atkT: 2.5, atk: null, phase: 1, engaged: false,
+      hitBase: Math.ceil((2 + L * 0.5) * Math.sqrt(D)), ramp, fightSecs: final ? 20 : 12, atkT: 2.5, atk: null, phase: 1, engaged: false,
       minions: Math.round((4 + L * 1.1) * Math.sqrt(D) * (final ? 1 : 0.7)), callT: 3,
       reinforce: 6 + Math.floor(L * 0.6), contact: false,
     }));
@@ -231,7 +231,8 @@ export function generateLevel(wi, li, diffId, seedExtra = 0, opts = {}) {
   // Bonus run after the final boss (like the ads): multiplier steps. Each step costs a few
   // soldiers; the bigger your surviving army, the further you climb.
   const bonusStart = dd + 8 + 26;
-  BONUS_MULTS.forEach((mult, k) => add({ type: 'bonus', d: bonusStart + k * 11, x0: -HW, x1: HW, mult, step: k }));
+  const bonusBase = Math.max(4, Math.round(squadSize(rows) * 0.8));
+  BONUS_MULTS.forEach((mult, k) => add({ type: 'bonus', d: bonusStart + k * 11, x0: -HW, x1: HW, mult, step: k, cost: Math.round(bonusBase * [1, 1.6, 2.5, 4, 6][k]) }));
   dd = bonusStart + BONUS_MULTS.length * 11 + 6;
   ents.sort((a, b) => a.d - b.d);
   return { wi, li, L, world, diff, entities: ents, dividers, bosses, boss: bosses[bosses.length - 1], length: dd, hpScale, enemyHp, nextId: id, seed: seedExtra };
@@ -363,10 +364,10 @@ export class Sim {
       this.emit('lost');
     } else if (!this.boss.alive && !this.bonus) {
       // final boss down: lock in the result, then climb the bonus steps
-      this.bonus = { mult: 1, cost: Math.max(1, Math.ceil(this.n * 0.12)), done: false };
+      this.bonus = { mult: 1, done: false };
       this.finalN = this.n;
       this.starsAtWin = this.calcStars();
-      this.emit('bonusStart', { cost: this.bonus.cost });
+      this.emit('bonusStart', {});
     } else if (this.bonus && this.bonus.done) {
       this.state = 'won';
       this.emit('won', { mult: this.bonus.mult });
@@ -626,7 +627,7 @@ export class Sim {
         this.weapon = w;
         this.emit('weapon', { w });
       } else {
-        this.dmgMult *= 1.15;
+        this.dmgMult += 0.15;
         this.emit('powerup', { text: '+15% DAMAGE' });
       }
     } else if (e.type === 'hero') {
@@ -685,6 +686,12 @@ export class Sim {
     for (const e of this.ents) {
       if (!e.alive) continue;
       if (e.type === 'squad') {
+        if (!e.scaled && e.d - this.d < 200) {
+          // sized as it comes into view: at least ~12% of your army (more on harder difficulties)
+          e.scaled = true;
+          const want = Math.round(this.n * 0.12 * Math.sqrt(this.level.diff.hp));
+          if (want > e.m) { e.m = want; e.m0 = want; }
+        }
         const r = armyRadius(e.m);
         const gap = e.d - r - (this.d + R * 0.8);
         const lateral = Math.abs(e.x - this.x) < R + r * 0.9;
@@ -734,7 +741,7 @@ export class Sim {
         const dx = clamp(this.x - cx, -1, 1) * 9 * dt;
         e.x0 += dx;
         e.x1 += dx;
-        if (e.d - this.d > 6) e.d -= 4 * dt;
+        if (e.d > this.d) e.d = Math.max(this.d, e.d - (this.boss.engaged ? 14 : 4) * dt);
       } else if (e.bump > 0) {
         e.bump = Math.max(0, e.bump - dt * 6);
       }
@@ -754,8 +761,11 @@ export class Sim {
       // Size the boss to the army that actually arrived: about `fightSecs` of its current
       // firepower, never more than the designed maximum and never less than a third of it.
       const heroDps = this.heroes * HERO_POWER * 16.5 * this.dmgMult;
-      const want = (this.dps() + heroDps) * e.fightSecs * Math.pow(this.level.diff.hp, 0.85);
-      const hp = Math.round(clamp(want, e.maxHp / 3, e.maxHp));
+      const want = (this.dps() + heroDps) * e.fightSecs * Math.pow(this.level.diff.hp, 0.35);
+      // floor stops a tiny army from one-shotting it; the cap stops a weak army facing a wall
+      let hp = clamp(want, e.maxHp / (e.final ? 4 : 8), e.maxHp);
+      hp = Math.round(Math.min(hp, (this.dps() + heroDps) * 30)); // never more than ~30 s of your fire
+      e.atkT = 0.8; // first attack comes right away
       e.hp = e.maxHp = hp;
       this.emit('bossWake', { e });
     }
@@ -787,8 +797,9 @@ export class Sim {
     const kind = kinds[Math.floor(Math.random() * kinds.length)];
     const tele = [1.2, 1.0, 0.85][phase - 1];
     let zones;
-    if (kind === 'slam') zones = [[this.x - 2.6, this.x + 2.6]];
-    else if (kind === 'charge') zones = [[this.x - 3.3, this.x + 3.3]];
+    const zh = Math.max(2.6, this.radius + 1); // zone half-width grows with the crowd
+    if (kind === 'slam') zones = [[this.x - zh, this.x + zh]];
+    else if (kind === 'charge') zones = [[this.x - zh - 0.7, this.x + zh + 0.7]];
     else if (kind === 'sweep') zones = this.x < 0 ? [[-HW, 0.5]] : [[-0.5, HW]];
     else if (kind === 'double') zones = [[this.x - 2.2, this.x + 2.2], this.x < 0 ? [2, HW] : [-HW, -2]];
     else {
@@ -877,11 +888,11 @@ export class Sim {
         }
         case 'bonus': {
           if (!this.bonus || this.bonus.done) break;
-          if (this.n - this.bonus.cost >= 1) {
-            this.n -= this.bonus.cost;
+          if (this.n - e.cost >= 1) {
+            this.n -= e.cost;
             this.bonus.mult = e.mult;
             e.reached = true;
-            this.emit('bonusStep', { e, k: this.bonus.cost });
+            this.emit('bonusStep', { e, k: e.cost });
             if (e.step === BONUS_MULTS.length - 1) this.bonus.done = true;
           } else this.bonus.done = true;
           break;
@@ -920,8 +931,9 @@ export class Sim {
       case 'x': this.gain(this.n * (e.v - 1)); break;
       case '-': this.lose(Math.min(this.n, e.v), 'gate'); break;
       case '÷': this.lose(this.n - Math.ceil(this.n / e.v), 'gate'); break;
-      case 'rate': this.rateMult *= 1 + e.v / 100; break;
-      case 'dmg': this.dmgMult *= 1 + e.v / 100; break;
+      // percentages add up (not multiply) so late-game damage can't snowball
+      case 'rate': this.rateMult += e.v / 100; break;
+      case 'dmg': this.dmgMult += e.v / 100; break;
     }
     this.emit('gate', { e, good: e.op === '+' || e.op === 'x' || e.op === 'rate' || e.op === 'dmg', delta: this.n - before });
   }
