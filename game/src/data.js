@@ -21,7 +21,7 @@ export const weaponDps = (w) => w.dmg * w.rate * (w.pellets || 1) * (1 + (w.pier
 export const WORLDS = [
   {
     id: 'bridge', name: 'Golden Bridge', tagline: 'Storm the great red bridge',
-    sky: 0x8fd3ff, fog: 0xbfe6ff, fogNear: 60, fogFar: 230, ground: 0x2f8fd0, track: 0xc9c9cf, rail: 0xd2463c,
+    sky: 0x8fd3ff, fog: 0xbfe6ff, fogNear: 55, fogFar: 185, ground: 0x2f8fd0, track: 0xc9c9cf, rail: 0xd2463c,
     light: 1.0, props: 'bridge', enemy: 0xe0302e, boss: { name: 'Red Brute', color: 0xd0302a, accent: 0x6b1b17, eye: 0xffee55, horns: false, mech: false },
     mod: {}, desc: 'Learn the ropes. Shoot gates to raise their numbers.',
   },
@@ -57,13 +57,13 @@ export const WORLDS = [
   },
   {
     id: 'sky', name: 'Sky Fortress', tagline: 'Crosswinds push you around',
-    sky: 0x6fb6ff, fog: 0xdcefff, fogNear: 50, fogFar: 220, ground: 0xffffff, track: 0xb6b2a8, rail: 0xe0c060,
+    sky: 0x6fb6ff, fog: 0xdcefff, fogNear: 45, fogFar: 185, ground: 0xffffff, track: 0xb6b2a8, rail: 0xe0c060,
     light: 1.1, props: 'sky', enemy: 0xb02020, boss: { name: 'Storm Warlord', color: 0x4a4f7a, accent: 0xffd34a, eye: 0x9ae6ff, horns: true, mech: false },
     mod: { wind: true, saws: true }, desc: 'Crosswinds drag your army toward the edge.',
   },
   {
     id: 'lunar', name: 'Lunar Base', tagline: 'Final war on the Moon',
-    sky: 0x02030a, fog: 0x05060f, fogNear: 60, fogFar: 240, ground: 0x8a8a90, track: 0x55575f, rail: 0x2bf0a0,
+    sky: 0x02030a, fog: 0x05060f, fogNear: 55, fogFar: 200, ground: 0x8a8a90, track: 0x55575f, rail: 0x2bf0a0,
     light: 0.9, props: 'lunar', enemy: 0x7cff4a, boss: { name: 'Alien Overlord', color: 0x3ad06a, accent: 0x1a5a2a, eye: 0xff2bd6, horns: true, mech: false },
     mod: { shield: 1.3, geysers: true, saws: true, boardWeight: 2 }, desc: 'Everything at once. Only the strongest army survives.',
   },

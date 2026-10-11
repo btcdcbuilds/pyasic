@@ -62,6 +62,21 @@ function soldierGeometries() {
   return { tinted, fixed };
 }
 
+// A box whose +z face shows a texture: 2 draw calls (sides + front) instead of the 6 that a
+// six-material box costs. Index order is rebuilt so the front face is one group at the end.
+function frontBox(w, h, d, sideMat, frontMat) {
+  const g = new THREE.BoxGeometry(w, h, d);
+  const idx = g.index.array;
+  const order = [0, 1, 2, 3, 5, 4]; // px, nx, py, ny, nz, then pz (front)
+  const out = [];
+  for (const f of order) for (let i = 0; i < 6; i++) out.push(idx[f * 6 + i]);
+  g.setIndex(out);
+  g.clearGroups();
+  g.addGroup(0, 30, 0);
+  g.addGroup(30, 6, 1);
+  return new THREE.Mesh(g, [sideMat, frontMat]);
+}
+
 function textCanvas(w, h) {
   const c = document.createElement('canvas');
   c.width = w;
@@ -184,6 +199,10 @@ export class Renderer {
     const scene = this.scene;
     scene.background = new THREE.Color(world.sky);
     scene.fog = new THREE.Fog(world.fog, world.fogNear, world.fogFar);
+    // nothing past the fog is visible, so don't draw it (big draw-call saving on phones)
+    this.viewDist = Math.min(world.fogFar + 10, 200);
+    this.camera.far = this.viewDist + 40;
+    this.camera.updateProjectionMatrix();
     const hemi = new THREE.HemisphereLight(0xffffff, 0x556070, 1.5 * world.light);
     const sun = new THREE.DirectionalLight(0xfff4e0, 1.9 * world.light);
     sun.position.set(-5, 12, 4);
@@ -329,7 +348,7 @@ export class Renderer {
         const tex = new THREE.CanvasTexture(canvas);
         tex.colorSpace = THREE.SRGBColorSpace;
         const side = new THREE.MeshLambertMaterial({ color: 0xf2f2f2 });
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(w - 0.3, 3.2, 0.3), [side, side, side, side, new THREE.MeshBasicMaterial({ map: tex }), side]);
+        const panel = frontBox(w - 0.3, 3.2, 0.3, side, new THREE.MeshBasicMaterial({ map: tex }));
         panel.position.set(cx, 1.65, 0);
         g.add(panel);
         Object.assign(v, { canvas, tex, panel, cx });
@@ -372,7 +391,7 @@ export class Renderer {
         tex.colorSpace = THREE.SRGBColorSpace;
         const col = { temple: 0x7a6e58, frozen: 0xbfe6ff, volcano: 0x4a3530, neon: 0x3a3456, lunar: 0x7a7c86, desert: 0xb27a42 }[world.props] || 0x9a8a7a;
         const sideMat = new THREE.MeshLambertMaterial({ color: col });
-        const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 2.2, 1), [sideMat, sideMat, sideMat, sideMat, new THREE.MeshBasicMaterial({ map: tex }), sideMat]);
+        const wall = frontBox(w, 2.2, 1, sideMat, new THREE.MeshBasicMaterial({ map: tex }));
         wall.position.set(cx, 1.1, 0);
         g.add(wall);
         Object.assign(v, { canvas, tex, wallColor: col, cx });
@@ -402,7 +421,7 @@ export class Renderer {
         });
         const sideMat = new THREE.MeshLambertMaterial({ color: e.big ? 0xf2b400 : 0x2a6af0 });
         const h = e.big ? 1.3 : 0.85;
-        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.35), [sideMat, sideMat, sideMat, sideMat, new THREE.MeshBasicMaterial({ map: tex }), sideMat]);
+        const m = frontBox(w, h, 0.35, sideMat, new THREE.MeshBasicMaterial({ map: tex }));
         m.position.set(cx, h / 2 + 0.25, 0);
         const legs = new THREE.Mesh(mergeGeometries([
           new THREE.BoxGeometry(0.12, 0.3, 0.5).translate(cx - w / 2 + 0.25, 0.15, 0),
@@ -922,7 +941,7 @@ export class Renderer {
     for (const v of this.views.values()) {
       const e = v.e;
       const dz = -e.d - camZ;
-      const inView = dz < 25 && dz > -200;
+      const inView = dz < 25 && dz > -this.viewDist;
       if (e.type === 'squad') {
         const show = e.alive && inView;
         if (show) this.placeLabel(v.label, e.x, 1.4 + armyRadius(e.m) * 0.3, -e.d, fmt(e.m), true);
@@ -975,6 +994,7 @@ export class Renderer {
           v.label.classList.toggle('open', !!e.unlocked);
         } else v.label.style.display = 'none';
       }
+      v.g.visible = inView;
       if (!inView) continue;
       if (e.dirty && t - (v.lastDraw || 0) > 0.08) {
         e.dirty = false;

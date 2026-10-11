@@ -153,7 +153,7 @@ function renderStats() {
 
 function renderMenu() {
   const n = nextLevel();
-  $('#play-sub').textContent = `${WORLDS[n.wi].name} - Level ${n.li + 1}`;
+  $('#play-sub').textContent = save.progress >= TOTAL_LEVELS ? 'All worlds cleared! Replay the final battle' : `${WORLDS[n.wi].name} - Level ${n.li + 1}`;
   diffButtons($('#menu-diff'));
 }
 
@@ -573,4 +573,4 @@ checkDaily();
 requestAnimationFrame(frame);
 
 // expose for automated testing
-window.__game = { get sim() { return sim; }, startLevel, get save() { return save; }, setAutoplay: (v) => (autoplay = v), setTarget: (x) => (targetX = x), botTarget };
+window.__game = { get sim() { return sim; }, renderer, startLevel, get save() { return save; }, setAutoplay: (v) => (autoplay = v), setTarget: (x) => (targetX = x), botTarget };
