@@ -442,6 +442,36 @@ export class Renderer {
         v.spin = b;
         break;
       }
+      case 'bonus': {
+        const cols = ['#4f9bff', '#3fd07a', '#ffd23a', '#ff8a2a', '#ff3a6a'];
+        const tex = this.cachedTex(`bonus${e.mult}`, 256, 128, (ctx, cw, ch) => {
+          const gr = ctx.createLinearGradient(0, 0, cw, 0);
+          gr.addColorStop(0, cols[e.step]);
+          gr.addColorStop(0.5, '#ffffff');
+          gr.addColorStop(1, cols[e.step]);
+          ctx.globalAlpha = 0.9;
+          ctx.fillStyle = cols[e.step];
+          ctx.fillRect(0, 0, cw, ch);
+          ctx.globalAlpha = 1;
+          ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+          ctx.lineWidth = 8;
+          ctx.strokeRect(4, 4, cw - 8, ch - 8);
+          outlinedText(ctx, `x${e.mult}`, cw / 2, ch / 2 + 4, 72);
+        });
+        const floor = new THREE.Mesh(new THREE.PlaneGeometry(HW * 2, 9), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.92 }));
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.set(0, 0.03 + e.step * 0.25, -4.5);
+        const riser = new THREE.Mesh(new THREE.BoxGeometry(HW * 2, 0.25 + e.step * 0.25, 0.4), new THREE.MeshLambertMaterial({ color: cols[e.step] }));
+        riser.position.set(0, (0.25 + e.step * 0.25) / 2, 0);
+        const arch = new THREE.Mesh(mergeGeometries([
+          new THREE.BoxGeometry(0.4, 4.5, 0.4).translate(-HW + 0.2, 2.25, 0),
+          new THREE.BoxGeometry(0.4, 4.5, 0.4).translate(HW - 0.2, 2.25, 0),
+          new THREE.BoxGeometry(HW * 2, 0.4, 0.4).translate(0, 4.5, 0),
+        ]), new THREE.MeshLambertMaterial({ color: cols[e.step] }));
+        g.add(floor, riser, arch);
+        v.floor = floor;
+        break;
+      }
       case 'geyser': {
         const pool = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.42, w * 0.42, 0.05, 20), new THREE.MeshBasicMaterial({ color: 0xff5a10 }));
         pool.position.set(cx, 0.03, 0);
@@ -771,6 +801,21 @@ export class Renderer {
           popText(ev.phase === 3 ? 'ENRAGED!' : 'ANGRY!', 'bad', ev.e.x, 9, -ev.e.d);
           this.shake = Math.max(this.shake, 0.5);
           break;
+        case 'bonusStart':
+          popText('BONUS RUN!', 'weapon', sim.x, 3, -sim.d);
+          break;
+        case 'bonusStep': {
+          const e = ev.e;
+          popText(`x${e.mult}!`, 'coin', 0, 3, -e.d);
+          this.sparkle(0, 1, -e.d, 0xffe066, 30);
+          for (let i = 0; i < Math.min(ev.k, 12); i++) this.ghost((Math.random() - 0.5) * 8, -e.d + Math.random() * 2, false);
+          break;
+        }
+        case 'bossExposed': {
+          const v = this.views.get(ev.e.id);
+          if (v && !v.weakHinted) { v.weakHinted = true; popText('WEAK SPOT! x2 DAMAGE', 'coin', ev.e.x, 7, -ev.e.d); }
+          break;
+        }
         case 'stageClear':
           popText(`STAGE CLEAR! +${ev.k} TROOPS`, 'weapon', sim.x, 3, -sim.d);
           break;
@@ -1112,6 +1157,14 @@ export class Renderer {
       v.armR.rotation.x = sw;
       v.group.rotation.x = 0;
     }
+    if (v.core) {
+      const on = e.exposed > 0;
+      v.core.material.color.setHex(on ? 0xffe066 : 0x553311);
+      v.core.scale.setScalar(on ? 1 + Math.sin(t * 20) * 0.12 : 0.8);
+    }
+    if (v.stompAnim > 0 && v.lastAtk === 'charge') v.group.position.z = Math.sin((1 - v.stompAnim / 0.5) * Math.PI) * 6;
+    else v.group.position.z = 0;
+    if (e.atk) v.lastAtk = e.atk.kind;
     if (v.zones) {
       // red danger zones on the ground where the attack will land
       v.zones.forEach((z) => {
@@ -1229,7 +1282,10 @@ function buildBoss(cfg) {
     group.add(hl, hr);
   }
   if (cfg.mech) group.add(mk(new THREE.BoxGeometry(0.2, 1.4, 0.2), eye, 0, 8.3, 0));
-  return { group, legL, legR, armL, armR, dying: 0, stompAnim: 0, mats: [mat, acc] };
+  // weak-spot core in the chest: glows while exposed after an attack
+  const core = mk(new THREE.SphereGeometry(0.55, 16, 12), new THREE.MeshBasicMaterial({ color: 0x553311 }), 0, 5.4, cfg.mech ? 1.45 : 1.75);
+  group.add(core);
+  return { group, legL, legR, armL, armR, core, dying: 0, stompAnim: 0, mats: [mat, acc] };
 }
 
 export { HERO_POWER };

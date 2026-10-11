@@ -255,6 +255,9 @@ function startLevel(wi, li) {
   $('#hint').classList.toggle('hidden', save.progress > 2);
   hintTimer = 0;
   updateWeaponHud();
+  tut = !save.tutorialDone && wi === 0 && li === 0 ? { step: 0, showing: 0, slow: 0 } : null;
+  coachEl().classList.remove('show');
+  if (tut) $('#hint').classList.add('hidden');
   hideAll();
   paused = false;
   lastT = performance.now();
@@ -296,6 +299,8 @@ function handleSimEvents() {
       case 'bossImpact': sfx.stomp(); vibrate(ev.hit ? 150 : 40); break;
       case 'bossPhase': sfx.bad(); vibrate(80); break;
       case 'stageClear': sfx.win(); vibrate(60); break;
+      case 'bonusStep': sfx.pickup(true); vibrate(20); break;
+      case 'bossExposed': sfx.unlockReward(); break;
       case 'pickup': sfx.pickup(ev.e.big); break;
       case 'kill': if (!ev.clash) sfx.kill(); break;
       case 'coin': sfx.coin(); $('#hud-coins').textContent = sim.coins; break;
@@ -326,8 +331,10 @@ function finish(won) {
   const income = 1 + 0.1 * upLvl('income');
   const stars = sim.stars();
   let coins;
+  const bonusMult = won && sim.bonus ? sim.bonus.mult : 1;
+  const survivors = won ? (sim.finalN ?? sim.n) : 0;
   if (won) {
-    coins = (25 + L * 8 + sim.kills * 0.15 + sim.n * 0.1) * (1 + 0.25 * (stars - 1));
+    coins = (25 + L * 8 + sim.kills * 0.15 + survivors * 0.1) * (1 + 0.25 * (stars - 1)) * bonusMult;
   } else {
     coins = (8 + L * 2 + sim.kills * 0.08) * Math.min(1, sim.d / sim.level.length);
   }
@@ -341,6 +348,8 @@ function finish(won) {
   st.bestArmy = Math.max(st.bestArmy, sim.peak);
   st.playSeconds += Math.round(sim.t);
   st.coinsEarned += coins;
+  if (won) save.tutorialDone = true;
+  coachEl().classList.remove('show');
   if (won) {
     if (L === save.progress) save.progress = Math.min(TOTAL_LEVELS, L + 1);
     const k = starKey(wi, li, save.difficulty);
@@ -349,7 +358,8 @@ function finish(won) {
   persist();
   $('#res-title').textContent = won ? 'Victory!' : 'Defeated';
   $('#res-stars').innerHTML = [0, 1, 2].map((i) => `<span class="${i < stars ? 'on' : ''}">★</span>`).join('');
-  $('#res-surv').textContent = won ? `${fmt(sim.n)} (peak ${fmt(sim.peak)})` : '0';
+  $('#res-surv').textContent = won ? `${fmt(survivors)} (peak ${fmt(sim.peak)})` : '0';
+  $('#res-bonus').textContent = won ? `x${bonusMult}` : '-';
   $('#res-kills').textContent = fmt(sim.kills);
   $('#res-weapon').textContent = sim.weapon.name;
   $('#res-coins').textContent = '+' + fmt(coins);
@@ -394,6 +404,35 @@ canvas.addEventListener('pointercancel', endDrag);
 const keys = new Set();
 window.addEventListener('keydown', (e) => keys.add(e.key));
 window.addEventListener('keyup', (e) => keys.delete(e.key));
+
+// ------------------------------------------------------------------ tutorial (first level only)
+const coachEl = () => document.getElementById('coach');
+let tut = null;
+const TUT_STEPS = [
+  { id: 'steer', text: 'Drag left and right to steer your army', when: (s) => s.t > 0.5 },
+  { id: 'gate', text: 'Blue gates add soldiers. Keep shooting a gate to make its number bigger!', when: (s) => s.ents.some((e) => e.type === 'gate' && e.alive && e.d - s.d < 38 && e.d > s.d) },
+  { id: 'board', text: 'Get in a board\'s lane and shoot it to 0 to win that weapon', when: (s) => s.ents.some((e) => e.type === 'board' && e.alive && e.d - s.d < 45 && e.d > s.d) },
+  { id: 'squad', text: 'Enemies charge at you! Shoot them down before they reach you', when: (s) => s.ents.some((e) => e.type === 'squad' && e.alive && e.charging) },
+  { id: 'boss', text: 'Red zone = attack incoming. Steer out of it!', when: (s) => !!s.boss.atk },
+  { id: 'weak', text: 'The glowing core is exposed: double damage now!', when: (s) => s.boss.exposed > 0 },
+];
+function tutorialTick(dt) {
+  if (!tut) return 1;
+  if (tut.showing) {
+    tut.showing -= dt;
+    if (tut.showing <= 0) coachEl().classList.remove('show');
+  }
+  const next = TUT_STEPS[tut.step];
+  if (next && !tut.showing && next.when(sim)) {
+    coachEl().textContent = next.text;
+    coachEl().classList.add('show');
+    tut.showing = next.id === 'steer' ? 4 : 3.5;
+    tut.slow = 1.2;
+    tut.step++;
+  }
+  if (tut.slow > 0) { tut.slow -= dt; return 0.45; } // brief slow-motion so there's time to read
+  return 1;
+}
 
 function pauseGame() {
   if (sim && !paused && sim.state === 'run') { paused = true; show('pause'); }
@@ -451,7 +490,7 @@ function tick(now) {
     if (keys.has('ArrowRight') || keys.has('d')) targetX = Math.min(6, targetX + dt * 12);
     if (autoplay) targetX = botTarget(sim);
     // step the simulation by the real frame time (smooth on 60/90/120 Hz screens)
-    let left = dt;
+    let left = dt * tutorialTick(dt);
     while (left > 1e-4) {
       const step = Math.min(left, 1 / 50);
       sim.update(step, targetX);

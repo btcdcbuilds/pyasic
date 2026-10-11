@@ -122,3 +122,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ink); 
 
 #toast { position: fixed; left: 50%; bottom: calc(90px + var(--safe-bot)); translate: -50% 20px; max-width: 88vw; background: rgba(13,21,48,.95); border: 2px solid rgba(255,255,255,.3); border-radius: 14px; padding: 10px 16px; font-size: 14px; font-family: Roboto, sans-serif; text-align: center; opacity: 0; pointer-events: none; transition: opacity .25s, translate .25s; z-index: 50; }
 #toast.show { opacity: 1; translate: -50% 0; }
+
+#coach { position: fixed; left: 50%; top: calc(118px + var(--safe-top)); translate: -50% -10px; width: min(88vw, 420px); background: linear-gradient(#ffe680, #ffb300); color: #2a1a00; border: 3px solid #fff; border-radius: 16px; padding: 12px 16px; font-size: 17px; text-align: center; box-shadow: 0 6px 0 rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .25s, translate .25s; z-index: 40; }
+#coach.show { opacity: 1; translate: -50% 0; }

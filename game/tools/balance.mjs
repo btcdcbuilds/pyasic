@@ -20,14 +20,15 @@ for (let wi = 0; wi < WORLDS.length; wi++) for (let li = 0; li < LEVELS_PER_WORL
     const wpn = career ? WEAPONS[Math.min(9, Math.floor(L / 6))].id : weapon;
     const lvl = generateLevel(wi, li, diff, seed);
     const sim = new Sim(lvl, { startTroops: 10 + 2 * up, weapon: wpn, dmgMult: 1 + 0.06 * up, rateMult: 1 + 0.04 * up, armor: Math.min(0.45, 0.03 * up) });
-    let tx = 0, t = 0, f = 0, bossStart = null;
+    let tx = 0, t = 0, f = 0, bossStart = null, bossEnd = null;
     while (sim.state === 'run' && t < 600) {
       if (f % 6 === 0) tx = botTarget(sim);
       sim.update(1 / 60, tx); sim.events.length = 0; t += 1 / 60; f++;
       const fb = sim.bosses[sim.bosses.length - 1];
+      if (bossEnd === null && !fb.alive) bossEnd = t;
       if (bossStart === null && fb.hp < fb.maxHp) { bossStart = t; const dps = sim.dps() + sim.heroes * 12 * 16.5 * sim.dmgMult; dpsSum += dps; dpsN++; (dpsByL[wi * 5 + li] ||= []).push(Math.round(dps)); }
     }
-    const bt = bossStart === null ? null : t - bossStart;
+    const bt = bossStart === null ? null : (bossEnd ?? t) - bossStart;
     res.push({ s: sim.state, n: sim.n, peak: sim.peak, w: sim.weapon.id, boss: Math.round(sim.boss.hp), max: sim.boss.maxHp, t, bt });
     total++; runT += t; peakSum += sim.peak;
     if (sim.state === 'won') { wins++; bossT += bt; bossN++; }

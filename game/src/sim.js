@@ -8,6 +8,8 @@ export const HERO_POWER = 12; // a hero shoots like this many soldiers
 export const HERO_HP = 10; // soldiers a hero is worth when the army is wiped
 export const MAX_ARMY = 9999;
 export const BOSS_STAND = 13; // how far from a boss the army stops
+export const WEAK_SPOT_TIME = 1.6; // seconds of double damage after each boss attack
+export const BONUS_MULTS = [1.2, 1.5, 2, 3, 5];
 export const CHARGE_DIST = 75; // enemy squads start charging from this far
 export const MIN_TRAVEL = 120; // every bullet flies at least this far up the track
 export const BOSS_WAKE = 30; // a boss is shielded until your army is this close
@@ -215,7 +217,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
     squad(dd + 4, 3, squadSize(i));
     dd += 40;
     // tuned with tools/balance.mjs: a typical army needs roughly 10-15 s of fire for the final boss
-    const hp = Math.round(baseBossHp * (final ? 3.5 : 1.2 + 0.4 * st));
+    const hp = Math.round(baseBossHp * (final ? 5.5 : 1.7 + 0.55 * st));
     bosses.push(add({
       type: 'boss', d: dd + 8, x: 0, half: 2.8, hp, maxHp: hp, final, stage: st, stages,
       hitBase: Math.ceil((2 + L * 0.5) * Math.sqrt(D)), ramp, atkT: 2.5, atk: null, phase: 1, engaged: false,
@@ -224,8 +226,13 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
     }));
     dd += final ? 0 : 60;
   }
+  // Bonus run after the final boss (like the ads): multiplier steps. Each step costs a few
+  // soldiers; the bigger your surviving army, the further you climb.
+  const bonusStart = dd + 8 + 26;
+  BONUS_MULTS.forEach((mult, k) => add({ type: 'bonus', d: bonusStart + k * 11, x0: -HW, x1: HW, mult, step: k }));
+  dd = bonusStart + BONUS_MULTS.length * 11 + 6;
   ents.sort((a, b) => a.d - b.d);
-  return { wi, li, L, world, diff, entities: ents, dividers, bosses, boss: bosses[bosses.length - 1], length: dd + 8, hpScale, enemyHp, nextId: id, seed: seedExtra };
+  return { wi, li, L, world, diff, entities: ents, dividers, bosses, boss: bosses[bosses.length - 1], length: dd, hpScale, enemyHp, nextId: id, seed: seedExtra };
 }
 
 // ---------------------------------------------------------------- simulation
@@ -352,9 +359,15 @@ export class Sim {
     if (this.n <= 0 && this.heroes <= 0) {
       this.state = 'lost';
       this.emit('lost');
-    } else if (!this.boss.alive) {
+    } else if (!this.boss.alive && !this.bonus) {
+      // final boss down: lock in the result, then climb the bonus steps
+      this.bonus = { mult: 1, cost: Math.max(1, Math.ceil(this.n * 0.12)), done: false };
+      this.finalN = this.n;
+      this.starsAtWin = this.calcStars();
+      this.emit('bonusStart', { cost: this.bonus.cost });
+    } else if (this.bonus && this.bonus.done) {
       this.state = 'won';
-      this.emit('won');
+      this.emit('won', { mult: this.bonus.mult });
     }
   }
 
@@ -560,6 +573,7 @@ export class Sim {
         return;
       }
       case 'boss':
+        if (e.exposed > 0) dmg *= 2;
         e.hp -= dmg;
         e.flash = Math.min(1, (e.flash || 0) + 0.15);
         if (e.hp <= 0) {
@@ -729,6 +743,7 @@ export class Sim {
   // as it loses health, and keeps calling squads in to charge you.
   updateBoss(e, dt) {
     if (e.flash > 0) e.flash = Math.max(0, e.flash - dt * 8);
+    if (e.exposed > 0) e.exposed = Math.max(0, e.exposed - dt);
     const dist = e.d - this.d;
     if (dist > 70) return;
     if (!e.awake && dist <= BOSS_WAKE) { e.awake = true; this.emit('bossWake', { e }); }
@@ -756,11 +771,12 @@ export class Sim {
     e.atkT -= dt;
     if (e.atkT > 0) return;
     e.atkT = [2.4, 1.8, 1.3][phase - 1];
-    const kinds = phase === 1 ? ['slam', 'slam', 'rocks'] : phase === 2 ? ['slam', 'sweep', 'rocks'] : ['slam', 'sweep', 'rocks', 'double'];
+    const kinds = phase === 1 ? ['slam', 'slam', 'rocks'] : phase === 2 ? ['slam', 'sweep', 'rocks'] : ['slam', 'sweep', 'double', 'charge'];
     const kind = kinds[Math.floor(Math.random() * kinds.length)];
     const tele = [1.2, 1.0, 0.85][phase - 1];
     let zones;
     if (kind === 'slam') zones = [[this.x - 2.6, this.x + 2.6]];
+    else if (kind === 'charge') zones = [[this.x - 3.3, this.x + 3.3]];
     else if (kind === 'sweep') zones = this.x < 0 ? [[-HW, 0.5]] : [[-0.5, HW]];
     else if (kind === 'double') zones = [[this.x - 2.2, this.x + 2.2], this.x < 0 ? [2, HW] : [-HW, -2]];
     else {
@@ -780,13 +796,16 @@ export class Sim {
     let f = 0;
     for (const [a, b] of atk.zones) f += this.overlap(a, b);
     f = Math.min(1, f);
-    const share = { slam: 0.22, sweep: 0.18, rocks: 0.15, double: 0.22 }[atk.kind];
+    const share = { slam: 0.22, sweep: 0.18, rocks: 0.15, double: 0.22, charge: 0.28 }[atk.kind];
     let k = 0;
     if (f > 0) {
       k = (Math.ceil(this.n * f * share * e.ramp) + e.hitBase) * this.lossMult;
       this.lose(Math.min(this.n + this.heroes * HERO_HP, k), 'boss');
     }
     this.emit('bossImpact', { e, atk, hit: f > 0, k: Math.round(k) });
+    // after every attack the boss's core is exposed for a moment: double damage
+    e.exposed = WEAK_SPOT_TIME;
+    this.emit('bossExposed', { e });
   }
 
   collide() {
@@ -844,6 +863,17 @@ export class Sim {
           }
           break;
         }
+        case 'bonus': {
+          if (!this.bonus || this.bonus.done) break;
+          if (this.n - this.bonus.cost >= 1) {
+            this.n -= this.bonus.cost;
+            this.bonus.mult = e.mult;
+            e.reached = true;
+            this.emit('bonusStep', { e, k: this.bonus.cost });
+            if (e.step === BONUS_MULTS.length - 1) this.bonus.done = true;
+          } else this.bonus.done = true;
+          break;
+        }
         case 'coin': {
           if (this.overlap(e.x0, e.x1) > 0) {
             this.coins += e.value;
@@ -886,6 +916,10 @@ export class Sim {
 
   stars() {
     if (this.state !== 'won') return 0;
+    return this.starsAtWin ?? this.calcStars();
+  }
+
+  calcStars() {
     return 1 + (this.n >= this.peak * 0.3 ? 1 : 0) + (this.n >= this.peak * 0.6 ? 1 : 0);
   }
 }
