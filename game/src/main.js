@@ -45,6 +45,8 @@ let lastWarn = 0;
 let slowFrames = 0;
 const dangerEl = document.getElementById('danger');
 let autoplay = new URLSearchParams(location.search).has('autoplay');
+// playtest hook: ?speed=2 runs the game faster (used by tools/playtest.mjs)
+const timeScale = Math.max(0.25, Math.min(4, +(new URLSearchParams(location.search).get('speed') || 1)));
 
 function vibrate(ms) {
   if (save.vibe && navigator.vibrate) {
@@ -287,7 +289,10 @@ function handleSimEvents() {
       case 'powerup': case 'allies': sfx.good(); weaponChanged = true; break;
       case 'unlock': sfx.unlockReward(); vibrate(25); break;
       case 'collect': sfx.good(); break;
-      case 'missed': sfx.bad(); break;
+      case 'bossAttack': sfx.warning(); break;
+      case 'bossImpact': sfx.stomp(); vibrate(ev.hit ? 150 : 40); break;
+      case 'bossPhase': sfx.bad(); vibrate(80); break;
+      case 'stageClear': sfx.win(); vibrate(60); break;
       case 'pickup': sfx.pickup(ev.e.big); break;
       case 'kill': if (!ev.clash) sfx.kill(); break;
       case 'coin': sfx.coin(); $('#hud-coins').textContent = sim.coins; break;
@@ -306,6 +311,7 @@ function handleSimEvents() {
     }
   }
   if (weaponChanged) updateWeaponHud();
+  if (window.__game.onEvents) window.__game.onEvents(evs, sim);
   evs.length = 0;
 }
 
@@ -386,7 +392,9 @@ document.addEventListener('visibilitychange', () => {
 // ------------------------------------------------------------------ loop
 function frame(now) {
   requestAnimationFrame(frame);
-  let dt = Math.min(0.1, (now - lastT) / 1000);
+  const rawDt = Math.min(0.1, (now - lastT) / 1000);
+  if (window.__game.onFrame) window.__game.onFrame(rawDt);
+  let dt = rawDt * timeScale;
   lastT = now;
   if (sim && !paused) {
     if (keys.has('ArrowLeft') || keys.has('a')) targetX = Math.max(-6, targetX - dt * 12);
@@ -424,4 +432,4 @@ show('menu');
 requestAnimationFrame(frame);
 
 // expose for automated testing
-window.__game = { get sim() { return sim; }, startLevel, get save() { return save; }, setAutoplay: (v) => (autoplay = v), botTarget };
+window.__game = { get sim() { return sim; }, startLevel, get save() { return save; }, setAutoplay: (v) => (autoplay = v), setTarget: (x) => (targetX = x), botTarget };

@@ -24,7 +24,8 @@ for (let wi = 0; wi < WORLDS.length; wi++) for (let li = 0; li < LEVELS_PER_WORL
     while (sim.state === 'run' && t < 600) {
       if (f % 6 === 0) tx = botTarget(sim);
       sim.update(1 / 60, tx); sim.events.length = 0; t += 1 / 60; f++;
-      if (bossStart === null && sim.boss.hp < sim.boss.maxHp) { bossStart = t; const dps = sim.dps() + sim.heroes * 12 * 16.5 * sim.dmgMult; dpsSum += dps; dpsN++; (dpsByL[wi * 5 + li] ||= []).push(Math.round(dps)); }
+      const fb = sim.bosses[sim.bosses.length - 1];
+      if (bossStart === null && fb.hp < fb.maxHp) { bossStart = t; const dps = sim.dps() + sim.heroes * 12 * 16.5 * sim.dmgMult; dpsSum += dps; dpsN++; (dpsByL[wi * 5 + li] ||= []).push(Math.round(dps)); }
     }
     const bt = bossStart === null ? null : t - bossStart;
     res.push({ s: sim.state, n: sim.n, peak: sim.peak, w: sim.weapon.id, boss: Math.round(sim.boss.hp), max: sim.boss.maxHp, t, bt });
@@ -33,5 +34,5 @@ for (let wi = 0; wi < WORLDS.length; wi++) for (let li = 0; li < LEVELS_PER_WORL
   }
   if (verbose) console.log(`${WORLDS[wi].id.padEnd(8)} L${li + 1} ` + res.map((r) => `${r.s === 'won' ? 'WIN ' : 'LOSE'} n=${String(r.n).padStart(4)} pk=${String(r.peak).padStart(4)} ${r.w.padEnd(7)} boss ${r.boss}/${r.max} ${r.t.toFixed(0)}s fight ${r.bt === null ? '-' : r.bt.toFixed(1)}s`).join(' | '));
 }
-console.log(`diff=${diff} up=${career ? 'career' : up0} weapon=${career ? 'career' : weapon}: ${wins}/${total} wins, avg level ${(runT / total).toFixed(0)}s, avg boss fight (wins) ${(bossT / Math.max(1, bossN)).toFixed(1)}s, avg peak army ${(peakSum / total).toFixed(0)}`);
+console.log(`diff=${diff} up=${career ? 'career' : up0} weapon=${career ? 'career' : weapon}: ${wins}/${total} wins, avg level ${(runT / total).toFixed(0)}s, avg final-boss fight (wins) ${(bossT / Math.max(1, bossN)).toFixed(1)}s, avg peak army ${(peakSum / total).toFixed(0)}`);
 if (process.argv.includes('--dps')) console.log(JSON.stringify(dpsByL.map((a) => a && a.sort((x, y) => x - y)[Math.floor(a.length / 2)])));

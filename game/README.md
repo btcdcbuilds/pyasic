@@ -34,16 +34,16 @@ Then go to repo **Settings → Secrets and variables → Actions** and add these
 |---|---|
 | Drag left/right | Steer your army (arrow keys or A/D on desktop) |
 | Your army fires automatically | Every soldier shoots on its own rhythm, so bullets stream out continuously. Soldiers aim at enemy squads and bosses near your path; gates, boards and walls only get hit if you are in their lane |
-| Shoot a blue `+` gate | Raises its number, up to double its starting value ("MAX") |
+| Shoot a blue `+` gate | Raises its number. There is no cap, but each extra point takes a few more hits than the last |
 | Shoot a red `-` gate | Lowers the penalty until it flips to a `+` gate |
 | `x2`, `÷2`, % DAMAGE and % FIRE RATE gates | Can't be changed by shooting |
-| Shoot a weapon / HERO board to 0 | It turns gold and says RUN IN!. You only get it if you then run through it. Miss it and it's gone |
-| Shoot a cage to 0 | The prisoners wait in their lane. Run into them to add them to your army |
+| Shoot a weapon / HERO board to 0 | It turns gold and runs over to your army. You need to be in its lane to shoot it open, but once it's open it's yours |
+| Shoot a cage to 0 | The freed prisoners run over and join your army |
 | Run into a board/wall that still has HP | You lose soldiers in proportion to how much of your army hits it |
 | `+1` / `+N` bonus strips | Blocks lined up in one lane. Run through as many as you can |
 | Walled 3-lane sections | Once inside you can't switch lanes, but the enemy horde jumps the low walls to reach you. One lane has a `+1` strip, one has the horde with a better weapon at the end, and one has big `+N` bonuses behind a hero board or wall |
 | Enemy squad | Charges at you from about 50 m and steers toward your army (a red warning pulses when a big one is coming). Shoot it down before contact. On contact both sides lose soldiers 1:1 |
-| Boss | Stops your army, keeps calling in squads of reinforcements that charge you, and stomps (a fixed number of soldiers plus 5% of your army every 1.3 s) until it dies |
+| Stages and bosses | Each level has 2 stages (3 from level 4 of a world). A stage ends with a boss behind a shield; the shield drops when you get close (FIGHT!). Your army stops at a distance and trades fire. The boss marks red zones on the ground before each slam, sweep or rock fall: steer out of them (DODGED!). Below 60% health it gets ANGRY, below 30% ENRAGED (faster attacks, double slams), and it keeps sending squads at you. Beating a mid-boss gives you reinforcements and the run continues; the final boss ends the level |
 
 ## Worlds (8 worlds × 5 levels = 40 levels)
 
@@ -90,12 +90,24 @@ On top of that, every level scales up. Obstacle HP grows +30% per level, enemy t
 
 `node tools/balance.mjs <difficulty> career` runs a bot through all 40 levels × 3 random layouts (120 runs). At each level it gets the upgrades and weapon a player could plausibly own by then (upgrade level = level number ÷ 3, weapon tier = level number ÷ 6). The bot steers greedily, so real players will do somewhat worse.
 
-| Difficulty | Bot wins (of 120) | Average level length | Average boss fight (wins, from first hit) |
+| Difficulty | Bot wins (of 120) | Average level length | Average final-boss fight (wins, from first hit) |
 |---|---|---|---|
-| Recruit | 108 | 119 s | 4.2 s |
-| Soldier | 98 | 120 s | 4.9 s |
-| Veteran | 63 | 113 s | 5.7 s |
-| Nightmare | 24 | 89 s | 6.9 s |
+| Recruit | 111 | 156 s | 8.5 s |
+| Soldier | 105 | 163 s | 10.2 s |
+| Veteran | 99 | 179 s | 15.1 s |
+| Nightmare | 70 | 189 s | 32.6 s |
+
+The bot dodges every boss attack perfectly, so these numbers are a best case.
+
+## Automated playtesting
+
+A Claude agent can play the game and write a fix list. The APK wraps the same web build, so it plays `dist/` in a phone-sized headless Chrome. An Android emulator can't run in the cloud container: there is no `/dev/kvm` and the Android SDK download is blocked.
+
+1. Write what you noticed on your phone in `playtest/FEEDBACK.md` (newest first).
+2. In a Claude Code session on this repo, say **"/playtest"** (or "playtest the game"). The skill in `.claude/skills/playtest/SKILL.md` builds the game and plays several levels as a good player (`bot`) and a distracted player (`naive`). It looks at the screenshots and metrics, checks every point in FEEDBACK.md, and writes `playtest/REPORT.md` with a numbered fix list.
+3. Hand REPORT.md's fix list to Claude ("fix the items in playtest/REPORT.md").
+
+You can also run the harness yourself: `npm run build && node tools/playtest.mjs --levels 1-1,2-2 --styles bot,naive --out playtest/run-mine`.
 
 ## Research notes (why it is built this way)
 

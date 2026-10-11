@@ -1,0 +1,26 @@
+# Player feedback for the playtest agent
+
+Write your notes from playing on your phone here, newest first. The playtest agent reads this file
+before every playtest and checks each point in the game.
+
+## 2026-10-11 (v1.0.3)
+
+- The enemy needs a lot of work. It doesn't work properly.
+- The end fight against the big guy (boss) is not very thoughtful.
+- There should be more to the level after killing the first big guy (the level shouldn't just end there).
+- Credits, people and rewards simply time out, and some have a max amount. That's stupid.
+- Bullets still don't make it all the way up the track.
+
+## 2026-10-10 (v1.0.2)
+
+- Not very fluent (smoothness).
+- Bullets don't go far enough.
+- No real anxiety when the attackers are coming.
+- It's weird that I can hide from attackers in a walled-off lane.
+
+## 2026-10-10 (v1.0.1)
+
+- Too blocky, especially the kills and effects.
+- Levels are too short.
+- Rewards are captured even when I'm in the wrong lane.
+- Shooting comes in bursts about once a second instead of a constant stream.

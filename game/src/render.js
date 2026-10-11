@@ -1,7 +1,7 @@
 // Three.js renderer: draws the Sim state each frame.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { HW, armyRadius, HERO_POWER } from './sim.js';
+import { HW, armyRadius, HERO_POWER, BOSS_WAKE } from './sim.js';
 import { weaponById } from './data.js';
 import { drawWeaponIcon, drawHeroIcon } from './icons.js';
 import { buildEnvironment } from './env.js';
@@ -464,7 +464,11 @@ export class Renderer {
         sh.rotation.x = -Math.PI / 2;
         sh.position.y = 0.03;
         g.add(sh);
-        Object.assign(v, b);
+        // shield bubble until the army gets close enough to wake the boss
+        const shield = new THREE.Mesh(new THREE.SphereGeometry(5.2, 24, 16), new THREE.MeshBasicMaterial({ color: 0x6ab8ff, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
+        shield.position.y = 4.5;
+        g.add(shield);
+        Object.assign(v, b, { shield });
         break;
       }
     }
@@ -499,7 +503,6 @@ export class Renderer {
     else txt = `${e.op}${e.v}`;
     outlinedText(ctx, txt, 128, pct ? 66 : 82, txt.length > 4 ? 64 : 84);
     if (pct) outlinedText(ctx, e.op === 'rate' ? 'FIRE RATE' : 'DAMAGE', 128, 128, 28);
-    else if (e.op === '+' && e.cap !== undefined && e.v >= e.cap) outlinedText(ctx, 'MAX', 128, 140, 22, '#ffe34a');
     v.tex.needsUpdate = true;
   }
 
@@ -702,6 +705,58 @@ export class Renderer {
         case 'clash':
           this.dust(ev.e.x, -ev.e.d, 1, 0xd8d0c0, 10);
           break;
+        case 'bossAttack': {
+          const v = this.views.get(ev.e.id);
+          if (!v) break;
+          if (!v.zones) v.zones = [];
+          ev.atk.zones.forEach(([a, b], i) => {
+            let z = v.zones[i];
+            if (!z) {
+              z = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: 0xff2020, transparent: true, opacity: 0.3, depthWrite: false }));
+              z.rotation.x = -Math.PI / 2;
+              const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0), new THREE.MeshBasicMaterial({ color: 0xff5a1a, transparent: true, opacity: 0.55, depthWrite: false }));
+              fill.position.set(0, -0.5, 0.001);
+              z.add(fill);
+              z.renderOrder = 1;
+              this.root.add(z);
+              v.zones[i] = z;
+            }
+            const depth = 7;
+            z.scale.set(b - a, depth, 1);
+            z.position.set((a + b) / 2, 0.04, -(ev.atk.d + 0.5));
+            z.visible = true;
+          });
+          for (let i = ev.atk.zones.length; i < v.zones.length; i++) v.zones[i].visible = false;
+          break;
+        }
+        case 'bossImpact': {
+          const v = this.views.get(ev.e.id);
+          if (v) {
+            v.stompAnim = 0.5;
+            if (v.zones) v.zones.forEach((z) => (z.visible = false));
+          }
+          for (const [a, b] of ev.atk.zones) {
+            const c = (a + b) / 2;
+            this.dust(c, -(ev.atk.d + 0.5), (b - a) / 2, 0xbbb3a6, 16);
+            if (ev.atk.kind === 'rocks') this.explosion(c, 0.6, -(ev.atk.d + 0.5), 1.2);
+          }
+          this.shake = Math.max(this.shake, ev.hit ? 0.8 : 0.4);
+          if (ev.hit && ev.k > 0) popText(`-${ev.k}`, 'bad', sim.x, 2.5, -sim.d);
+          else popText('DODGED!', 'good', sim.x, 2.5, -sim.d);
+          break;
+        }
+        case 'bossWake':
+          popText('FIGHT!', 'weapon', ev.e.x, 9, -ev.e.d);
+          this.sparkle(ev.e.x, 5, -ev.e.d, 0x6ab8ff, 40);
+          this.shake = Math.max(this.shake, 0.4);
+          break;
+        case 'bossPhase':
+          popText(ev.phase === 3 ? 'ENRAGED!' : 'ANGRY!', 'bad', ev.e.x, 9, -ev.e.d);
+          this.shake = Math.max(this.shake, 0.5);
+          break;
+        case 'stageClear':
+          popText(`STAGE CLEAR! +${ev.k} TROOPS`, 'weapon', sim.x, 3, -sim.d);
+          break;
         case 'bossDown': {
           const v = this.views.get(ev.e.id);
           for (let i = 0; i < 4; i++) this.explosion((Math.random() - 0.5) * 3, 2 + i, -ev.e.d, 3);
@@ -855,7 +910,7 @@ export class Renderer {
       if (!inView) continue;
       if (e.dirty && t - (v.lastDraw || 0) > 0.08) {
         e.dirty = false;
-        const key = e.type === 'gate' ? `${e.op}${e.v}${e.v >= e.cap}` : `${Math.ceil(e.hp)}${!!e.unlocked}`;
+        const key = e.type === 'gate' ? `${e.op}${e.v}` : `${Math.ceil(e.hp)}${!!e.unlocked}`;
         if (key !== v.key) {
           v.key = key;
           v.lastDraw = t;
@@ -885,6 +940,8 @@ export class Renderer {
         if (on && Math.random() < 0.5) this.glow.spawn({ x: v.cx + (Math.random() - 0.5), y: Math.random() * 5, z: -e.d, vy: 4, life: 0.4, size: 0.8, grow: 1.5, color: 0xff8a2a });
         else if (!on && Math.random() < 0.1) this.smoke.spawn({ x: v.cx, y: 0.2, z: -e.d, vy: 1, life: 0.8, size: 0.8, grow: 2, color: 0x444444, alpha: 0.4 });
       } else if (e.unlocked) {
+        v.g.position.x = (e.x0 + e.x1) / 2 - (v.cx ?? 0);
+        v.g.position.z = -e.d;
         if (v.glow) v.glow.material.opacity = 0.6 + Math.sin(t * 6) * 0.3;
         if (v.panel) v.panel.position.y = 1.65 + Math.sin(t * 4) * 0.08;
         if (v.heroModel) v.heroModel.position.y = Math.abs(Math.sin(t * 5)) * 0.25;
@@ -915,6 +972,9 @@ export class Renderer {
     const b = sim.boss;
     if (bossVisible && b.alive) {
       this.bossBar.classList.remove('hidden');
+      const nm = `${b.final ? sim.world.boss.name : 'Mini-boss'}  ${b.stage + 1}/${b.stages}${b.phase > 1 ? (b.phase === 3 ? '  ENRAGED' : '  ANGRY') : ''}`;
+      const nameEl = this.bossBar.querySelector('.boss-name');
+      if (nameEl.textContent !== nm) nameEl.textContent = nm;
       this.bossBar.querySelector('.boss-fill').style.width = `${(b.hp / b.maxHp) * 100}%`;
       this.bossBar.querySelector('.boss-hp').textContent = fmt(Math.ceil(b.hp));
     } else this.bossBar.classList.add('hidden');
@@ -995,22 +1055,42 @@ export class Renderer {
   animateBoss(v, dt) {
     const e = v.e;
     v.g.position.z = -e.d;
-    const walking = e.alive && e.d - this.sim.d < 34 && !e.contact;
     const t = this.time;
-    const sw = walking ? Math.sin(t * 5) * 0.5 : 0;
-    v.legL.rotation.x = sw;
-    v.legR.rotation.x = -sw;
-    v.group.position.y = walking ? Math.abs(Math.sin(t * 5)) * 0.15 : 0;
-    if (v.stompAnim > 0) {
+    const awake = e.alive && e.d - this.sim.d < 70;
+    if (v.shield) {
+      const on = e.alive && e.d - this.sim.d > BOSS_WAKE;
+      v.shield.visible = on;
+      if (on) v.shield.material.opacity = 0.18 + Math.sin(t * 3) * 0.06;
+    }
+    const sw = awake ? Math.sin(t * 2.2) * 0.12 : 0;
+    v.legL.rotation.x = 0;
+    v.legR.rotation.x = 0;
+    v.group.position.y = awake ? Math.abs(Math.sin(t * 2.2)) * 0.08 : 0;
+    if (e.atk) {
+      // wind-up: arms rise while the red zone fills
+      const k = 1 - Math.max(0, e.atk.t) / e.atk.tele;
+      v.armL.rotation.x = -k * 2.8;
+      v.armR.rotation.x = -k * 2.8;
+      v.group.rotation.x = -k * 0.15;
+    } else if (v.stompAnim > 0) {
       v.stompAnim -= dt;
-      const k = Math.sin((1 - v.stompAnim / 0.6) * Math.PI);
-      v.armL.rotation.x = -k * 2.4;
-      v.armR.rotation.x = -k * 2.4;
-      v.group.rotation.x = k * 0.25;
+      const k = Math.max(0, v.stompAnim / 0.5);
+      v.armL.rotation.x = -k * 2.8;
+      v.armR.rotation.x = -k * 2.8;
+      v.group.rotation.x = (1 - k) * 0.3 * k * 4;
     } else {
-      v.armL.rotation.x = -sw * 0.6;
-      v.armR.rotation.x = sw * 0.6;
+      v.armL.rotation.x = -sw;
+      v.armR.rotation.x = sw;
       v.group.rotation.x = 0;
+    }
+    if (v.zones) {
+      // red danger zones on the ground where the attack will land
+      v.zones.forEach((z) => {
+        if (!e.atk) { z.visible = false; return; }
+        const k = 1 - Math.max(0, e.atk.t) / e.atk.tele;
+        z.material.opacity = 0.25 + 0.45 * k + Math.sin(t * 30) * 0.08;
+        z.children[0].scale.set(1, Math.max(0.01, k), 1);
+      });
     }
     const fl = e.flash || 0;
     for (const m of v.mats) m.emissive.setRGB(fl * 0.18, fl * 0.12, fl * 0.1);
