@@ -24,6 +24,8 @@ later (`git subtree split --prefix=prefab-thailand` or simply copy the folder).
 | 08 | [Legal, tax & accounting](docs/08-legal-tax-accounting.md) | Company setup, licences, contracts, warranties, insurance, PDPA |
 | 09 | [Financial model](docs/09-financial-model.md) | Landed-cost formula, duty scenarios, break-even, inputs to collect |
 | 10 | [Launch roadmap](docs/10-launch-roadmap.md) | Step-by-step plan from now to the first container sold |
+| 11 | [Budget & port location](docs/11-budget-and-port-location.md) | What USD 20k buys, bonded-warehouse duty deferral near Laem Chabang |
+| 12 | [Brand names](docs/12-brand-names.md) | 10-name shortlist + checks to run |
 | — | [Landed-cost calculator](tools/landed_cost.py) | Script: per-unit landed cost and margin from real quotes |
 
 ## The 5 things that decide whether this business works
@@ -31,7 +33,7 @@ later (`git subtree split --prefix=prefab-thailand` or simply copy the folder).
 | # | Issue | Why it matters | Status |
 |---|-------|----------------|--------|
 | 1 | **Import duty on HS 9406** | A third-party tariff site lists Thailand's general (MFN) rate at **80%**. Whether the China–ASEAN FTA (Form E) brings it to 0% is **unconfirmed**: sources conflict. At 80% duty, import taxes alone come to **92.6% of CIF value** vs **7%** at 0% duty (see doc 09). | ❗ Get a written ruling from a licensed Thai customs broker **before** placing the order |
-| 2 | **Foreign ownership** (if any owner isn't Thai) | Retail and most services are restricted under the Foreign Business Act (List 3): a foreign stake must stay under 50% unless a licence is granted or the capital thresholds are met. Nominee shareholding is illegal. | ❓ Owner nationality needed |
+| 2 | **Foreign ownership** | Not an issue: all shareholders are Thai (owner, 2026-10-11). | ✅ Resolved |
 | 3 | **Electrical compliance** | The units ship with lights, power points and a switchboard. Cables appear to be TISI-mandatory, and other components may be too. Non-compliant items can be held at customs. | ❗ Supplier must give the component list; check against TISI |
 | 4 | **Building permits for buyers** | Under the Building Control Act a dwelling or usable structure is generally a "building". Buyers may need a permit depending on location and town plan. That affects how we market and what our contracts say. | ❗ Lawyer opinion + standard customer guidance sheet |
 | 5 | **Platform rules for AI selling** | Meta bans fake accounts and misrepresenting who you are. AI agents running fake personal profiles in Facebook groups risk bans on every account we hold, ad account included. | ✅ Plan uses a transparent brand character (doc 05/06) |
@@ -54,13 +56,13 @@ Only facts we could source are stated as facts. Everything else is marked
 | Companies registered under the Civil & Commercial Code were exempted from separate e-commerce commercial registration (June 2024 change) | [Legal500](https://legal500.com/developments/thought-leadership/thailand-updates-e-commerce-regulations-what-you-need-to-know), [Forvis Mazars](https://www.forvismazars.com/th/en/insights/doing-business-in-thailand/legal/monitoring-e-commerce-businesses) | Medium: verify with DBD |
 | PDPA: marketing consent should be separate and not pre-ticked; administrative fines commonly cited up to THB 5M | [Tilleke & Gibbins](https://www.tilleke.com/insights/thailand-releases-new-draft-pdpa-guidance-on-lawful-bases-and-marketing/), [LexBangkok](https://lexbangkok.com/direct-marketing-thailand-pdpa/) | Medium: guidance is draft |
 
-## Decisions needed from the owner
+## Owner decisions
 
-| # | Question | Options | Affects |
-|---|----------|---------|---------|
-| 1 | Nationality of the shareholders? | All Thai / mixed / foreign majority | Company structure, FBA licence, work permits |
-| 2 | Business name? | — | Domain, DBD registration, branding |
-| 3 | Warehouse region? | EEC (Chonburi/Rayong, close to Laem Chabang port), Bangkok outskirts, other | Delivery radius, rent, target sites |
-| 4 | Supplier details: factory name, existing certificates (CE, ISO 9001, etc.), unit drawings, FOB price list | — | Docs 02, 03, 09 |
-| 5 | Budget available for the first container + truck + warehouse | — | Doc 09 |
-| 6 | Move this folder to its own repo now or later? | Now / later | Repo housekeeping |
+| # | Question | Answer / status |
+|---|----------|-----------------|
+| 1 | Nationality of the shareholders? | ✅ All Thai |
+| 2 | Business name? | ❓ Choose from the [shortlist](docs/12-brand-names.md) |
+| 3 | Warehouse region? | ✅ Near Laem Chabang port, ideally using bonded storage to defer duty ([doc 11](docs/11-budget-and-port-location.md)) |
+| 4 | Supplier drawings / prices | ⏳ Owner obtaining drawings; unit price about USD 1,300. Still need units per 40ft container |
+| 5 | Starting budget | ✅ USD 20,000 (see [doc 11](docs/11-budget-and-port-location.md): only works if the 0% Form E rate applies) |
+| 6 | Own repository | ⏳ Owner to create an empty `prefab-thailand` repo on GitHub; the AI can't create repos with the current access |

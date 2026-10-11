@@ -73,7 +73,39 @@ All channels → **one unified inbox** and **one customer record** (matched by p
 | purchase_orders | supplier, PI, lines, payments, production status, inspection report, shipment/BL, customs status |
 | approvals | type, object_id, requested_by_agent, decided_by, decision, timestamp |
 
-## 6. Phase 1 build checklist
+## 6. "See it on your land": 3D models + photo visualiser
+
+Customers photograph their property and see the unit placed in it. Three
+levels, built in this order:
+
+| Level | What the customer does | How it works | Effort |
+|-------|------------------------|--------------|--------|
+| **1. Live AR on the phone** | Taps "View on my land" on a product page; the phone camera shows the unit at true scale on their ground; walks around it, takes a screenshot | `<model-viewer>` web component: WebXR / Android Scene Viewer / iOS AR Quick Look. Needs each model as **GLB** (Android/web) + **USDZ** (iPhone) | Low: mostly about having good 3D models |
+| **2. Photo upload + place the unit** | Uploads a photo, picks a unit + options; the unit appears on the ground with the right perspective; they drag, rotate and resize, then save/share the image to LINE | Browser 3D (three.js) renders the model over the photo. **AI step:** a depth-estimation / ground-plane model estimates the ground and camera angle so the unit sits correctly. Customer can enter a known distance (e.g. "gate is 4 m wide") to fix the scale | Medium |
+| **3. AI photorealistic render** | Clicks "Make it realistic"; gets a polished image with matched lighting and shadows | The Level-2 composite is sent to an image-editing AI model for relighting/blending, keeping the unit's shape and size fixed | Medium; costs per image, so rate-limit and require LINE/phone login |
+
+**Rules for the visualiser:**
+
+| Rule | Why |
+|------|-----|
+| Label renders "Visualisation only: not to scale for permits" | Avoid disputes / misleading-advertising claims |
+| Models built from the supplier's real drawings, true dimensions | Honest representation |
+| Option toggles (AC outdoor unit, window grilles, wet room, furniture, screw piles) are separate model parts | Same models feed the configurator and Lazada images |
+| Uploaded photos are personal data (they show the customer's property): consent notice, delete after N days unless the customer saves them | PDPA |
+| Every render offers "Get a quote for this" and "Send to LINE" | Turns visualiser use into leads |
+| The sales agent can ask for a site photo in chat and send back a render | Same service used from LINE/WhatsApp |
+
+**3D model pipeline:**
+
+| Step | Output |
+|------|--------|
+| 1. Supplier drawings (DWG/PDF/STEP if available) | Source dimensions |
+| 2. Build a 3D model per unit size, folded + unfolded, with option parts | Master model (CAD / Blender) |
+| 3. Export web versions, optimised (< ~5 MB each) | `.glb` + `.usdz` per variant |
+| 4. Product renders for the website, Lazada and ads | PNG/JPG images |
+| 5. Optional: animation of the unit unfolding | Video for ads/TikTok |
+
+## 7. Phase 1 build checklist
 
 | # | Task |
 |---|------|
