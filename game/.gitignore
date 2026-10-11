@@ -7,3 +7,4 @@ android/local.properties
 *.apk
 shots/
 playtest/run*/
+playtest/qa*/
