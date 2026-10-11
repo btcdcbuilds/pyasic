@@ -764,7 +764,7 @@ export class Sim {
       const want = (this.dps() + heroDps) * e.fightSecs * Math.pow(this.level.diff.hp, 0.35);
       // floor stops a tiny army from one-shotting it; the cap stops a weak army facing a wall
       let hp = clamp(want, e.maxHp / (e.final ? 4 : 8), e.maxHp);
-      hp = Math.round(Math.min(hp, (this.dps() + heroDps) * 30)); // never more than ~30 s of your fire
+      hp = Math.round(Math.min(hp, (this.dps() + heroDps) * (e.final ? 22 : 14))); // cap at ~22 s (mid-boss 14 s) of your fire
       e.atkT = 0.8; // first attack comes right away
       e.hp = e.maxHp = hp;
       this.emit('bossWake', { e });

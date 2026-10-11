@@ -102,7 +102,7 @@ export function fmt(n) {
 }
 
 function outlinedText(ctx, text, x, y, size, fill = '#fff', stroke = '#1a1a1a') {
-  ctx.font = `900 ${size}px "Arial Black", Impact, sans-serif`;
+  ctx.font = `${size}px "Lilita One", "Arial Black", Impact, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
@@ -650,10 +650,19 @@ export class Renderer {
           if (Math.random() < 0.5 || w.rate < 3) this.spark(ev.x, 0.9 + Math.random() * 0.6, -ev.d, w.color, w.rate < 3 ? 4 : 2, 5, 0.3 + w.size * 0.12);
           break;
         }
-        case 'boom':
-          this.explosion(ev.x, 0.8, -ev.d, Math.min(3, ev.r));
-          this.shake = Math.max(this.shake, 0.2);
+        case 'boom': {
+          // rockets/plasma fire many blasts per second: merge blasts in the same 3 m cell so the
+          // screen never washes out white
+          const cell = `${Math.round(ev.x / 3)}:${Math.round(ev.d / 3)}`;
+          const now = performance.now();
+          if (!this.boomCells) this.boomCells = new Map();
+          if (now - (this.boomCells.get(cell) || 0) < 120) break;
+          this.boomCells.set(cell, now);
+          if (this.boomCells.size > 64) this.boomCells.clear();
+          this.explosion(ev.x, 0.8, -ev.d, Math.min(1.5, ev.r));
+          this.shake = Math.max(this.shake, 0.15);
           break;
+        }
         case 'arc':
           this.arcs.push({ x0: ev.x0, d0: ev.d0, x1: ev.x1, d1: ev.d1, life: 0.12 });
           break;
@@ -836,7 +845,8 @@ export class Renderer {
           break;
         }
         case 'stageClear':
-          popText(`STAGE CLEAR! +${ev.k} TROOPS`, 'weapon', sim.x, 3, -sim.d);
+          popText('STAGE CLEAR!', 'weapon', 0, 5, -sim.d);
+          popText(`+${ev.k} TROOPS`, 'good', 0, 3, -sim.d);
           break;
         case 'bossDown': {
           const v = this.views.get(ev.e.id);
@@ -938,13 +948,15 @@ export class Renderer {
     let ei = 0;
     const camZ = this.camera.position.z;
     let bossVisible = false;
+    const curBoss = sim.boss;
+    const bossD = curBoss && curBoss.alive ? curBoss.d : Infinity;
     for (const v of this.views.values()) {
       const e = v.e;
       const dz = -e.d - camZ;
       const inView = dz < 25 && dz > -this.viewDist;
       if (e.type === 'squad') {
         const show = e.alive && inView;
-        if (show) this.placeLabel(v.label, e.x, 1.4 + armyRadius(e.m) * 0.3, -e.d, fmt(e.m), true);
+        if (show && e.d <= bossD + 2) this.placeLabel(v.label, e.x, 1.4 + armyRadius(e.m) * 0.3, -e.d, fmt(e.m), true);
         else v.label.style.display = 'none';
         v.shadow.visible = show;
         if (!show) continue;
@@ -971,7 +983,7 @@ export class Renderer {
       }
       if (e.type === 'boss') {
         this.animateBoss(v, dt);
-        bossVisible = inView && (e.alive || v.dying > 0);
+        if (e === curBoss) bossVisible = inView && (e.alive || v.dying > 0);
         continue;
       }
       if (v.fading > 0) {
@@ -1213,10 +1225,11 @@ export class Renderer {
     el.style.display = 'block';
     const sx = (tmpP.x * 0.5 + 0.5) * window.innerWidth;
     let sy = (-tmpP.y * 0.5 + 0.5) * window.innerHeight;
+    if (stack && sy < 110) { el.style.display = 'none'; return; } // keep the HUD strip clear
     if (stack) {
       // nudge up until it no longer overlaps another enemy label placed this frame
       for (let tries = 0; tries < 6; tries++) {
-        const hit = this.labelRects.find((r) => Math.abs(r.x - sx) < 44 && Math.abs(r.y - sy) < 24);
+        const hit = this.labelRects.find((r) => Math.abs(r.x - sx) < 44 && Math.abs(r.y - sy) < 26);
         if (!hit) break;
         sy = hit.y - 26;
       }

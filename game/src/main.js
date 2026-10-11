@@ -1,3 +1,4 @@
+import '@fontsource/lilita-one/latin-400.css';
 import { WORLDS, WEAPONS, DIFFICULTIES, UPGRADES, LEVELS_PER_WORLD, upgradeCost, weaponById, weaponDps } from './data.js';
 import { generateLevel, Sim, levelIndex, botTarget } from './sim.js';
 import { Renderer, fmt } from './render.js';
@@ -12,6 +13,7 @@ import { loadSave, persistSave, defaults, dailyStatus, sanitize, SAVE_KEY } from
 
 // ------------------------------------------------------------------ save data
 let save = loadSave();
+try { document.fonts.load('32px "Lilita One"'); } catch { /* old WebView: falls back to system fonts */ }
 function persist() {
   if (!persistSave(save)) toast('Could not save progress (storage full or blocked)');
   // second copy in Android's native app storage, in case the WebView storage is ever cleared
@@ -243,11 +245,11 @@ function renderArmory() {
       b.textContent = save.equipped === w.id ? 'Equipped' : 'Equip';
       b.onclick = () => { save.equipped = w.id; persist(); sfx.click(); renderArmory(); };
     } else if (!available) {
-      const wi = Math.floor(need / LEVELS_PER_WORLD);
-      b.textContent = `W${wi + 1}-${(need % LEVELS_PER_WORLD) + 1}`;
+      // unlocked once `need` levels are cleared, i.e. after clearing level number `need`
+      b.textContent = `Clear ${Math.floor((need - 1) / LEVELS_PER_WORLD) + 1}-${((need - 1) % LEVELS_PER_WORLD) + 1}`;
       b.disabled = true;
     } else {
-      b.innerHTML = fmt(w.price);
+      b.innerHTML = `<span class="coin-ic"></span>${fmt(w.price)}`;
       b.disabled = save.coins < w.price;
       b.onclick = () => {
         if (save.coins < w.price) return;
@@ -271,7 +273,8 @@ function renderUpgrades() {
     card.innerHTML = `<div><div>${u.name} <span class="lv">Lv ${lvl}/${u.max}</span></div><div class="up-desc">${u.desc} per level</div></div>`;
     const b = document.createElement('button');
     b.className = 'btn small primary';
-    b.textContent = maxed ? 'MAX' : fmt(cost);
+    if (maxed) b.textContent = 'MAX';
+    else b.innerHTML = `<span class="coin-ic"></span>${fmt(cost)}`;
     b.disabled = maxed || save.coins < cost;
     b.onclick = () => {
       if (maxed || save.coins < cost) return;
@@ -339,8 +342,9 @@ function startLevel(wi, li, opts = {}) {
   $('#hint').classList.toggle('hidden', save.progress > 2);
   hintTimer = 0;
   updateWeaponHud();
-  tut = !save.tutorialDone && wi === 0 && li === 0 ? { step: 0, showing: 0, slow: 0 } : null;
+  tut = !save.tutorialDone && wi === 0 && li === 0 ? { step: 0, showing: 0, slow: 0, dragged: 0, cur: null } : null;
   coachEl().classList.remove('show');
+  $('#world-mod').style.visibility = '';
   if (tut) $('#hint').classList.add('hidden');
   hideAll();
   paused = false;
@@ -360,8 +364,12 @@ function popText(text, cls, x, y, z) {
   const el = document.createElement('div');
   el.className = 'pop ' + cls;
   el.textContent = text;
-  el.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -50%)`;
   overlay.appendChild(el);
+  // keep the whole text on screen even when the source is near an edge
+  const half = el.offsetWidth / 2 + 8;
+  const cx = Math.max(half, Math.min(window.innerWidth - half, sx));
+  const cy = Math.max(120, Math.min(window.innerHeight - 120, sy));
+  el.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
   setTimeout(() => el.remove(), 1000);
 }
 
@@ -446,6 +454,10 @@ function finish(won) {
   $('#res-kills').textContent = fmt(sim.kills);
   $('#res-weapon').textContent = sim.weapon.name;
   $('#res-coins').textContent = '+' + fmt(coins);
+  const note = resultNote(won, challenge, wi, li, L);
+  $('#res-note').innerHTML = note;
+  $('#res-note').classList.toggle('hidden', !note);
+  $('#btn-res-upgrades').classList.toggle('hidden', won || !UPGRADES.some((u) => upLvl(u.id) < u.max && save.coins >= upgradeCost(u, upLvl(u.id))));
   const hasNext = won && !challenge && L + 1 < TOTAL_LEVELS;
   $('#btn-next').classList.toggle('hidden', !hasNext);
   $('#btn-retry').classList.toggle('primary', !won);
@@ -453,8 +465,37 @@ function finish(won) {
   show('result');
 }
 
+// Short text under the results: what to try after a defeat, or a milestone after a win.
+function resultNote(won, challenge, wi, li, L) {
+  if (!won) {
+    const b = sim.boss;
+    const affordable = UPGRADES.some((u) => upLvl(u.id) < u.max && save.coins >= upgradeCost(u, upLvl(u.id)));
+    let tip;
+    if (b && b.alive && b.engaged) tip = 'Steer out of the <b>red zones</b> before the boss attack lands, and keep firing at the glowing weak spot for double damage.';
+    else if (sim.peak < 40) tip = 'Your army stayed small. Shoot the blue <b>+ gates</b> to raise them before you run through, and free prisoners from cages.';
+    else tip = 'Big squads charge from 75 m. Line up with them early so your whole army fires, and grab weapon boards for more damage.';
+    if (affordable) tip += ' You can afford an <b>upgrade</b> now.';
+    else if (save.difficulty !== 'recruit') tip += ' Stuck? Pick an easier difficulty on the menu.';
+    return tip;
+  }
+  if (challenge) return '';
+  if (L === TOTAL_LEVELS - 1) {
+    return `<b>You beat all ${WORLDS.length} worlds!</b> Thank you for playing Army Rush. Try a harder difficulty for more coins and new stars.<br><small>Made with Three.js and Capacitor.</small>`;
+  }
+  if (li === LEVELS_PER_WORLD - 1) return `<b>${WORLDS[wi].name} complete!</b> ${WORLDS[wi + 1].name} is now open.`;
+  return '';
+}
+
+$('#btn-res-upgrades').onclick = () => { sfx.click(); show('upgrades'); };
+function renderPauseToggles() {
+  $('#pause-sound').textContent = `Sound: ${save.sound ? 'On' : 'Off'}`;
+  $('#pause-music').textContent = `Music: ${save.music ? 'On' : 'Off'}`;
+}
+$('#pause-sound').onclick = () => { save.sound = !save.sound; sfx.enabled = save.sound; persist(); renderPauseToggles(); };
+$('#pause-music').onclick = () => { save.music = !save.music; music.setEnabled(save.music); persist(); renderPauseToggles(); };
+
 $('#btn-play').onclick = () => { const n = nextLevel(); startLevel(n.wi, n.li); };
-$('#btn-pause').onclick = () => { if (sim && sim.state === 'run') { paused = true; show('pause'); } };
+$('#btn-pause').onclick = () => { if (sim && sim.state === 'run') { paused = true; renderPauseToggles(); show('pause'); } };
 $('#btn-resume').onclick = () => { hideAll(); paused = false; lastT = performance.now(); };
 $('#btn-restart').onclick = () => startLevel(current.wi, current.li, { challenge: current.challenge });
 $('#btn-quit').onclick = () => { paused = true; show('menu'); };
@@ -480,7 +521,9 @@ canvas.addEventListener('pointerdown', (e) => {
 canvas.addEventListener('pointermove', (e) => {
   if (!dragging) return;
   const sens = 15 / Math.min(window.innerWidth, 600);
-  targetX = Math.max(-6, Math.min(6, dragStartTarget + (e.clientX - dragStartX) * sens));
+  const nx = Math.max(-6, Math.min(6, dragStartTarget + (e.clientX - dragStartX) * sens));
+  if (tut) tut.dragged += Math.abs(nx - targetX);
+  targetX = nx;
 });
 const endDrag = () => { dragging = false; };
 canvas.addEventListener('pointerup', endDrag);
@@ -492,25 +535,35 @@ window.addEventListener('keyup', (e) => keys.delete(e.key));
 // ------------------------------------------------------------------ tutorial (first level only)
 const coachEl = () => document.getElementById('coach');
 let tut = null;
+// Each step shows when `when` becomes true and stays up until the player has done it (`done`)
+// or `max` seconds pass, so nobody gets rushed past an instruction.
 const TUT_STEPS = [
-  { id: 'steer', text: 'Drag left and right to steer your army', when: (s) => s.t > 0.5 },
-  { id: 'gate', text: 'Blue gates add soldiers. Keep shooting a gate to make its number bigger!', when: (s) => s.ents.some((e) => e.type === 'gate' && e.alive && e.d - s.d < 38 && e.d > s.d) },
-  { id: 'board', text: 'Get in a board\'s lane and shoot it to 0 to win that weapon', when: (s) => s.ents.some((e) => e.type === 'board' && e.alive && e.d - s.d < 45 && e.d > s.d) },
-  { id: 'squad', text: 'Enemies charge at you! Shoot them down before they reach you', when: (s) => s.ents.some((e) => e.type === 'squad' && e.alive && e.charging) },
-  { id: 'boss', text: 'Red zone = attack incoming. Steer out of it!', when: (s) => !!s.boss.atk },
-  { id: 'weak', text: 'The glowing core is exposed: double damage now!', when: (s) => s.boss.exposed > 0 },
+  { id: 'steer', text: 'Drag left and right to steer your army', when: (s) => s.t > 0.5, done: () => tut.dragged > 4, max: 12 },
+  { id: 'gate', text: 'Blue gates add soldiers. Keep shooting a gate to make its number bigger!', when: (s) => s.ents.some((e) => e.type === 'gate' && e.alive && e.d - s.d < 38 && e.d > s.d), done: (s) => !s.ents.some((e) => e.type === 'gate' && e.alive && e.d > s.d && e.d - s.d < 38), max: 8 },
+  { id: 'board', text: 'Get in a board\'s lane and shoot it to 0 to win that weapon', when: (s) => s.ents.some((e) => e.type === 'board' && e.alive && e.d - s.d < 45 && e.d > s.d), done: (s) => !s.ents.some((e) => e.type === 'board' && e.alive && !e.unlocked && e.d > s.d && e.d - s.d < 45), max: 8 },
+  { id: 'squad', text: 'Enemies charge at you! Shoot them down before they reach you', when: (s) => s.ents.some((e) => e.type === 'squad' && e.alive && e.charging), max: 3.5 },
+  { id: 'boss', text: 'Red zone = attack incoming. Steer out of it!', when: (s) => !!s.boss.atk, done: (s) => !s.boss.atk, max: 5 },
+  { id: 'weak', text: 'The glowing core is exposed: double damage now!', when: (s) => s.boss.exposed > 0, max: 3 },
 ];
 function tutorialTick(dt) {
   if (!tut) return 1;
-  if (tut.showing) {
-    tut.showing -= dt;
-    if (tut.showing <= 0) coachEl().classList.remove('show');
+  if (tut.cur) {
+    tut.showing += dt;
+    const st = tut.cur;
+    if (tut.showing >= st.max || (tut.showing > 1.2 && st.done && st.done(sim))) {
+      coachEl().classList.remove('show');
+      $('#world-mod').style.visibility = '';
+      tut.cur = null;
+    }
   }
   const next = TUT_STEPS[tut.step];
-  if (next && !tut.showing && next.when(sim)) {
+  if (next && !tut.cur && next.when(sim)) {
     coachEl().textContent = next.text;
     coachEl().classList.add('show');
-    tut.showing = next.id === 'steer' ? 4 : 3.5;
+    $('#world-mod').style.visibility = 'hidden'; // the coach bubble sits in the same spot
+    tut.cur = next;
+    tut.showing = 0;
+    if (next.id === 'steer') tut.dragged = 0;
     tut.slow = 1.2;
     tut.step++;
   }
@@ -519,7 +572,7 @@ function tutorialTick(dt) {
 }
 
 function pauseGame() {
-  if (sim && !paused && sim.state === 'run') { paused = true; show('pause'); }
+  if (sim && !paused && sim.state === 'run') { paused = true; renderPauseToggles(); show('pause'); }
 }
 // pause when the app goes to the background
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
@@ -570,8 +623,10 @@ function tick(now) {
   let dt = rawDt * timeScale;
   lastT = now;
   if (sim && !paused) {
+    const kx = targetX;
     if (keys.has('ArrowLeft') || keys.has('a')) targetX = Math.max(-6, targetX - dt * 12);
     if (keys.has('ArrowRight') || keys.has('d')) targetX = Math.min(6, targetX + dt * 12);
+    if (tut) tut.dragged += Math.abs(targetX - kx);
     if (autoplay) targetX = botTarget(sim);
     // step the simulation by the real frame time (smooth on 60/90/120 Hz screens)
     let left = dt * tutorialTick(dt);
