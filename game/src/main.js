@@ -170,6 +170,10 @@ function renderStats() {
 
 function renderMenu() {
   const n = nextLevel();
+  const ch = challengeToday();
+  const cb = $('#btn-challenge');
+  cb.classList.toggle('hidden', save.progress < 3);
+  cb.innerHTML = `Daily Challenge <small>${WORLDS[ch.wi].name}${ch.done ? ' &#10003; done today' : ' &bull; 1.5x coins'}</small>`;
   $('#play-sub').textContent = save.progress >= TOTAL_LEVELS ? 'All worlds cleared! Replay the final battle' : `${WORLDS[n.wi].name} - Level ${n.li + 1}`;
   diffButtons($('#menu-diff'));
 }
@@ -308,16 +312,25 @@ function playerStats() {
   };
 }
 
-function startLevel(wi, li) {
-  current = { wi, li };
-  const level = generateLevel(wi, li, save.difficulty, 0);
+// Daily challenge: a different world and layout every day, scaled to your progress.
+function challengeToday() {
+  const t = today();
+  const day = Math.floor(Date.parse(`${t}T00:00:00Z`) / 86400000);
+  return { day, wi: day % WORLDS.length, L: Math.max(2, Math.min(TOTAL_LEVELS - 1, save.progress - 1)), done: save.challenge.last === t };
+}
+
+function startLevel(wi, li, opts = {}) {
+  current = { wi, li, challenge: !!opts.challenge };
+  const ch = opts.challenge ? challengeToday() : null;
+  const level = ch ? generateLevel(ch.wi, 3, save.difficulty, ch.day, { L: ch.L }) : generateLevel(wi, li, save.difficulty, 0);
+  if (ch) current = { wi: ch.wi, li: 3, challenge: true };
   sim = new Sim(level, playerStats());
   targetX = 0;
   renderer.camInit = false;
   renderer.load(sim);
-  const w = WORLDS[wi];
+  const w = level.world;
   $('#hud-world').textContent = w.name;
-  $('#hud-lvl').textContent = `Level ${li + 1}/${LEVELS_PER_WORLD} - ${DIFFICULTIES.find((d) => d.id === save.difficulty).name}`;
+  $('#hud-lvl').textContent = `${ch ? 'Daily Challenge' : `Level ${li + 1}/${LEVELS_PER_WORLD}`} - ${DIFFICULTIES.find((d) => d.id === save.difficulty).name}`;
   $('#hud-coins').textContent = '0';
   const mod = $('#world-mod');
   mod.textContent = w.desc;
@@ -402,10 +415,12 @@ function finish(won) {
   const stars = sim.stars();
   const bonusMult = won && sim.bonus ? sim.bonus.mult : 1;
   const survivors = won ? (sim.finalN ?? sim.n) : 0;
-  const coins = levelCoins({
-    won, L, kills: sim.kills, survivors, stars, bonusMult, distFrac: sim.d / sim.level.length,
+  const challenge = current.challenge;
+  const firstChallengeWin = challenge && won && save.challenge.last !== today();
+  const coins = Math.round(levelCoins({
+    won, L: sim.level.L, kills: sim.kills, survivors, stars, bonusMult, distFrac: sim.d / sim.level.length,
     pickedCoins: sim.coins, diffCoin: diff.coin, incomeLvl: upLvl('income'),
-  });
+  }) * (firstChallengeWin ? 1.5 : 1));
   save.coins += coins;
   const st = save.stats;
   st.levelsPlayed++;
@@ -417,20 +432,21 @@ function finish(won) {
   st.coinsEarned += coins;
   if (won) save.tutorialDone = true;
   coachEl().classList.remove('show');
-  if (won) {
+  if (firstChallengeWin) { save.challenge.last = today(); save.challenge.wins++; }
+  if (won && !challenge) {
     if (L === save.progress) save.progress = Math.min(TOTAL_LEVELS, L + 1);
     const k = starKey(wi, li, save.difficulty);
     save.stars[k] = Math.max(save.stars[k] || 0, stars);
   }
   persist();
-  $('#res-title').textContent = won ? 'Victory!' : 'Defeated';
+  $('#res-title').textContent = won ? (firstChallengeWin ? 'Challenge complete!' : 'Victory!') : 'Defeated';
   $('#res-stars').innerHTML = [0, 1, 2].map((i) => `<span class="${i < stars ? 'on' : ''}">★</span>`).join('');
   $('#res-surv').textContent = won ? `${fmt(survivors)} (peak ${fmt(sim.peak)})` : '0';
   $('#res-bonus').textContent = won ? `x${bonusMult}` : '-';
   $('#res-kills').textContent = fmt(sim.kills);
   $('#res-weapon').textContent = sim.weapon.name;
   $('#res-coins').textContent = '+' + fmt(coins);
-  const hasNext = won && L + 1 < TOTAL_LEVELS;
+  const hasNext = won && !challenge && L + 1 < TOTAL_LEVELS;
   $('#btn-next').classList.toggle('hidden', !hasNext);
   $('#btn-retry').classList.toggle('primary', !won);
   paused = true;
@@ -440,9 +456,10 @@ function finish(won) {
 $('#btn-play').onclick = () => { const n = nextLevel(); startLevel(n.wi, n.li); };
 $('#btn-pause').onclick = () => { if (sim && sim.state === 'run') { paused = true; show('pause'); } };
 $('#btn-resume').onclick = () => { hideAll(); paused = false; lastT = performance.now(); };
-$('#btn-restart').onclick = () => startLevel(current.wi, current.li);
+$('#btn-restart').onclick = () => startLevel(current.wi, current.li, { challenge: current.challenge });
 $('#btn-quit').onclick = () => { paused = true; show('menu'); };
-$('#btn-retry').onclick = () => startLevel(current.wi, current.li);
+$('#btn-retry').onclick = () => startLevel(current.wi, current.li, { challenge: current.challenge });
+$('#btn-challenge').onclick = () => { sfx.click(); startLevel(0, 0, { challenge: true }); };
 $('#btn-menu').onclick = () => show('menu');
 $('#btn-next').onclick = () => {
   let L = levelIndex(current.wi, current.li) + 1;

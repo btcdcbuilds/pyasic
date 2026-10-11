@@ -22,6 +22,7 @@ export const defaults = () => ({
   tutorialDone: false,
   stats: { kills: 0, levelsWon: 0, levelsPlayed: 0, bossesKilled: 0, bestArmy: 0, playSeconds: 0, coinsEarned: 0 },
   daily: { last: '', streak: 0 },
+  challenge: { last: '', wins: 0 },
 });
 
 const int = (v, lo, hi, def) => (Number.isFinite(+v) ? Math.max(lo, Math.min(hi, Math.floor(+v))) : def);
@@ -56,6 +57,9 @@ export function sanitize(raw) {
   const dl = raw.daily && typeof raw.daily === 'object' ? raw.daily : {};
   s.daily.last = typeof dl.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dl.last) ? dl.last : '';
   s.daily.streak = int(dl.streak, 0, 10000, 0);
+  const ch = raw.challenge && typeof raw.challenge === 'object' ? raw.challenge : {};
+  s.challenge.last = typeof ch.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ch.last) ? ch.last : '';
+  s.challenge.wins = int(ch.wins, 0, 1e6, 0);
   return s;
 }
 

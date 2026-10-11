@@ -39,11 +39,13 @@ export function levelIndex(wi, li) {
 }
 
 // ---------------------------------------------------------------- level generation
-export function generateLevel(wi, li, diffId, seedExtra = 0) {
+// opts.L: override the difficulty index (used by the daily challenge, which borrows any
+// world's look but scales to the player's progress)
+export function generateLevel(wi, li, diffId, seedExtra = 0, opts = {}) {
   const world = WORLDS[wi];
   const diff = DIFFICULTIES.find((d) => d.id === diffId) || DIFFICULTIES[1];
   const mod = world.mod;
-  const L = levelIndex(wi, li);
+  const L = opts.L ?? levelIndex(wi, li);
   const rng = mulberry32(7919 + L * 104729 + seedExtra * 31337);
   const ri = (a, b) => a + Math.floor(rng() * (b - a + 1));
   const pick = (arr) => arr[Math.floor(rng() * arr.length)];

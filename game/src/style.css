@@ -131,3 +131,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ink); 
 .daily-amount { align-self: center; font-size: 30px; padding: 8px 20px 8px 10px; }
 .daily-amount .coin-ic { width: 30px; height: 30px; }
 #stats-table td { padding: 10px 6px; }
+
+.btn.challenge { width: 100%; max-width: 360px; background: linear-gradient(#ff8a4a, #d0401a); border-color: #ffd0b0; border-bottom-color: #7a2a0a; display: flex; flex-direction: column; align-items: center; }
+.btn.challenge small { font-size: 12px; opacity: .9; }
