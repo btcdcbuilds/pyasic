@@ -41,6 +41,7 @@
         <button class="btn" data-go="worlds">Worlds</button>
         <button class="btn" data-go="armory">Armory</button>
         <button class="btn" data-go="upgrades">Upgrades</button>
+        <button class="btn" data-go="stats">Stats</button>
         <button class="btn" data-go="settings">Settings</button>
       </div>
       <div class="diff-row" id="menu-diff"></div>
@@ -67,6 +68,23 @@
     </section>
 
     <!-- Settings -->
+    <!-- Stats -->
+    <section id="scr-stats" class="screen hidden">
+      <header><button class="icon-btn" data-go="menu">&lsaquo;</button><h2>Stats</h2><div></div></header>
+      <div class="list"><table class="res-table card" id="stats-table"></table></div>
+    </section>
+
+    <!-- Daily reward -->
+    <section id="scr-daily" class="screen modal hidden">
+      <div class="panel">
+        <h2>Daily reward</h2>
+        <div class="daily-streak" id="daily-streak"></div>
+        <div class="coin-pill big daily-amount"><span class="coin-ic"></span><span id="daily-amount"></span></div>
+        <p class="note">Come back tomorrow to grow your streak (up to 3x).</p>
+        <button id="btn-daily" class="btn primary">Claim</button>
+      </div>
+    </section>
+
     <section id="scr-settings" class="screen hidden">
       <header><button class="icon-btn" data-go="menu">&lsaquo;</button><h2>Settings</h2><div></div></header>
       <div class="list">

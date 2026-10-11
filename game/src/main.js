@@ -3,10 +3,11 @@ import { generateLevel, Sim, levelIndex, botTarget } from './sim.js';
 import { Renderer, fmt } from './render.js';
 import { Sfx } from './audio.js';
 import { Music } from './music.js';
+import { levelCoins } from './economy.js';
 import { drawWeaponIcon } from './icons.js';
 
 import { App } from '@capacitor/app';
-import { loadSave, persistSave, defaults } from './save.js';
+import { loadSave, persistSave, defaults, dailyStatus } from './save.js';
 
 // ------------------------------------------------------------------ save data
 let save = loadSave();
@@ -59,7 +60,7 @@ function toast(msg, ms = 2600) {
 }
 
 // ------------------------------------------------------------------ screens
-const screens = ['menu', 'worlds', 'armory', 'upgrades', 'settings', 'pause', 'result'];
+const screens = ['menu', 'worlds', 'armory', 'upgrades', 'stats', 'settings', 'pause', 'result', 'daily'];
 let screen = 'menu';
 function show(name) {
   screen = name;
@@ -72,6 +73,7 @@ function show(name) {
   if (name === 'armory') renderArmory();
   if (name === 'upgrades') renderUpgrades();
   if (name === 'settings') renderSettings();
+  if (name === 'stats') renderStats();
   $$('.coins-total').forEach((el) => (el.textContent = fmt(save.coins)));
 }
 function hideAll() {
@@ -104,6 +106,49 @@ function diffButtons(el) {
 function nextLevel() {
   const p = Math.min(save.progress, TOTAL_LEVELS - 1);
   return { wi: Math.floor(p / LEVELS_PER_WORLD), li: p % LEVELS_PER_WORLD };
+}
+
+function today() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+let dailyOffer = null;
+function checkDaily() {
+  const st = dailyStatus(save, today());
+  if (!st.claimable || !save.tutorialDone) return false;
+  dailyOffer = st;
+  $('#daily-streak').textContent = st.streak > 1 ? `Day ${st.streak} streak!` : 'Welcome back, commander!';
+  $('#daily-amount').textContent = '+' + fmt(st.reward);
+  show('daily');
+  return true;
+}
+$('#btn-daily').onclick = () => {
+  if (!dailyOffer) return show('menu');
+  save.coins += dailyOffer.reward;
+  save.daily = { last: today(), streak: dailyOffer.streak };
+  dailyOffer = null;
+  persist();
+  sfx.win();
+  show('menu');
+};
+
+function renderStats() {
+  const st = save.stats;
+  const mins = Math.round(st.playSeconds / 60);
+  const starsTotal = Object.values(save.stars).reduce((a, b) => a + b, 0);
+  const rows = [
+    ['Levels cleared', `${save.progress} / ${TOTAL_LEVELS}`],
+    ['Stars earned', `${starsTotal} / ${TOTAL_LEVELS * 3 * DIFFICULTIES.length}`],
+    ['Levels played', fmt(st.levelsPlayed)],
+    ['Wins', fmt(st.levelsWon)],
+    ['Enemies defeated', fmt(st.kills)],
+    ['Bosses defeated', fmt(st.bossesKilled)],
+    ['Biggest army', fmt(st.bestArmy)],
+    ['Coins earned', fmt(st.coinsEarned)],
+    ['Time played', mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`],
+    ['Daily streak', `${save.daily.streak} day${save.daily.streak === 1 ? '' : 's'}`],
+  ];
+  $('#stats-table').innerHTML = rows.map(([a, b]) => `<tr><td>${a}</td><td>${b}</td></tr>`).join('');
 }
 
 function renderMenu() {
@@ -336,17 +381,13 @@ function finish(won) {
   const { wi, li } = current;
   const L = levelIndex(wi, li);
   const diff = DIFFICULTIES.find((d) => d.id === save.difficulty);
-  const income = 1 + 0.1 * upLvl('income');
   const stars = sim.stars();
-  let coins;
   const bonusMult = won && sim.bonus ? sim.bonus.mult : 1;
   const survivors = won ? (sim.finalN ?? sim.n) : 0;
-  if (won) {
-    coins = (25 + L * 8 + sim.kills * 0.15 + survivors * 0.1) * (1 + 0.25 * (stars - 1)) * bonusMult;
-  } else {
-    coins = (8 + L * 2 + sim.kills * 0.08) * Math.min(1, sim.d / sim.level.length);
-  }
-  coins = Math.round(coins * diff.coin * income) + sim.coins;
+  const coins = levelCoins({
+    won, L, kills: sim.kills, survivors, stars, bonusMult, distFrac: sim.d / sim.level.length,
+    pickedCoins: sim.coins, diffCoin: diff.coin, incomeLvl: upLvl('income'),
+  });
   save.coins += coins;
   const st = save.stats;
   st.levelsPlayed++;
@@ -527,6 +568,7 @@ renderer.load(sim);
 renderer.render(0);
 sim = null;
 show('menu');
+checkDaily();
 requestAnimationFrame(frame);
 
 // expose for automated testing

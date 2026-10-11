@@ -48,7 +48,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
   const ri = (a, b) => a + Math.floor(rng() * (b - a + 1));
   const pick = (arr) => arr[Math.floor(rng() * arr.length)];
   const D = diff.hp;
-  const hpScale = (1 + 0.3 * L) * D;
+  const hpScale = (1 + 0.34 * L) * D;
   const rows = 16 + Math.min(12, Math.floor(L / 2)) + li * 2;
   const ents = [];
   const dividers = [];
@@ -62,7 +62,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
   };
   const pBad = Math.min(0.7, (0.25 + L * 0.015) * diff.bad);
   const maxTier = Math.min(9, 1 + wi + (mod.boardWeight ? 1 : 0));
-  const enemyHp = 1.4 * (1 + 0.14 * L) * Math.sqrt(D) * (mod.shield || 1);
+  const enemyHp = 1.4 * (1 + 0.19 * L) * Math.sqrt(D) * (mod.shield || 1);
   let mulLeft = 1 + (L > 15 ? 1 : 0); // multiplier gates are rare treats
   const squadSize = (i) => Math.round((5 + i * 1.6 + L * 1.0) * Math.sqrt(D));
 
@@ -176,7 +176,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
   const rowsPer = Math.ceil(rows / stages);
   // early bosses are gentler (ramp to full strength by world 3) so new players can learn the fight
   const ramp = Math.min(1, 0.55 + L * 0.045);
-  const baseBossHp = 13000 * Math.exp(0.145 * L) * Math.sqrt(D) * ramp;
+  const baseBossHp = 13000 * Math.exp(0.152 * L) * Math.sqrt(D) * ramp;
   const bosses = [];
   let dd = 45;
   for (let i = 0, st = 0; st < stages; st++) {
@@ -220,7 +220,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
     const hp = Math.round(baseBossHp * (final ? 5.5 : 1.7 + 0.55 * st));
     bosses.push(add({
       type: 'boss', d: dd + 8, x: 0, half: 2.8, hp, maxHp: hp, final, stage: st, stages,
-      hitBase: Math.ceil((2 + L * 0.5) * Math.sqrt(D)), ramp, atkT: 2.5, atk: null, phase: 1, engaged: false,
+      hitBase: Math.ceil((2 + L * 0.5) * Math.sqrt(D)), ramp, fightSecs: final ? 14 : 8, atkT: 2.5, atk: null, phase: 1, engaged: false,
       minions: Math.round((4 + L * 1.1) * Math.sqrt(D) * (final ? 1 : 0.7)), callT: 3,
       reinforce: 6 + Math.floor(L * 0.6), contact: false,
     }));
@@ -583,8 +583,9 @@ export class Sim {
           this.emit('bossDown', { e });
           if (!e.final) {
             // stage clear: reinforcements join and the run continues
-            this.gain(e.reinforce + Math.round(this.peak * 0.15));
-            this.emit('stageClear', { e, k: e.reinforce + Math.round(this.peak * 0.15) });
+            const k = e.reinforce + Math.round(this.peak * 0.08);
+            this.gain(k);
+            this.emit('stageClear', { e, k });
           }
         }
         return;
@@ -746,7 +747,16 @@ export class Sim {
     if (e.exposed > 0) e.exposed = Math.max(0, e.exposed - dt);
     const dist = e.d - this.d;
     if (dist > 70) return;
-    if (!e.awake && dist <= BOSS_WAKE) { e.awake = true; this.emit('bossWake', { e }); }
+    if (!e.awake && dist <= BOSS_WAKE) {
+      e.awake = true;
+      // Size the boss to the army that actually arrived: about `fightSecs` of its current
+      // firepower, never more than the designed maximum and never less than a third of it.
+      const heroDps = this.heroes * HERO_POWER * 16.5 * this.dmgMult;
+      const want = (this.dps() + heroDps) * e.fightSecs * Math.pow(this.level.diff.hp, 0.85);
+      const hp = Math.round(clamp(want, e.maxHp / 3, e.maxHp));
+      e.hp = e.maxHp = hp;
+      this.emit('bossWake', { e });
+    }
     const frac = e.hp / e.maxHp;
     const phase = frac > 0.6 ? 1 : frac > 0.3 ? 2 : 3;
     if (phase !== e.phase) { e.phase = phase; this.emit('bossPhase', { e, phase }); }
@@ -770,7 +780,7 @@ export class Sim {
     }
     e.atkT -= dt;
     if (e.atkT > 0) return;
-    e.atkT = [2.4, 1.8, 1.3][phase - 1];
+    e.atkT = [2.4, 1.8, 1.3][phase - 1] / Math.pow(this.level.diff.hp, 0.3); // faster on harder difficulties
     const kinds = phase === 1 ? ['slam', 'slam', 'rocks'] : phase === 2 ? ['slam', 'sweep', 'rocks'] : ['slam', 'sweep', 'double', 'charge'];
     const kind = kinds[Math.floor(Math.random() * kinds.length)];
     const tele = [1.2, 1.0, 0.85][phase - 1];
@@ -799,7 +809,7 @@ export class Sim {
     const share = { slam: 0.22, sweep: 0.18, rocks: 0.15, double: 0.22, charge: 0.28 }[atk.kind];
     let k = 0;
     if (f > 0) {
-      k = (Math.ceil(this.n * f * share * e.ramp) + e.hitBase) * this.lossMult;
+      k = (Math.ceil(this.n * f * share * e.ramp * Math.pow(this.level.diff.hp, 0.75)) + e.hitBase) * this.lossMult;
       this.lose(Math.min(this.n + this.heroes * HERO_HP, k), 'boss');
     }
     this.emit('bossImpact', { e, atk, hit: f > 0, k: Math.round(k) });
