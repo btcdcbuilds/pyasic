@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { uid, useStore } from '../store';
 import { Empty, Field, Modal, Num, confirmDelete } from '../ui';
 import { fmt } from '../lib/calc';
-import type { Rack, RackDevice } from '../types';
+import type { Location, RackDevice } from '../types';
+import { RACK_KINDS } from '../types';
+import { locationPath } from '../components';
+
+type Rack = Location & { heightU: number; widthMm: number; depthMm: number; devices: RackDevice[] };
+const asRack = (l: Location): Rack => ({ ...l, heightU: l.heightU ?? 42, widthMm: l.widthMm ?? 600, depthMm: l.depthMm ?? 1200, devices: l.devices ?? [] });
 
 const U_MM = 44.45; // EIA-310 rack unit
 const KIND_COLOR: Record<RackDevice['kind'], string> = {
@@ -23,7 +28,8 @@ const KIND_LABEL: Record<RackDevice['kind'], string> = {
 };
 
 export default function Racks() {
-  const { racks, cables, cableTypes, drops, pathways, upsert } = useStore();
+  const { locations, cables, cableTypes, drops, pathways, upsert } = useStore();
+  const racks = locations.filter((l) => RACK_KINDS.includes(l.kind)).map(asRack);
   const [rackId, setRackId] = useState(() => sessionStorage.getItem('rack-sel') ?? racks[0]?.id ?? '');
   const [dev, setDev] = useState<RackDevice | null>(null);
   const rack = racks.find((r) => r.id === rackId) ?? racks[0];
@@ -31,7 +37,7 @@ export default function Racks() {
     return (
       <>
         <div className="page-head"><h1>Rack elevations</h1></div>
-        <div className="card"><Empty>No racks yet. Add racks on the Floor layout.</Empty></div>
+        <div className="card"><Empty>No racks, cabinets or frames yet. Add them on the Floor layout or Points & areas.</Empty></div>
       </>
     );
 
@@ -51,7 +57,7 @@ export default function Racks() {
   const rDrops = drops.filter((d) => d.rackId === rack.id);
   const maxBend = Math.max(0, ...rc.map((c) => types.get(c.typeId)?.bendRadiusMm ?? 0));
 
-  const setRack = (r: Rack) => upsert('racks', r);
+  const setRack = (r: Rack) => upsert('locations', r);
   const saveDev = (d: RackDevice) => {
     const others = rack.devices.filter((x) => x.id !== d.id);
     setRack({ ...rack, devices: [...others, d].sort((a, b) => b.uStart - a.uStart) });
@@ -73,7 +79,7 @@ export default function Racks() {
         <h1>Rack elevations</h1>
         <div className="row">
           <select value={rack.id} onChange={(e) => { setRackId(e.target.value); sessionStorage.setItem('rack-sel', e.target.value); }}>
-            {racks.map((r) => <option key={r.id} value={r.id}>{[r.building, r.room, r.name].filter(Boolean).join(' / ')}</option>)}
+            {racks.map((r) => <option key={r.id} value={r.id}>{locationPath(locations, r.id)}</option>)}
           </select>
           <button className="btn primary" onClick={() => setDev({ id: uid(), name: 'Fibre panel', kind: 'fibre-panel', uSize: 4, uStart: nextFree(4) })}>+ Device</button>
         </div>

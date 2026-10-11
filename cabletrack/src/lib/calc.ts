@@ -1,3 +1,4 @@
+import { ROUND_KINDS, OPEN_KINDS, conduitFillLimit } from '../data/norms';
 import type { AppData, CableRun, CableType, ID, Pathway, ProgressEntry, Stage, StageMeasure } from '../types';
 
 export const MEASURE_UNIT: Record<StageMeasure, string> = {
@@ -169,6 +170,7 @@ export interface FillResult {
   cableCount: number;
   cableAreaMm2: number;
   pathwayAreaMm2: number;
+  limitPct: number;
   fillPct: number;
   missingOd: number;
   status: 'ok' | 'warn' | 'over';
@@ -190,15 +192,18 @@ export function pathwayFill(data: AppData, pathway: Pathway, extra: { odMm: numb
     area += cableArea(e.odMm) * e.count;
     count += e.count;
   }
-  const pa = pathway.widthMm * pathway.depthMm;
+  const round = ROUND_KINDS.includes(pathway.kind) && !!pathway.diameterMm;
+  const pa = round ? Math.PI * (pathway.diameterMm! / 2) ** 2 : pathway.widthMm * pathway.depthMm;
+  const limitPct = round && !pathway.fillOverride ? conduitFillLimit(count) : pathway.fillLimitPct;
   const fillPct = pa > 0 ? (area / pa) * 100 : 0;
-  const status = fillPct > pathway.fillLimitPct ? 'over' : fillPct > pathway.fillLimitPct * 0.8 ? 'warn' : 'ok';
-  return { pathway, cableCount: count, cableAreaMm2: area, pathwayAreaMm2: pa, fillPct, missingOd, status };
+  const open = OPEN_KINDS.includes(pathway.kind);
+  const status = open ? 'ok' : fillPct > limitPct ? 'over' : fillPct > limitPct * 0.8 ? 'warn' : 'ok';
+  return { pathway, cableCount: count, cableAreaMm2: area, pathwayAreaMm2: pa, fillPct, limitPct, missingOd, status };
 }
 
 /** How many more cables of a given OD fit before hitting the fill limit. */
 export function remainingCapacity(fill: FillResult, odMm: number) {
-  const allowed = (fill.pathway.fillLimitPct / 100) * fill.pathwayAreaMm2;
+  const allowed = (fill.limitPct / 100) * fill.pathwayAreaMm2;
   return Math.max(0, Math.floor((allowed - fill.cableAreaMm2) / cableArea(odMm)));
 }
 
