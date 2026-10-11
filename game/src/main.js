@@ -262,6 +262,7 @@ function renderUpgrades() {
 }
 
 function renderSettings() {
+  $('#app-version').textContent = typeof __APP_VERSION__ === 'string' ? `v${__APP_VERSION__}` : '';
   $('#set-sound').textContent = save.sound ? 'On' : 'Off';
   $('#set-music').textContent = save.music ? 'On' : 'Off';
   $('#set-vibe').textContent = save.vibe ? 'On' : 'Off';

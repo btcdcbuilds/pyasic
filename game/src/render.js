@@ -1175,7 +1175,9 @@ export class Renderer {
       });
     }
     const fl = e.flash || 0;
-    for (const m of v.mats) m.emissive.setRGB(fl * 0.18, fl * 0.12, fl * 0.1);
+    // brief hit flicker only (a constant tint washed the model out under continuous fire)
+    const flick = fl > 0.5 && Math.sin(t * 40) > 0.6 ? 0.08 : 0;
+    for (const m of v.mats) m.emissive.setRGB(flick, flick * 0.5, flick * 0.4);
     if (v.dying > 0) {
       v.dying -= dt * 0.8;
       const k = 1 - Math.max(0, v.dying);
