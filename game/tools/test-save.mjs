@@ -35,4 +35,16 @@ assert.equal(dailyStatus(d, '2026-10-12').streak, 2);
 assert.equal(dailyStatus(d, '2026-10-14').streak, 1);
 d.daily = { last: '2026-12-31', streak: 5 };
 assert.equal(dailyStatus(d, '2027-01-01').streak, 6, 'streak continues across a year boundary');
+// visual theme
+assert.equal(sanitize({ theme: 'bitcoin' }).theme, 'bitcoin');
+assert.equal(sanitize({ theme: 'footy' }).theme, 'footy');
+assert.equal(sanitize({ theme: 'nfl-official' }).theme, 'classic', 'unknown theme falls back to classic');
+assert.equal(defaults().theme, 'classic');
+// every theme names all 8 worlds and their bosses
+const { THEMES, themedWorld } = await import('../src/themes.js');
+const { WORLDS } = await import('../src/data.js');
+for (const th of THEMES) for (let wi = 0; wi < WORLDS.length; wi++) {
+  const w = themedWorld(wi, th.id);
+  assert.ok(w.name && w.boss.name && w.mod === WORLDS[wi].mod, `${th.id} world ${wi + 1}`);
+}
 console.log('Save tests OK');

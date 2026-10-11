@@ -94,3 +94,22 @@ export function drawHeroIcon(ctx, cx, cy, s) {
   ctx.fillRect(40, -10, 4, 22);
   ctx.restore();
 }
+
+// Bitcoin-style coin face: orange disc with a B and its two bars (drawn, so no font glyph needed)
+export function drawBtc(ctx, w, h) {
+  ctx.fillStyle = '#f7931a';
+  ctx.beginPath();
+  ctx.arc(w / 2, h / 2, w / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.save();
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate(0.24);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(-10, -44, 7, 88);
+  ctx.fillRect(4, -44, 7, 88);
+  ctx.font = `${Math.round(h * 0.72)}px "Lilita One", "Arial Black", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('B', 3, 4);
+  ctx.restore();
+}

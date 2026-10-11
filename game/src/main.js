@@ -6,6 +6,7 @@ import { Sfx } from './audio.js';
 import { Music } from './music.js';
 import { levelCoins } from './economy.js';
 import { drawWeaponIcon } from './icons.js';
+import { THEMES, themeById, themedWorld } from './themes.js';
 
 import { App } from '@capacitor/app';
 import { Preferences } from '@capacitor/preferences';
@@ -43,6 +44,8 @@ const $$ = (s) => document.querySelectorAll(s);
 const canvas = $('#game');
 const overlay = $('#overlay');
 const renderer = new Renderer(canvas, overlay);
+renderer.setTheme(save.theme);
+const tw = (wi) => themedWorld(wi, save.theme); // world names/bosses as the chosen theme shows them
 renderer.setQuality(save.quality);
 const sfx = new Sfx();
 sfx.enabled = save.sound;
@@ -79,7 +82,7 @@ function toast(msg, ms = 2600) {
 }
 
 // ------------------------------------------------------------------ screens
-const screens = ['menu', 'worlds', 'armory', 'upgrades', 'stats', 'settings', 'pause', 'result', 'daily'];
+const screens = ['menu', 'worlds', 'armory', 'upgrades', 'stats', 'themes', 'settings', 'pause', 'result', 'daily'];
 let screen = 'menu';
 function show(name) {
   screen = name;
@@ -93,6 +96,7 @@ function show(name) {
   if (name === 'upgrades') renderUpgrades();
   if (name === 'settings') renderSettings();
   if (name === 'stats') renderStats();
+  if (name === 'themes') renderThemes();
   $$('.coins-total').forEach((el) => (el.textContent = fmt(save.coins)));
 }
 function hideAll() {
@@ -175,8 +179,8 @@ function renderMenu() {
   const ch = challengeToday();
   const cb = $('#btn-challenge');
   cb.classList.toggle('hidden', save.progress < 3);
-  cb.innerHTML = `Daily Challenge <small>${WORLDS[ch.wi].name}${ch.done ? ' &#10003; done today' : ' &bull; 1.5x coins'}</small>`;
-  $('#play-sub').textContent = save.progress >= TOTAL_LEVELS ? 'All worlds cleared! Replay the final battle' : `${WORLDS[n.wi].name} - Level ${n.li + 1}`;
+  cb.innerHTML = `Daily Challenge <small>${tw(ch.wi).name}${ch.done ? ' &#10003; done today' : ' &bull; 1.5x coins'}</small>`;
+  $('#play-sub').textContent = save.progress >= TOTAL_LEVELS ? 'All worlds cleared! Replay the final battle' : `${tw(n.wi).name} - Level ${n.li + 1}`;
   diffButtons($('#menu-diff'));
 }
 
@@ -186,7 +190,8 @@ function renderWorlds() {
   diffButtons($('#worlds-diff'));
   const list = $('#world-list');
   list.innerHTML = '';
-  WORLDS.forEach((w, wi) => {
+  WORLDS.forEach((_, wi) => {
+    const w = tw(wi);
     const unlocked = save.progress >= wi * LEVELS_PER_WORLD;
     const card = document.createElement('div');
     card.className = 'card world-card' + (unlocked ? '' : ' locked');
@@ -331,7 +336,7 @@ function startLevel(wi, li, opts = {}) {
   targetX = 0;
   renderer.camInit = false;
   renderer.load(sim);
-  const w = level.world;
+  const w = tw(level.wi);
   $('#hud-world').textContent = w.name;
   $('#hud-lvl').textContent = `${ch ? 'Daily Challenge' : `Level ${li + 1}/${LEVELS_PER_WORLD}`} - ${DIFFICULTIES.find((d) => d.id === save.difficulty).name}`;
   $('#hud-coins').textContent = '0';
@@ -482,9 +487,37 @@ function resultNote(won, challenge, wi, li, L) {
   if (L === TOTAL_LEVELS - 1) {
     return `<b>You beat all ${WORLDS.length} worlds!</b> Thank you for playing Army Rush. Try a harder difficulty for more coins and new stars.<br><small>Made with Three.js and Capacitor.</small>`;
   }
-  if (li === LEVELS_PER_WORLD - 1) return `<b>${WORLDS[wi].name} complete!</b> ${WORLDS[wi + 1].name} is now open.`;
+  if (li === LEVELS_PER_WORLD - 1) return `<b>${tw(wi).name} complete!</b> ${tw(wi + 1).name} is now open.`;
   return '';
 }
+
+// Theme picker: changes the look of the whole game (players, enemies, bosses, stadiums, names).
+function renderThemes() {
+  const list = $('#theme-list');
+  list.innerHTML = '';
+  for (const th of THEMES) {
+    const card = document.createElement('button');
+    card.className = 'card theme-card' + (save.theme === th.id ? ' on' : '');
+    card.innerHTML = `<div class="theme-swatch" style="background:linear-gradient(135deg, ${th.swatch[0]} 0 50%, ${th.swatch[1]} 50% 100%)"></div>
+      <div class="theme-meta"><h3>${th.name}</h3><div class="up-desc">${th.desc}</div><div class="theme-worlds">${WORLDS.map((_, wi) => themedWorld(wi, th.id).name).slice(0, 3).join(' &bull; ')} &bull; ...</div></div>
+      <span class="theme-pick">${save.theme === th.id ? 'Selected' : 'Choose'}</span>`;
+    card.onclick = () => {
+      save.theme = th.id;
+      renderer.setTheme(th.id);
+      persist();
+      sfx.good();
+      applyThemeToMenu();
+      renderThemes();
+    };
+    list.appendChild(card);
+  }
+}
+function applyThemeToMenu() {
+  const th = themeById(save.theme);
+  $('#menu-subtitle').textContent = th.id === 'classic' ? 'Worlds at War' : `${th.name} edition`;
+  document.body.dataset.theme = th.id;
+}
+applyThemeToMenu();
 
 $('#btn-res-upgrades').onclick = () => { sfx.click(); show('upgrades'); };
 function renderPauseToggles() {

@@ -3,8 +3,9 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { HW, armyRadius, HERO_POWER, BOSS_WAKE } from './sim.js';
 import { weaponById } from './data.js';
-import { drawWeaponIcon, drawHeroIcon } from './icons.js';
+import { drawWeaponIcon, drawHeroIcon, drawBtc } from './icons.js';
 import { buildEnvironment } from './env.js';
+import { themeById, themedWorld } from './themes.js';
 import { Particles } from './particles.js';
 
 const QUALITY = {
@@ -14,7 +15,6 @@ const QUALITY = {
 };
 const MAX_PROJ = 500;
 const MAX_GHOSTS = 260;
-const BLUE = new THREE.Color(0x2f7bff);
 const tmpM = new THREE.Matrix4();
 const tmpQ = new THREE.Quaternion();
 const tmpE = new THREE.Euler();
@@ -39,8 +39,72 @@ const sph = (r, x, y, z, hex, ws = 10, hs = 7) => colored(new THREE.SphereGeomet
 const cyl = (r1, r2, h, x, y, z, hex, seg = 8) => colored(new THREE.CylinderGeometry(r1, r2, h, seg).translate(x, y, z), hex);
 const cap = (r, len, x, y, z, hex, rx = 0, seg = 6) => colored(new THREE.CapsuleGeometry(r, len, seg <= 4 ? 1 : 2, seg).rotateX(rx).translate(x, y, z), hex);
 
+// Figures for each theme: a tinted part (takes the team colour per instance) and a fixed-colour part.
+// The front of a figure is -z.
+function figureGeometries(kind) {
+  if (kind === 'gridiron') return gridironGeometries();
+  if (kind === 'footy') return footyGeometries();
+  const g = soldierGeometries(kind === 'bear');
+  if (kind === 'bull') {
+    // bull horns on the helmet
+    g.fixed = mergeGeometries([g.fixed,
+      colored(new THREE.ConeGeometry(0.035, 0.17, 5).rotateZ(1.05).translate(-0.2, 0.99, 0), 0xf4ead2),
+      colored(new THREE.ConeGeometry(0.035, 0.17, 5).rotateZ(-1.05).translate(0.2, 0.99, 0), 0xf4ead2),
+    ]);
+  }
+  return g;
+}
+
+function gridironGeometries() {
+  const tinted = mergeGeometries([
+    colored(new THREE.CapsuleGeometry(0.17, 0.16, 2, 6).scale(1, 1, 0.72).translate(0, 0.58, 0), 0xffffff),
+    box(0.5, 0.12, 0.3, 0, 0.76, 0, 0xffffff),
+    cap(0.06, 0.16, -0.25, 0.6, -0.05, 0xffffff, 0.5, 4),
+    cap(0.06, 0.16, 0.25, 0.6, -0.08, 0xffffff, 0.8, 4),
+    sph(0.155, 0, 0.92, 0.01, 0xffffff, 9, 6),
+    cap(0.05, 0.1, -0.09, 0.12, 0, 0xffffff, 0, 4),
+    cap(0.05, 0.1, 0.09, 0.12, 0, 0xffffff, 0, 4),
+  ]);
+  const fixed = mergeGeometries([
+    cap(0.075, 0.12, -0.09, 0.32, 0, 0xeee6cc, 0, 4),
+    cap(0.075, 0.12, 0.09, 0.32, 0, 0xeee6cc, 0, 4),
+    box(0.03, 0.1, 0.03, -0.07, 0.88, -0.15, 0x9a9ea8),
+    box(0.03, 0.1, 0.03, 0.07, 0.88, -0.15, 0x9a9ea8),
+    box(0.17, 0.025, 0.03, 0, 0.9, -0.16, 0x9a9ea8),
+    box(0.17, 0.025, 0.03, 0, 0.85, -0.16, 0x9a9ea8),
+    box(0.035, 0.02, 0.3, 0, 1.07, 0.01, 0xffffff),
+    colored(new THREE.SphereGeometry(0.07, 7, 5).scale(1, 1, 1.7).translate(0.17, 0.66, -0.24), 0x7a3f1a),
+    box(0.13, 0.06, 0.2, -0.09, 0.03, -0.03, 0x1a1a1a),
+    box(0.13, 0.06, 0.2, 0.09, 0.03, -0.03, 0x1a1a1a),
+  ]);
+  return { tinted, fixed };
+}
+
+function footyGeometries() {
+  const tinted = mergeGeometries([
+    colored(new THREE.CapsuleGeometry(0.18, 0.2, 2, 6).scale(1.1, 1, 0.78).translate(0, 0.6, 0), 0xffffff),
+    box(0.42, 0.08, 0.24, 0, 0.78, 0, 0xffffff),
+    cap(0.055, 0.14, -0.09, 0.14, 0, 0xffffff, 0, 4),
+    cap(0.055, 0.14, 0.09, 0.14, 0, 0xffffff, 0, 4),
+  ]);
+  const fixed = mergeGeometries([
+    box(0.32, 0.12, 0.2, 0, 0.37, 0, 0xf4f4f4),
+    cap(0.06, 0.08, -0.09, 0.3, 0, 0xe8b48a, 0, 4),
+    cap(0.06, 0.08, 0.09, 0.3, 0, 0xe8b48a, 0, 4),
+    cap(0.05, 0.22, -0.2, 0.6, -0.08, 0xe8b48a, 0.6, 4),
+    cap(0.05, 0.22, 0.2, 0.6, -0.1, 0xe8b48a, 0.9, 4),
+    sph(0.105, 0, 0.88, 0, 0xe8b48a, 7, 5),
+    colored(new THREE.SphereGeometry(0.109, 7, 3, 0, Math.PI * 2, 0, Math.PI / 3.2).translate(0, 0.9, 0.01), 0x6a4a2a),
+    colored(new THREE.SphereGeometry(0.07, 7, 5).scale(1, 1, 1.6).translate(0.16, 0.6, -0.26), 0xc8261e),
+    box(0.13, 0.06, 0.2, -0.09, 0.03, -0.03, 0x1a1a1a),
+    box(0.13, 0.06, 0.2, 0.09, 0.03, -0.03, 0x1a1a1a),
+  ]);
+  return { tinted, fixed };
+}
+
 // Rounded soldier: tinted part (uniform, helmet, pads) + fixed-colour part (skin, gun, boots).
-function soldierGeometries() {
+// `bear` swaps the helmet and face for a bear head with ears and a snout.
+function soldierGeometries(bear = false) {
   // Low-poly but rounded (~300 triangles) so hundreds of soldiers stay smooth on phones.
   const tinted = mergeGeometries([
     cap(0.075, 0.24, -0.09, 0.22, 0, 0x7d7d7d, 0, 4),
@@ -48,12 +112,20 @@ function soldierGeometries() {
     colored(new THREE.CapsuleGeometry(0.17, 0.18, 2, 6).scale(1, 1, 0.72).translate(0, 0.6, 0), 0xffffff),
     cap(0.058, 0.22, -0.21, 0.6, -0.08, 0xeeeeee, 0.6, 4),
     cap(0.058, 0.22, 0.21, 0.6, -0.1, 0xeeeeee, 0.9, 4),
-    colored(new THREE.SphereGeometry(0.155, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.9, 0), 0xffffff),
-    cyl(0.19, 0.19, 0.03, 0, 0.9, 0, 0xe0e0e0, 8),
+    ...(bear ? [] : [
+      colored(new THREE.SphereGeometry(0.155, 8, 3, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 0.9, 0), 0xffffff),
+      cyl(0.19, 0.19, 0.03, 0, 0.9, 0, 0xe0e0e0, 8),
+    ]),
     box(0.22, 0.24, 0.1, 0, 0.62, 0.15, 0x9a9a9a),
   ]);
   const fixed = mergeGeometries([
-    sph(0.12, 0, 0.86, 0, 0xf0c39a, 7, 5),
+    ...(bear ? [
+      sph(0.15, 0, 0.9, 0, 0x5a3a22, 8, 6),
+      sph(0.055, -0.11, 1.03, 0, 0x5a3a22, 6, 4),
+      sph(0.055, 0.11, 1.03, 0, 0x5a3a22, 6, 4),
+      sph(0.065, 0, 0.86, -0.13, 0xb08a64, 6, 4),
+      sph(0.02, 0, 0.88, -0.19, 0x111111, 4, 3),
+    ] : [sph(0.12, 0, 0.86, 0, 0xf0c39a, 7, 5)]),
     box(0.06, 0.08, 0.62, 0.13, 0.64, -0.34, 0x24262b),
     box(0.05, 0.13, 0.06, 0.13, 0.56, -0.22, 0x24262b),
     box(0.15, 0.06, 0.2, -0.09, 0.03, -0.03, 0x2a2a2a),
@@ -113,6 +185,7 @@ function outlinedText(ctx, text, x, y, size, fill = '#fff', stroke = '#1a1a1a') 
   ctx.fillText(text, x, y);
 }
 
+
 function radialTexture(inner, outer) {
   const c = textCanvas(128, 128);
   const ctx = c.getContext('2d');
@@ -138,9 +211,8 @@ export class Renderer {
     this.shake = 0;
     this.time = 0;
 
-    const { tinted, fixed } = soldierGeometries();
-    this.soldierTinted = tinted;
-    this.soldierFixed = fixed;
+    this.figures = new Map();
+    this.setTheme('classic');
     this.matTinted = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.matFixed = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.matGhost = new THREE.MeshBasicMaterial({ color: 0xf4f6ff, transparent: true, opacity: 0.75, depthWrite: false });
@@ -156,6 +228,22 @@ export class Renderer {
     this.squadLabels = [];
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  // Theme = how players, enemies, bosses, scenery and projectiles look. Applied on the next load().
+  setTheme(id) {
+    this.theme = themeById(id);
+    const fig = (kind) => {
+      if (!this.figures.has(kind)) this.figures.set(kind, figureGeometries(kind));
+      return this.figures.get(kind);
+    };
+    const a = fig(this.theme.armyKind);
+    const en = fig(this.theme.enemyKind);
+    this.soldierTinted = a.tinted;
+    this.soldierFixed = a.fixed;
+    this.enemyTinted = en.tinted;
+    this.enemyFixed = en.fixed;
+    this.armyColor = new THREE.Color(this.theme.army);
   }
 
   // Called when frames are slow: render fewer pixels without reloading anything.
@@ -195,7 +283,8 @@ export class Renderer {
     this.dispose();
     this.sim = sim;
     const q = QUALITY[this.quality];
-    const world = sim.world;
+    const world = themedWorld(sim.level.wi, this.theme.id);
+    this.world = world;
     const scene = this.scene;
     scene.background = new THREE.Color(world.sky);
     scene.fog = new THREE.Fog(world.fog, world.fogNear, world.fogFar);
@@ -210,14 +299,14 @@ export class Renderer {
     this.root = new THREE.Group();
     scene.add(this.root);
     this.followers = null;
-    buildEnvironment(this, world, sim.level.length + 120);
+    buildEnvironment(this, world, sim.level.length + 120, this.theme, sim.bosses.map((b) => b.d));
     this.buildDividers(sim);
 
     this.maxArmy = q.army;
     this.maxEnemy = q.enemy;
-    this.army = this.makeCrowd(q.army, BLUE);
+    this.army = this.makeCrowd(q.army, this.armyColor);
     this.armyPos = Array.from({ length: q.army }, () => ({ x: 0, z: 0, ph: Math.random() * 6.28, fresh: 2 }));
-    this.enemies = this.makeCrowd(q.enemy, new THREE.Color(world.enemy));
+    this.enemies = this.makeCrowd(q.enemy, new THREE.Color(world.enemy), this.enemyTinted, this.enemyFixed);
     this.heroes = [];
     this.armyShadow = this.makeShadow();
 
@@ -229,9 +318,11 @@ export class Renderer {
     this.root.add(this.ghostMesh);
     this.ghosts = [];
 
-    // tracer bullets
-    const pg = new THREE.BoxGeometry(0.1, 0.1, 1.3);
-    this.projMesh = new THREE.InstancedMesh(pg, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), MAX_PROJ);
+    // tracer bullets, or thrown/kicked balls in the football themes
+    this.ballProj = this.theme.proj === 'ball';
+    const pg = this.ballProj ? new THREE.SphereGeometry(0.11, 8, 6).scale(1, 1, 1.75) : new THREE.BoxGeometry(0.1, 0.1, 1.3);
+    const pm = this.ballProj ? new THREE.MeshLambertMaterial({ color: 0xffffff }) : new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+    this.projMesh = new THREE.InstancedMesh(pg, pm, MAX_PROJ);
     this.projMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.projMesh.frustumCulled = false;
     this.projMesh.setColorAt(0, tmpC.set(0xffffff));
@@ -257,7 +348,7 @@ export class Renderer {
 
   dispose() {
     if (!this.root) return;
-    const keep = new Set([this.soldierTinted, this.soldierFixed, this.matTinted, this.matFixed, this.matGhost, this.shadowTex, this.glowTex]);
+    const keep = new Set([...[...this.figures.values()].flatMap((f) => [f.tinted, f.fixed]), this.matTinted, this.matFixed, this.matGhost, this.shadowTex, this.glowTex]);
     for (const t of this.texCache.values()) keep.add(t);
     this.scene.traverse((o) => {
       if (o.geometry && !keep.has(o.geometry)) o.geometry.dispose();
@@ -276,9 +367,9 @@ export class Renderer {
     this.overlay.querySelectorAll('.pop').forEach((p) => p.remove());
   }
 
-  makeCrowd(max, color) {
-    const t = new THREE.InstancedMesh(this.soldierTinted, this.matTinted, max);
-    const f = new THREE.InstancedMesh(this.soldierFixed, this.matFixed, max);
+  makeCrowd(max, color, tinted = this.soldierTinted, fixed = this.soldierFixed) {
+    const t = new THREE.InstancedMesh(tinted, this.matTinted, max);
+    const f = new THREE.InstancedMesh(fixed, this.matFixed, max);
     for (const m of [t, f]) {
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       m.frustumCulled = false;
@@ -307,7 +398,7 @@ export class Renderer {
         for (let z = 0; z <= len; z += 4) geos.push(new THREE.BoxGeometry(0.4, 1.2, 0.4).translate(x, 0.6, -(dv.d0 + z)));
       }
     }
-    if (geos.length) this.root.add(new THREE.Mesh(mergeGeometries(geos), new THREE.MeshLambertMaterial({ color: this.sim.world.rail })));
+    if (geos.length) this.root.add(new THREE.Mesh(mergeGeometries(geos), new THREE.MeshLambertMaterial({ color: this.world.rail })));
   }
 
   cachedTex(key, w, h, draw) {
@@ -368,7 +459,7 @@ export class Renderer {
         g.add(new THREE.Mesh(new THREE.BoxGeometry(cw + 0.2, 0.12, 2), new THREE.MeshLambertMaterial({ color: 0x6a5030 })).translateX(cx).translateY(0.06));
         const pris = new THREE.Group();
         const k = Math.min(12, e.allies);
-        const mat = new THREE.MeshLambertMaterial({ vertexColors: true, color: BLUE });
+        const mat = new THREE.MeshLambertMaterial({ vertexColors: true, color: this.armyColor });
         for (let i = 0; i < k; i++) {
           const s = new THREE.Group();
           s.add(new THREE.Mesh(this.soldierTinted, mat), new THREE.Mesh(this.soldierFixed, this.matFixed));
@@ -432,7 +523,9 @@ export class Renderer {
         break;
       }
       case 'coin': {
-        const c = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.12, 18).rotateX(Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xffc81a, emissive: 0x6a4a00 }));
+        const coinMat = new THREE.MeshLambertMaterial({ color: this.theme.coin === 'btc' ? 0xf7931a : 0xffc81a, emissive: 0x6a4a00 });
+        const face = this.theme.coin === 'btc' ? new THREE.MeshBasicMaterial({ map: this.cachedTex('btc', 128, 128, drawBtc) }) : coinMat;
+        const c = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.12, 18).rotateX(Math.PI / 2), [coinMat, face, face]);
         c.position.set(cx, 0.9, 0);
         g.add(c);
         v.spin = c;
@@ -641,7 +734,7 @@ export class Renderer {
     for (const ev of events) {
       switch (ev.type) {
         case 'spawn': {
-          this.views.set(ev.e.id, this.buildEntity(ev.e, sim.world));
+          this.views.set(ev.e.id, this.buildEntity(ev.e, this.world));
           this.dust(ev.e.x, -ev.e.d, 1.2, 0x9a8a7a, 8);
           break;
         }
@@ -873,7 +966,7 @@ export class Renderer {
       v.g.add(glow);
       v.glow = glow;
       if (e.type === 'hero') {
-        const h = buildHero();
+        const h = buildHero(this.theme.hero);
         h.position.set(v.cx, 0, 0.9);
         h.rotation.y = Math.PI;
         v.g.add(h);
@@ -927,7 +1020,7 @@ export class Renderer {
 
     // ---- heroes
     while (this.heroes.length < sim.heroes) {
-      const h = buildHero();
+      const h = buildHero(this.theme.hero);
       this.root.add(h);
       this.heroes.push(h);
     }
@@ -1073,7 +1166,7 @@ export class Renderer {
     const b = sim.boss;
     if (bossVisible && b.alive) {
       this.bossBar.classList.remove('hidden');
-      const nm = `${b.final ? sim.world.boss.name : 'Mini-boss'}  ${b.stage + 1}/${b.stages}${b.phase > 1 ? (b.phase === 3 ? '  ENRAGED' : '  ANGRY') : ''}`;
+      const nm = `${b.final ? this.world.boss.name : 'Mini-boss'}  ${b.stage + 1}/${b.stages}${b.phase > 1 ? (b.phase === 3 ? '  ENRAGED' : '  ANGRY') : ''}`;
       const nameEl = this.bossBar.querySelector('.boss-name');
       if (nameEl.textContent !== nm) nameEl.textContent = nm;
       this.bossBar.querySelector('.boss-fill').style.width = `${(b.hp / b.maxHp) * 100}%`;
@@ -1087,9 +1180,19 @@ export class Renderer {
       const w = p.w;
       const sc = w.size * (p.hero ? 1.3 : 1);
       tmpQ.setFromAxisAngle(UP, -Math.atan2(p.vx || 0, p.speed));
-      tmpM.compose(tmpP.set(p.x, 0.7 + (p.hero ? 0.4 : 0), -p.d), tmpQ, tmpS.set(sc, sc, sc * (w.speed > 120 ? 2.6 : 1.6)));
+      if (this.ballProj) {
+        // a spiralling ball in a gentle arc; energy weapons keep their glow colour
+        const bs = Math.min(1.5, 0.75 + sc * 0.3);
+        const arc = Math.sin(Math.min(1, (p.d - p.d0) / p.travel) * Math.PI) * 1.4;
+        tmpE.set(0, -Math.atan2(p.vx || 0, p.speed), (p.d * 2) % 6.28);
+        tmpQ.setFromEuler(tmpE);
+        tmpM.compose(tmpP.set(p.x, 0.75 + arc + (p.hero ? 0.4 : 0), -p.d), tmpQ, tmpS.set(bs, bs, bs));
+        this.projMesh.setColorAt(pi, tmpC.set(w.tier >= 5 ? w.color : this.theme.ball));
+      } else {
+        tmpM.compose(tmpP.set(p.x, 0.7 + (p.hero ? 0.4 : 0), -p.d), tmpQ, tmpS.set(sc, sc, sc * (w.speed > 120 ? 2.6 : 1.6)));
+        this.projMesh.setColorAt(pi, tmpC.set(this.theme.projColor && w.tier < 5 ? this.theme.projColor : w.color));
+      }
       this.projMesh.setMatrixAt(pi, tmpM);
-      this.projMesh.setColorAt(pi, tmpC.set(w.color));
       pi++;
     }
     this.projMesh.count = pi;
@@ -1245,21 +1348,23 @@ export class Renderer {
   }
 }
 
-function buildHero() {
+function buildHero(colors = { main: 0x2f7bff, trim: 0xffc81a }) {
   const g = new THREE.Group();
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  const main = colors.main, trim = colors.trim;
+  const dark = new THREE.Color(main).multiplyScalar(0.7).getHex();
   const body = mergeGeometries([
-    cap(0.11, 0.42, -0.14, 0.3, 0, 0x244a9a),
-    cap(0.11, 0.42, 0.14, 0.3, 0, 0x244a9a),
-    colored(new THREE.CapsuleGeometry(0.3, 0.3, 3, 10).scale(1.05, 1, 0.75).translate(0, 0.9, 0), 0x2f7bff),
-    cyl(0.31, 0.31, 0.08, 0, 0.66, 0, 0xffc81a, 12),
-    colored(new THREE.BoxGeometry(0.08, 0.7, 0.5).rotateZ(-0.6).translate(0, 0.95, 0), 0xffc81a),
-    sph(0.14, -0.34, 1.12, 0, 0xffc81a, 8, 6),
-    sph(0.14, 0.34, 1.12, 0, 0xffc81a, 8, 6),
-    cap(0.09, 0.32, -0.36, 0.86, -0.12, 0x2f7bff, 0.8),
+    cap(0.11, 0.42, -0.14, 0.3, 0, dark),
+    cap(0.11, 0.42, 0.14, 0.3, 0, dark),
+    colored(new THREE.CapsuleGeometry(0.3, 0.3, 3, 10).scale(1.05, 1, 0.75).translate(0, 0.9, 0), main),
+    cyl(0.31, 0.31, 0.08, 0, 0.66, 0, trim, 12),
+    colored(new THREE.BoxGeometry(0.08, 0.7, 0.5).rotateZ(-0.6).translate(0, 0.95, 0), trim),
+    sph(0.14, -0.34, 1.12, 0, trim, 8, 6),
+    sph(0.14, 0.34, 1.12, 0, trim, 8, 6),
+    cap(0.09, 0.32, -0.36, 0.86, -0.12, main, 0.8),
     sph(0.17, 0, 1.36, 0, 0x8a5a3a),
-    colored(new THREE.SphereGeometry(0.2, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.42, 0), 0x2f7bff),
-    cyl(0.25, 0.25, 0.04, 0, 1.42, 0, 0xffc81a, 12),
+    colored(new THREE.SphereGeometry(0.2, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2).translate(0, 1.42, 0), main),
+    cyl(0.25, 0.25, 0.04, 0, 1.42, 0, trim, 12),
     box(0.26, 0.26, 0.5, 0.34, 0.82, -0.12, 0x333333),
   ]);
   g.add(new THREE.Mesh(body, mat));
@@ -1285,7 +1390,8 @@ function buildBoss(cfg) {
   if (!cfg.mech) chest.scale.set(1.2, 0.7, 0.8);
   const belt = mk(new THREE.CylinderGeometry(1.7, 1.7, 0.5, 18), acc, 0, 3.8, 0);
   belt.scale.z = 0.75;
-  const head = cfg.mech ? mk(new THREE.BoxGeometry(1.6, 1.1, 1.4), acc, 0, 7.3, 0) : mk(new THREE.SphereGeometry(0.95, 16, 12), mat, 0, 7.4, 0);
+  const skin = new THREE.MeshLambertMaterial({ color: 0xe0a87a });
+  const head = cfg.mech ? mk(new THREE.BoxGeometry(1.6, 1.1, 1.4), acc, 0, 7.3, 0) : mk(new THREE.SphereGeometry(0.95, 16, 12), cfg.player === 'footy' ? skin : mat, 0, 7.4, 0);
   const eyes = [mk(new THREE.SphereGeometry(0.16, 8, 6), eye, -0.35, 7.5, 0.82), mk(new THREE.SphereGeometry(0.16, 8, 6), eye, 0.35, 7.5, 0.82)];
   const shoulders = [mk(new THREE.SphereGeometry(0.85, 14, 10), acc, -2.2, 6.4, 0), mk(new THREE.SphereGeometry(0.85, 14, 10), acc, 2.2, 6.4, 0)];
   const pivotLeg = (x) => {
@@ -1317,6 +1423,27 @@ function buildBoss(cfg) {
     group.add(hl, hr);
   }
   if (cfg.mech) group.add(mk(new THREE.BoxGeometry(0.2, 1.4, 0.2), eye, 0, 8.3, 0));
+  if (cfg.bear) {
+    // round ears and a snout
+    const snout = mk(new THREE.SphereGeometry(0.5, 12, 8), acc, 0, 7.1, 0.75);
+    snout.scale.set(1, 0.75, 0.8);
+    const nose = mk(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshLambertMaterial({ color: 0x111111 }), 0, 7.25, 1.12);
+    group.add(mk(new THREE.SphereGeometry(0.36, 10, 8), mat, -0.72, 8.15, 0), mk(new THREE.SphereGeometry(0.36, 10, 8), mat, 0.72, 8.15, 0), snout, nose);
+  }
+  if (cfg.player === 'gridiron') {
+    // helmet stripe and face mask
+    const grey = new THREE.MeshLambertMaterial({ color: 0x9a9ea8 });
+    const stripe = mk(new THREE.BoxGeometry(0.22, 0.12, 1.9), acc, 0, 8.32, 0);
+    const bars = [7.0, 7.3].map((y) => mk(new THREE.BoxGeometry(1.2, 0.09, 0.09), grey, 0, y, 0.93));
+    const struts = [-0.4, 0.4].map((x) => mk(new THREE.BoxGeometry(0.09, 0.5, 0.09), grey, x, 7.15, 0.9));
+    group.add(stripe, ...bars, ...struts);
+  }
+  if (cfg.player === 'footy') {
+    // hair and a headband
+    const hair = mk(new THREE.SphereGeometry(0.98, 14, 6, 0, Math.PI * 2, 0, Math.PI / 2.3), new THREE.MeshLambertMaterial({ color: 0x3a2414 }), 0, 7.45, -0.02);
+    const band = mk(new THREE.CylinderGeometry(0.97, 0.97, 0.18, 18), acc, 0, 7.75, 0);
+    group.add(hair, band);
+  }
   // weak-spot core in the chest: glows while exposed after an attack
   const core = mk(new THREE.SphereGeometry(0.55, 16, 12), new THREE.MeshBasicMaterial({ color: 0x553311 }), 0, 5.4, cfg.mech ? 1.45 : 1.75);
   group.add(core);

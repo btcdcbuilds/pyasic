@@ -2,8 +2,14 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { HW, mulberry32 as mulberry } from './sim.js';
+import { drawBtc } from './icons.js';
 
-export function buildEnvironment(r, world, len) {
+export function buildEnvironment(r, world, len, theme = { env: 'world' }, bossDs = []) {
+  if (theme.env === 'gridiron' || theme.env === 'footy') {
+    buildStadium(r, world, len, theme, bossDs);
+    addAmbient(r, world);
+    return;
+  }
   const root = r.root;
   const lam = (hex, extra = {}) => new THREE.MeshLambertMaterial({ color: hex, ...extra });
   const trackW = HW * 2 + 1.2;
@@ -37,7 +43,200 @@ export function buildEnvironment(r, world, len) {
     root.add(new THREE.Mesh(mergeGeometries(pg), lam(world.props === 'bridge' ? world.rail : 0x4a4440)));
   }
   addProps(r, world, len);
+  if (theme.env === 'bitcoin') addBitcoinProps(r, len);
   addAmbient(r, world);
+}
+
+// Bitcoin theme extras on top of the world scenery: rows of mining rigs and coin billboards.
+function addBitcoinProps(r, len) {
+  const root = r.root;
+  const G = THREE;
+  const rigs = [], fans = [], leds = [], posts = [];
+  for (let z = -6; z > -len; z -= 3.2) {
+    for (const s of [-1, 1]) {
+      const x = s * (HW + 2.3);
+      rigs.push(new G.BoxGeometry(1.1, 0.75, 1.5).translate(x, 0.38, z));
+      fans.push(new G.CylinderGeometry(0.28, 0.28, 0.05, 10).rotateX(Math.PI / 2).translate(x, 0.38, z + 0.76));
+      leds.push(new G.BoxGeometry(0.08, 0.08, 0.04).translate(x + 0.4, 0.62, z + 0.77));
+    }
+  }
+  root.add(new G.Mesh(mergeGeometries(rigs), new G.MeshLambertMaterial({ color: 0x8c9096 })));
+  root.add(new G.Mesh(mergeGeometries(fans), new G.MeshLambertMaterial({ color: 0x2a2c30 })));
+  root.add(new G.Mesh(mergeGeometries(leds), new G.MeshBasicMaterial({ color: 0x3aff6a })));
+  const tex = r.cachedTex('btc', 128, 128, drawBtc);
+  const faceMat = new G.MeshBasicMaterial({ map: tex, transparent: true });
+  let k = 0;
+  for (let z = -30; z > -len; z -= 46) {
+    const s = k++ % 2 ? 1 : -1;
+    const x = s * (HW + 6.5);
+    posts.push(new G.CylinderGeometry(0.18, 0.18, 6, 6).translate(x, 3, z - 0.2));
+    const sign = new G.Mesh(new G.PlaneGeometry(4.2, 4.2), faceMat);
+    sign.position.set(x, 7.2, z);
+    sign.rotation.y = -s * 0.25;
+    root.add(sign);
+  }
+  if (posts.length) root.add(new G.Mesh(mergeGeometries(posts), new G.MeshLambertMaterial({ color: 0x55585e })));
+}
+
+// Football stadium for the gridiron and footy themes: striped turf, field markings, advertising
+// boards, stands full of fans, floodlights and goal posts behind every boss. The world still sets
+// the sky, light, fog and weather (snow, embers, sand...).
+function buildStadium(r, world, len, theme, bossDs) {
+  const root = r.root;
+  const G = THREE;
+  const lam = (hex, extra = {}) => new G.MeshLambertMaterial({ color: hex, ...extra });
+  const merged = (geos, mat) => { if (geos.length) root.add(new G.Mesh(mergeGeometries(geos), mat)); };
+  const trackW = HW * 2 + 1.2;
+  const L = len + 60;
+  const zc = -len / 2 + 20;
+  // turf with mowing stripes
+  const turf = new G.Mesh(new G.BoxGeometry(trackW + 6, 0.6, L), lam(0x3b8a36));
+  turf.position.set(0, -0.3, zc);
+  root.add(turf);
+  const stripes = [];
+  for (let z = 20; z > -len - 40; z -= 10) stripes.push(new G.BoxGeometry(trackW + 6, 0.01, 5).translate(0, 0.004, z));
+  merged(stripes, lam(0x47a041));
+  const white = new G.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+  const lines = [];
+  for (const x of [-HW - 0.3, HW + 0.3]) lines.push(new G.BoxGeometry(0.22, 0.02, L).translate(x, 0.012, zc));
+  if (theme.env === 'gridiron') {
+    // yard lines every 10 m, hash marks every 2 m, numbers 10..50..10
+    for (let z = 0, n = 0; z > -len; z -= 10, n++) {
+      lines.push(new G.BoxGeometry(trackW - 0.6, 0.02, 0.16).translate(0, 0.012, z));
+      for (let h = 2; h < 10; h += 2) for (const x of [-2.2, 2.2, -HW + 0.4, HW - 0.4]) lines.push(new G.BoxGeometry(0.5, 0.02, 0.1).translate(x, 0.012, z - h));
+      const yard = [10, 20, 30, 40, 50, 40, 30, 20, 10, 0][n % 10];
+      if (yard) {
+        const tex = r.cachedTex(`yd${yard}`, 128, 64, (ctx, w, h) => {
+          ctx.fillStyle = 'rgba(255,255,255,0.85)';
+          ctx.font = `${h * 0.9}px "Lilita One", "Arial Black", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(String(yard), w / 2, h / 2 + 3);
+        });
+        for (const s of [-1, 1]) {
+          const num = new G.Mesh(new G.PlaneGeometry(2.2, 1.1), new G.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
+          num.rotation.x = -Math.PI / 2;
+          num.position.set(s * (HW - 1.7), 0.02, z - 1.2);
+          root.add(num);
+        }
+      }
+    }
+  } else {
+    // footy: centre circle and square, and a 50 m arc every 80 m
+    for (let z = -40; z > -len; z -= 80) {
+      const ring = new G.Mesh(new G.RingGeometry(2.6, 2.8, 40), white);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(0, 0.014, z);
+      root.add(ring);
+      for (const [w, d, x, dz] of [[8, 0.18, 0, -4], [8, 0.18, 0, 4], [0.18, 8, -4, 0], [0.18, 8, 4, 0]]) lines.push(new G.BoxGeometry(w, 0.02, d).translate(x, 0.012, z + dz));
+      const arc = new G.Mesh(new G.RingGeometry(9.8, 10, 40, 1, Math.PI * 1.2, Math.PI * 0.6), white);
+      arc.rotation.x = -Math.PI / 2;
+      arc.position.set(0, 0.014, z - 30);
+      root.add(arc);
+    }
+  }
+  merged(lines, white);
+  // advertising boards along both sidelines
+  const adTex = r.cachedTex(`ads-${theme.id}`, 512, 64, (ctx, w, h) => {
+    const cols = ['#1f4fd0', '#ffc81a', '#d0262a', '#1a1a1a'];
+    const words = theme.env === 'gridiron' ? ['GO RUSH', 'TOUCHDOWN', 'DEFENSE!', 'GAME DAY'] : ['GO RUSH', 'KICK IT LONG', 'CARN!', 'FOOTY DAY'];
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = cols[i];
+      ctx.fillRect(i * 128, 0, 128, h);
+      ctx.fillStyle = i === 1 ? '#1a1a1a' : '#ffffff';
+      ctx.font = `${h * 0.42}px "Lilita One", "Arial Black", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(words[i], i * 128 + 64, h / 2 + 2);
+    }
+  });
+  adTex.wrapS = G.RepeatWrapping;
+  adTex.repeat.set(L / 20, 1);
+  const edge = trackW / 2 + 3;
+  for (const s of [-1, 1]) {
+    const board = new G.Mesh(new G.BoxGeometry(L, 1.1, 0.25), [lam(0x222222), lam(0x222222), lam(0x222222), lam(0x222222), new G.MeshBasicMaterial({ map: adTex }), new G.MeshBasicMaterial({ map: adTex })]);
+    board.rotation.y = Math.PI / 2 * s;
+    board.position.set(s * edge, 0.55, zc);
+    root.add(board);
+  }
+  // stands full of fans in both teams' colours
+  const army = '#' + new G.Color(theme.army).getHexString();
+  const rival = '#' + new G.Color(theme.enemy).getHexString();
+  const crowdTex = r.cachedTex(`crowd-${theme.id}`, 256, 256, (ctx, w, h) => {
+    ctx.fillStyle = '#2a2d36';
+    ctx.fillRect(0, 0, w, h);
+    const cols = [army, army, army, rival, '#ffffff', '#ffc81a', '#e8b48a', '#3a2414'];
+    for (let y = 4; y < h; y += 8) {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(0, y + 5, w, 2);
+      for (let x = 3; x < w; x += 7) {
+        ctx.fillStyle = cols[(x * 7 + y * 13 + ((x * y) % 5)) % cols.length];
+        ctx.beginPath();
+        ctx.arc(x + ((y / 8) % 2) * 3, y + 1, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  });
+  crowdTex.wrapS = crowdTex.wrapT = G.RepeatWrapping;
+  crowdTex.repeat.set(2, L / 12);
+  const tilt = 0.5;
+  const sw = 22;
+  for (const s of [-1, 1]) {
+    const stand = new G.Mesh(new G.PlaneGeometry(sw, L).rotateX(-Math.PI / 2).rotateZ(s * tilt), new G.MeshLambertMaterial({ map: crowdTex }));
+    stand.position.set(s * (edge + 1.5 + (sw / 2) * Math.cos(tilt)), (sw / 2) * Math.sin(tilt) + 0.2, zc);
+    root.add(stand);
+    const roof = new G.Mesh(new G.BoxGeometry(10, 0.5, L), lam(0x3a3e48));
+    roof.position.set(s * (edge + 1.5 + sw * Math.cos(tilt) - 3), sw * Math.sin(tilt) + 4.5, zc);
+    root.add(roof);
+  }
+  // floodlights
+  const poles = [], lamps = [];
+  for (let z = -10; z > -len; z -= 70) {
+    for (const s of [-1, 1]) {
+      const x = s * (edge + 1.5 + sw * Math.cos(tilt) + 2);
+      poles.push(new G.CylinderGeometry(0.35, 0.5, 26, 8).translate(x, 13, z));
+      lamps.push(new G.BoxGeometry(4, 2.6, 0.5).translate(x - s * 0.6, 26.5, z + 0.3));
+    }
+  }
+  merged(poles, lam(0x8a8f99));
+  merged(lamps, new G.MeshBasicMaterial({ color: 0xfffbe0 }));
+  // ground outside the stadium
+  const ground = new G.Mesh(new G.PlaneGeometry(500, len + 400), lam(new G.Color(world.ground).lerp(new G.Color(0x2a2d36), 0.6).getHex()));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.set(0, -0.65, -len / 2);
+  root.add(ground);
+  // goal posts just behind each boss
+  const yellow = lam(0xffd21a), whiteM = lam(0xffffff), pad = lam(theme.army);
+  for (const bd of bossDs) {
+    const z = -(bd + 9);
+    if (theme.env === 'gridiron') {
+      merged([
+        new G.CylinderGeometry(0.22, 0.22, 3.2, 8).translate(0, 1.6, z + 1.2),
+        new G.BoxGeometry(0.3, 0.3, 1.4).translate(0, 3.2, z + 0.55),
+        new G.CylinderGeometry(0.16, 0.16, 7.4, 8).rotateZ(Math.PI / 2).translate(0, 3.3, z),
+        new G.CylinderGeometry(0.13, 0.13, 8, 8).translate(-3.7, 7.3, z),
+        new G.CylinderGeometry(0.13, 0.13, 8, 8).translate(3.7, 7.3, z),
+      ], yellow);
+      const ez = new G.Mesh(new G.PlaneGeometry(trackW + 6, 9), new G.MeshBasicMaterial({ color: theme.army, transparent: true, opacity: 0.45, depthWrite: false }));
+      ez.rotation.x = -Math.PI / 2;
+      ez.position.set(0, 0.008, z + 4.5);
+      root.add(ez);
+    } else {
+      const posts = [], pads = [];
+      for (const [x, h] of [[-2.2, 11], [2.2, 11], [-6.6, 7], [6.6, 7]]) {
+        posts.push(new G.CylinderGeometry(0.16, 0.2, h, 8).translate(x, h / 2, z));
+        pads.push(new G.CylinderGeometry(0.32, 0.32, 1.8, 10).translate(x, 0.9, z));
+      }
+      merged(posts, whiteM);
+      merged(pads, pad);
+    }
+  }
+  if (world.props === 'lunar') {
+    const earth = new G.Mesh(new G.SphereGeometry(30, 24, 16), new G.MeshBasicMaterial({ color: 0x3a7bff }));
+    earth.position.set(-90, 70, -260);
+    r.followers = [earth];
+    root.add(earth);
+  }
 }
 
 function addProps(r, world, len) {

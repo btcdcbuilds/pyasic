@@ -39,11 +39,16 @@ Everything needed to publish on Google Play. Graphics are in this folder: `icon-
 > **REAL BOSS FIGHTS**
 > Every level has 2–3 stages, and each stage ends with a boss. Watch for the red danger zones and steer out before the slam lands. Hit the glowing weak spot for double damage, and survive the enraged final phase. Then climb the bonus run for up to 5x coins.
 >
+> **4 THEMES**
+> Play every level as the classic army, as Bitcoin Bulls against the bears, in an American football stadium, or on an Aussie rules oval.
+>
 > **PLAY YOUR WAY**
 > • 40 levels and 4 difficulties, from Recruit to Nightmare
 > • Permanent upgrades, a weapon armory and daily rewards
 > • Plays offline
 > • No ads and no in-app purchases. Everything is earned by playing.
+
+**Trademark note for the themes:** keep the listing generic ("American football", "Aussie rules football"). Don't use "NFL", "AFL", team names or league logos in the app, icon, screenshots or text without a licence. The Bitcoin theme is fan art, and the game involves no real cryptocurrency. Read Google Play's current policy on cryptocurrency before publishing, and never claim players earn bitcoin.
 
 ## Category and tags
 

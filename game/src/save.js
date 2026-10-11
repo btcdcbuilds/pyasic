@@ -1,6 +1,7 @@
 // Save data: versioned, validated and repaired on load so a corrupted or old save can never
 // break the game. Pure functions (plus localStorage helpers) so it can be tested in Node.
 import { WORLDS, WEAPONS, DIFFICULTIES, UPGRADES, LEVELS_PER_WORLD } from './data.js';
+import { THEMES } from './themes.js';
 
 export const SAVE_KEY = 'armyrush.save.v1';
 export const SAVE_VERSION = 2;
@@ -19,6 +20,7 @@ export const defaults = () => ({
   music: true,
   vibe: true,
   quality: 'high',
+  theme: 'classic',
   tutorialDone: false,
   stats: { kills: 0, levelsWon: 0, levelsPlayed: 0, bossesKilled: 0, bestArmy: 0, playSeconds: 0, coinsEarned: 0 },
   daily: { last: '', streak: 0 },
@@ -51,6 +53,7 @@ export function sanitize(raw) {
   s.music = bool(raw.music, true);
   s.vibe = bool(raw.vibe, true);
   s.quality = ['high', 'medium', 'low'].includes(raw.quality) ? raw.quality : 'high';
+  s.theme = THEMES.some((t) => t.id === raw.theme) ? raw.theme : 'classic';
   s.tutorialDone = bool(raw.tutorialDone, s.progress > 0);
   const st = raw.stats && typeof raw.stats === 'object' ? raw.stats : {};
   for (const k of Object.keys(s.stats)) s.stats[k] = int(st[k], 0, 1e12, 0);

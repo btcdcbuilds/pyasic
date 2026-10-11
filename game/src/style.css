@@ -138,3 +138,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ink); 
 
 .btn.challenge { width: 100%; max-width: 360px; background: linear-gradient(#ff8a4a, #d0401a); border-color: #ffd0b0; border-bottom-color: #7a2a0a; display: flex; flex-direction: column; align-items: center; }
 .btn.challenge small { font-size: 12px; opacity: .9; }
+
+/* theme picker */
+.theme-card { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; color: inherit; font: inherit; cursor: pointer; border: 3px solid transparent; }
+.theme-card.on { border-color: var(--gold); }
+.theme-swatch { width: 54px; height: 54px; border-radius: 14px; flex-shrink: 0; border: 2px solid rgba(255,255,255,.5); }
+.theme-meta { flex: 1; min-width: 0; }
+.theme-meta h3 { margin: 0 0 4px; font-size: 18px; }
+.theme-worlds { margin-top: 4px; font-size: 11px; color: var(--gold); font-family: Roboto, sans-serif; }
+.theme-pick { font-size: 13px; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.12); white-space: nowrap; }
+.theme-card.on .theme-pick { background: var(--gold); color: #2a1a00; }

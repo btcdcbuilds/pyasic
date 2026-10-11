@@ -4,7 +4,8 @@
 // Usage (from game/):
 //   npm run build
 //   node tools/playtest.mjs --levels 1-1,1-3,3-2 --styles bot,naive --speed 2 --out playtest/run
-//   (--upgrades N --weapon rifle to give the player a realistic loadout; --ui for menu screenshots)
+//   (--upgrades N --weapon rifle to give the player a realistic loadout; --ui for menu screenshots;
+//    --theme bitcoin|gridiron|footy to play a visual theme)
 //
 // Levels are "world-level", 1-based (1-1 = Golden Bridge level 1).
 // Styles: bot   = good player (steers for the best gate/reward, dodges traps)
@@ -28,6 +29,7 @@ const shotEvery = +(args['shots-every'] || 4); // game seconds between screensho
 const diff = args.difficulty || 'soldier';
 const upgrades = +(args.upgrades || 0);
 const weapon = args.weapon || 'pistol';
+const theme = args.theme || 'classic'; // classic | bitcoin | gridiron | footy
 const maxGameSeconds = +(args['max-seconds'] || 300);
 
 function findChrome() {
@@ -93,10 +95,12 @@ for (const [wi, li] of levels) {
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     await page.goto(url);
     await page.waitForFunction(() => window.__game);
-    const tag = `w${wi + 1}-l${li + 1}-${style}`;
-    await page.evaluate(({ wi, li, diff, upgrades, style, weapon }) => {
+    const tag = `${theme === 'classic' ? '' : theme + '-'}w${wi + 1}-l${li + 1}-${style}`;
+    await page.evaluate(({ wi, li, diff, upgrades, style, weapon, theme }) => {
       const g = window.__game;
       const save = g.save;
+      save.theme = theme;
+      g.renderer.setTheme(theme);
       save.progress = 40;
       save.difficulty = diff;
       for (const k of ['troops', 'damage', 'rate', 'armor', 'income']) save.upgrades[k] = upgrades;
@@ -142,7 +146,7 @@ for (const [wi, li] of levels) {
           if (style === 'naive') { drift = Math.max(-2, Math.min(2, drift + (Math.random() - 0.5) * 2)); g.setTarget(drift); }
         }, 1500);
       }
-    }, { wi, li, diff, upgrades, style, weapon });
+    }, { wi, li, diff, upgrades, style, weapon, theme });
 
     let lastShot = -shotEvery;
     let shots = 0;

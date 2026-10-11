@@ -160,6 +160,21 @@ npm run build && npx cap sync android   # then open game/android in Android Stud
 | `src/audio.js` | Procedural sound effects (no audio files) |
 | `tools/balance.mjs` | Headless bot balance test |
 
+## Themes
+
+Menu → **Themes** changes the look of the whole game. Levels, worlds, weapons and balance stay the same, and progress is shared.
+
+| Theme | Your team | Enemies | Scenery | Projectiles | Example worlds and bosses |
+|---|---|---|---|---|---|
+| Army Rush (classic) | Blue soldiers | Red soldiers | The 8 worlds | Tracers | Golden Bridge (Red Brute) |
+| Bitcoin Bulls | Orange soldiers with bull horns | Red bears | The 8 worlds plus ₿ billboards and mining-rig rows | Orange tracers | Genesis Block (Grizzly Bear), Crypto Winter (Polar Bear), To The Moon (The Last Bear) |
+| Gridiron Rush | Blue players with helmets and pads | Red players | Stadium: yard lines and numbers, crowds, floodlights, goal posts at each boss | Footballs | Rookie Bowl (The Big Lineman), Frozen Tundra Field (Ice Nose Tackle) |
+| Footy Rush | Blue guernseys, white shorts | Red guernseys | Oval: centre square and circle, crowds, four posts at each boss | Red footballs | Harbour Oval (The Big Ruckman), Alpine Oval (Snowy Ruckman) |
+
+The world still sets the sky, light and weather, so Frozen Tundra Field has snow and Volcano Oval glows red. Teams, names and markings are generic: the game uses no real league or club names or logos (NFL and AFL names and logos are trademarks). The Bitcoin theme uses no real bitcoin.
+
+Play a theme headless: `node tools/playtest.mjs --levels 1-2 --styles bot --theme bitcoin` (or `gridiron`, `footy`).
+
 ## Credits and licences
 
 | Part | Licence |

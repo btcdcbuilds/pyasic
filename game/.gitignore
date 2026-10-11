@@ -8,3 +8,4 @@ android/local.properties
 shots/
 playtest/run*/
 playtest/qa*/
+playtest/th-*/

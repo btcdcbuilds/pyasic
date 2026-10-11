@@ -33,7 +33,7 @@
       <div class="title">
         <div class="title-top">ARMY</div>
         <div class="title-bot">RUSH</div>
-        <div class="subtitle">Worlds at War</div>
+        <div class="subtitle" id="menu-subtitle">Worlds at War</div>
       </div>
       <div class="coin-pill big"><span class="coin-ic"></span><span class="coins-total">0</span></div>
       <button id="btn-play" class="btn primary huge">PLAY <small id="play-sub"></small></button>
@@ -43,6 +43,7 @@
         <button class="btn" data-go="armory">Armory</button>
         <button class="btn" data-go="upgrades">Upgrades</button>
         <button class="btn" data-go="stats">Stats</button>
+        <button class="btn" data-go="themes">Themes</button>
         <button class="btn" data-go="settings">Settings</button>
       </div>
       <div class="diff-row" id="menu-diff"></div>
@@ -73,6 +74,13 @@
     <section id="scr-stats" class="screen hidden">
       <header><button class="icon-btn" data-go="menu">&lsaquo;</button><h2>Stats</h2><div></div></header>
       <div class="list"><table class="res-table card" id="stats-table"></table></div>
+    </section>
+
+    <!-- Themes -->
+    <section id="scr-themes" class="screen hidden">
+      <header><button class="icon-btn" data-go="menu">&lsaquo;</button><h2>Themes</h2><div></div></header>
+      <p class="note">Same levels and worlds, a whole new look.</p>
+      <div class="list" id="theme-list"></div>
     </section>
 
     <!-- Daily reward -->
