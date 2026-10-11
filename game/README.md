@@ -64,20 +64,20 @@ Then go to repo **Settings → Secrets and variables → Actions** and add these
 
 ## Weapons (10)
 
-| Weapon | Damage | Shots/s | Range | Special | Armory unlock | Price |
+| Weapon | Damage | Shots/s | Range (m) | Special | Armory unlock | Price |
 |---|---|---|---|---|---|---|
-| Pistol | 1 | 2 | 42 | - | start | free |
-| SMG | 1 | 4.5 | 42 | - | W1-5 | 400 |
-| Assault Rifle | 2.2 | 3.6 | 52 | - | W2-4 | 1,200 |
-| Combat Shotgun | 1.6 ×5 | 1.6 | 35 | 5 pellets in a spread | W3-3 | 2,500 |
-| Minigun | 1.5 | 11 | 49 | - | W4-2 | 5,000 |
-| Laser Rifle | 4.5 | 4 | 60 | pierces 2 targets | W5-1 | 9,000 |
-| Rocket Launcher | 16 | 1 | 60 | explosive splash | W5-5 | 15,000 |
-| Plasma Cannon | 9 | 2.6 | 56 | splash + pierce | W6-4 | 24,000 |
-| Tesla Arc | 7 | 3.2 | 46 | chains to 3 extra targets | W7-3 | 36,000 |
-| Railgun | 40 | 0.9 | 80 | pierces 6 targets | W8-2 | 55,000 |
+| Pistol | 1 | 2 | 85 | - | start | free |
+| SMG | 1 | 4.5 | 85 | - | clear 1-4 | 400 |
+| Assault Rifle | 2.2 | 3.6 | 95 | - | clear 2-3 | 1,200 |
+| Combat Shotgun | 1.6 ×5 | 1.6 | 60 | 5 pellets in a spread | clear 3-2 | 2,500 |
+| Minigun | 1.5 | 11 | 90 | - | clear 4-1 | 5,000 |
+| Laser Rifle | 4.5 | 4 | 110 | pierces 2 targets | clear 4-5 | 9,000 |
+| Rocket Launcher | 16 | 1 | 100 | explosive splash 3.2 m | clear 5-4 | 15,000 |
+| Plasma Cannon | 9 | 2.6 | 100 | pierces 1 target, explosive splash 1.8 m | clear 6-3 | 24,000 |
+| Tesla Arc | 7 | 3.2 | 80 | chains to 3 extra targets | clear 7-2 | 36,000 |
+| Railgun | 40 | 0.9 | 130 | pierces 6 targets | clear 8-1 | 55,000 |
 
-Damage values are per soldier. Weapon boards inside levels can hand out any of these, scaled to the world you are in.
+Damage values are per soldier. Every bullet flies at least 120 m; past its weapon's range it does half damage. Weapon boards inside levels can hand out any of these, scaled to the world you are in.
 
 ## Difficulty
 
@@ -96,12 +96,20 @@ On top of that, every level scales up. Obstacle HP grows +30% per level, enemy t
 
 | Difficulty | Bot wins (of 120) | Average level length | Average final-boss fight (wins, from first hit) |
 |---|---|---|---|
-| Recruit | 115 | 163 s | 8.8 s |
-| Soldier | 110 | 167 s | 10.2 s |
-| Veteran | 96 | 172 s | 11.8 s |
-| Nightmare | 77 | 187 s | 19.2 s |
+| Recruit | 120 | 152 s | 10.8 s |
+| Soldier | 120 | 155 s | 12.5 s |
+| Veteran | 120 | 159 s | 15.2 s |
+| Nightmare | 119 | 164 s | 21.5 s |
 
-The bot dodges every boss attack perfectly, so these numbers are a best case.
+This bot dodges every boss attack perfectly, so these numbers are a best case.
+
+`node tools/economy.mjs <difficulty> 0.6` plays the whole career with a sloppier bot (it re-decides only every 0.4 s and picks a random spot at 40% of those decisions), buying weapons and upgrades with the coins it earns:
+
+| Difficulty | Levels cleared | Attempts needed |
+|---|---|---|
+| Soldier | 40/40 | 40 |
+| Veteran | 40/40 | 42 |
+| Nightmare | 40/40 | 93 (up to 9 tries on one level) |
 
 ## Automated playtesting
 
@@ -151,3 +159,11 @@ npm run build && npx cap sync android   # then open game/android in Android Stud
 | `src/main.js` | Menus, save data, input, game loop |
 | `src/audio.js` | Procedural sound effects (no audio files) |
 | `tools/balance.mjs` | Headless bot balance test |
+
+## Credits and licences
+
+| Part | Licence |
+|---|---|
+| Lilita One font by Juan Montoreano (via `@fontsource/lilita-one`) | SIL Open Font License 1.1, text shipped in the app at `licenses/LilitaOne-OFL.txt` |
+| Three.js | MIT |
+| Capacitor | MIT |
