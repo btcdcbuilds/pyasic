@@ -26,13 +26,17 @@ later (`git subtree split --prefix=prefab-thailand` or simply copy the folder).
 | 10 | [Launch roadmap](docs/10-launch-roadmap.md) | Step-by-step plan from now to the first container sold |
 | 11 | [Budget & port location](docs/11-budget-and-port-location.md) | What USD 20k buys, bonded-warehouse duty deferral near Laem Chabang |
 | 12 | [Brand names](docs/12-brand-names.md) | 10-name shortlist + checks to run |
+| 13 | [QwenPaw agent team](docs/13-qwenpaw-agent-team.md) | Business agents mapped to the owner's QwenPaw agents, channels (LINE/WhatsApp gap), cron jobs |
+| 14 | [Site layout & CAD service](docs/14-site-layout-and-cad-service.md) | Measurement photo → satellite/drone layout → STEVE CAD drawings + 3D model |
+| 15 | [0% duty plan](docs/15-zero-duty-plan.md) | Hard gate: Form E / RCEP routes, broker questions, supplier checks |
+| — | [QwenPaw skills](qwenpaw/skills/) | 7 ready-to-upload skills; `tools/package_skills.sh` zips them |
 | — | [Landed-cost calculator](tools/landed_cost.py) | Script: per-unit landed cost and margin from real quotes |
 
 ## The 5 things that decide whether this business works
 
 | # | Issue | Why it matters | Status |
 |---|-------|----------------|--------|
-| 1 | **Import duty on HS 9406** | A third-party tariff site lists Thailand's general (MFN) rate at **80%**. Whether the China–ASEAN FTA (Form E) brings it to 0% is **unconfirmed**: sources conflict. At 80% duty, import taxes alone come to **92.6% of CIF value** vs **7%** at 0% duty (see doc 09). | ❗ Get a written ruling from a licensed Thai customs broker **before** placing the order |
+| 1 | **Import duty on HS 9406** (owner: **must be 0% or no import**, see [doc 15](docs/15-zero-duty-plan.md)) | A third-party tariff site lists Thailand's general (MFN) rate at **80%**. Whether the China–ASEAN FTA (Form E) brings it to 0% is **unconfirmed**: sources conflict. At 80% duty, import taxes alone come to **92.6% of CIF value** vs **7%** at 0% duty (see doc 09). | ❗ Get a written ruling from a licensed Thai customs broker **before** placing the order |
 | 2 | **Foreign ownership** | Not an issue: all shareholders are Thai (owner, 2026-10-11). | ✅ Resolved |
 | 3 | **Electrical compliance** | The units ship with lights, power points and a switchboard. Cables appear to be TISI-mandatory, and other components may be too. Non-compliant items can be held at customs. | ❗ Supplier must give the component list; check against TISI |
 | 4 | **Building permits for buyers** | Under the Building Control Act a dwelling or usable structure is generally a "building". Buyers may need a permit depending on location and town plan. That affects how we market and what our contracts say. | ❗ Lawyer opinion + standard customer guidance sheet |
