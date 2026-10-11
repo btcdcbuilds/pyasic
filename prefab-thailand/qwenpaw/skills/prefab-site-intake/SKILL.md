@@ -25,7 +25,7 @@ Load `prefab-catalog` first for the `site.json` format and model codes.
 4. **Repeat the numbers back** as a short table and ask the customer to confirm or correct them. Never fill in a missing measurement yourself. Set `measurements_confirmed_by_customer: true` only after they confirm.
 5. **Pick the base image:** a drone photo if they sent one; otherwise a satellite image at the pin from the approved map provider (record `provider`). A sketch is the fallback.
 6. **Save** `site.json` (status `measured`) under `<workspace>/sites/<customer_id>/<site_id>/` with the photos.
-7. **Hand off** with `chat_with_agent` to the site-layout agent (Layla Layout): pass the path to `site.json`.
+7. **Hand off** with `chat_with_agent` to `site-engineer`: pass the path to `site.json`.
 
 ## Escalate to a human instead of continuing
 

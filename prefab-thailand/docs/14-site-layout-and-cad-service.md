@@ -6,10 +6,10 @@ return:
 
 | Deliverable | Format | Made by |
 |-------------|--------|---------|
-| Site layout on a satellite or drone image, to scale | PNG + PDF | Layla Layout (`prefab-site-layout`) |
-| CAD site plan + unit drawings (plan, elevations, pile layout) | PDF / DXF (STEVE drawings) | Cad Carl (`prefab-cad-model`) |
-| 3D model of their configured unit(s) on the site | GLB (web/Android AR) + STEP | Cad Carl via STEVE |
-| Quote matching the layout | PDF | Sales Rep Steve (`prefab-quote`) |
+| Site layout on a satellite or drone image, to scale | PNG + PDF | site-engineer (`prefab-site-layout`) |
+| CAD site plan + unit drawings (plan, elevations, pile layout) | PDF / DXF (STEVE drawings) | site-engineer (`prefab-cad-model`) |
+| 3D model of their configured unit(s) on the site | GLB (web/Android AR) + STEP | site-engineer via STEVE |
+| Quote matching the layout | PDF | sales-support (`prefab-quote`) |
 
 ## 1. Inputs we accept
 
@@ -43,17 +43,17 @@ return:
 
 | Step | Owner | Target |
 |------|-------|--------|
-| 1. Collect inputs + confirm measurements | Sales Rep Steve | Same conversation |
-| 2. Layout on image | Layla Layout | Set after testing |
-| 3. CAD model + drawings | Cad Carl + STEVE | Set after testing |
-| 4. QA check | QA Agent | — |
-| 5. Send to customer with quote | Sales Rep Steve | — |
+| 1. Collect inputs + confirm measurements | sales-support | Same conversation |
+| 2. Layout on image | site-engineer | Set after testing |
+| 3. CAD model + drawings | site-engineer + STEVE | Set after testing |
+| 4. QA check | qa-reviewer | — |
+| 5. Send to customer with quote | sales-support | — |
 | 6. Customer edits ("move it 2 m left") | Loop to step 2 | — |
 
 ## 5. Website version
 
 The same pipeline sits behind the website (doc 07 §6): upload photos → the job
-goes to Layla/Carl → the customer gets a link with the layout, an AR-ready 3D model
+goes to site-engineer → the customer gets a link with the layout, an AR-ready 3D model
 and a quote. Uploaded photos are personal data (PDPA): consent + auto-delete.
 
 ## 6. What STEVE is used for

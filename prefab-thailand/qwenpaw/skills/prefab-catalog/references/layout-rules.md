@@ -14,7 +14,7 @@ set, layouts **report** the measured gaps but must not say "OK" or "compliant".
 | Overhead power lines near the lift path | Always flag to a human | Ops lead | Never approve automatically |
 | Ground slope | Flag if visible slope or customer reports slope | Engineer | Piles can level some slope: engineer decides |
 
-## Always escalate to a human (CTO Fred)
+## Always escalate to a human (via `ops-manager`)
 
 - Stacked / 2-storey layouts
 - More than 6 units on one site

@@ -26,10 +26,10 @@ later (`git subtree split --prefix=prefab-thailand` or simply copy the folder).
 | 10 | [Launch roadmap](docs/10-launch-roadmap.md) | Step-by-step plan from now to the first container sold |
 | 11 | [Budget & port location](docs/11-budget-and-port-location.md) | What USD 20k buys, bonded-warehouse duty deferral near Laem Chabang |
 | 12 | [Brand names](docs/12-brand-names.md) | 10-name shortlist + checks to run |
-| 13 | [QwenPaw agent team](docs/13-qwenpaw-agent-team.md) | Business agents mapped to the owner's QwenPaw agents, channels (LINE/WhatsApp gap), cron jobs |
+| 13 | [AI agent team](docs/13-qwenpaw-agent-team.md) | Our 7-agent QwenPaw team: jobs, channels, tools, skills, models, workflows, cron jobs, approval limits |
 | 14 | [Site layout & CAD service](docs/14-site-layout-and-cad-service.md) | Measurement photo → satellite/drone layout → STEVE CAD drawings + 3D model |
 | 15 | [0% duty plan](docs/15-zero-duty-plan.md) | Hard gate: Form E / RCEP routes, broker questions, supplier checks |
-| — | [QwenPaw skills](qwenpaw/skills/) | 7 ready-to-upload skills; `tools/package_skills.sh` zips them |
+| — | [QwenPaw skills](qwenpaw/skills/) + [agent instructions](qwenpaw/agents/) | 12 ready-to-upload skills and 7 agent persona files; `tools/package_skills.sh` zips the skills |
 | — | [Landed-cost calculator](tools/landed_cost.py) | Script: per-unit landed cost and margin from real quotes |
 
 ## The 5 things that decide whether this business works

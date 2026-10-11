@@ -1,107 +1,173 @@
-# 13 — Running the Business on QwenPaw
+# 13 — Our AI Agent Team (QwenPaw)
 
-The owner already runs **QwenPaw v1.1.6** with 20 agents, built-in channels,
-skills, tools, MCP, cron jobs and agent-to-agent messaging (screenshots, 2026-10-11).
-This doc maps the business plan (doc 06) onto that setup.
+The team below is designed for **this business only**. It runs on QwenPaw
+(the platform the owner showed: built-in channels, skills, tools, MCP, cron
+jobs, agent-to-agent chat). The agents in the screenshots belonged to someone
+else and aren't used.
 
-## 1. What QwenPaw already gives us (from the owner's screenshots)
+## 1. Design principles
 
-| Capability | Seen in QwenPaw | Use in this business |
-|-----------|-----------------|----------------------|
-| Channels (built-in) | Console, Telegram (enabled, bot set up), DingTalk, Feishu, Discord, QQ, Matrix, SIP, XiaoYi, Mattermost, MQTT, Twilio, WeCom, WeChat, OneBot + a "Custom" tab | Telegram = owner approvals/alerts; WeCom/WeChat = supplier; Console = staff |
-| Skills | `SKILL.md` folders (frontmatter `name`, `description`, `metadata.qwenpaw`), Skill Pool, upload via zip, Import Hub | Our business skills live in [`qwenpaw/skills/`](../qwenpaw/skills/) |
-| Tools | shell, read/write/edit file, grep/glob, browser_use, desktop_screenshot, view_image, view_video, send_file_to_user, … | view_image reads customer photos; browser_use for research |
-| MCP | MCP client page | Connect **STEVE** (CAD) as an MCP server for the engineering agents |
-| Multi-agent | `chat_with_agent`, A2A skill (e.g. `a2a_friday`) | Agents hand work to each other |
-| Cron / Heartbeat | Scheduled jobs + check-ins | Follow-ups, daily reports, production chasers |
-| Agent Statistics / Token Usage | Per-agent tokens and calls | Cost control per agent |
+| Principle | Why |
+|-----------|-----|
+| **Start with 7 agents, split later** | Every agent has its own memory, skills and token cost. Split a role only when its workload or error rate justifies it |
+| **One job per agent, clear hand-offs** | Easier to test, debug and measure (QwenPaw's Agent Statistics shows cost per agent) |
+| **Customer-facing agents get the fewest tools** | Customers can type anything, including attempts to trick the bot. The agents that talk to the public get **no shell, no file writing, no browser**. They ask other agents to do things |
+| **A separate checker** | Drawings, layouts and quotes are checked by an agent that didn't make them |
+| **Humans approve money, contracts and legal statements** | Ops Manager collects approvals and sends them to the owner on Telegram |
+| **Prices, sizes and stock come from data, never from the model's memory** | Avoids wrong quotes |
 
-## 2. Channel gaps: LINE and WhatsApp
+## 2. Phase-1 team (pre-launch → first container sold)
 
-**LINE and WhatsApp are not in the built-in list** shown in the screenshot, and
-they're the two most important customer channels in this plan.
+| # | Agent ID | Display name | Job | Talks to |
+|---|----------|--------------|-----|----------|
+| 1 | `ops-manager` | Ops Manager | Runs the day: routes work, keeps the approval queue, morning brief, chases anything stuck, sends approvals to the owner | Owner (Telegram), all agents |
+| 2 | `sales-support` | Brand character (e.g. "Khun [Name] from [BRAND]") | All customer conversations: answers questions, collects site info, sends layouts and quotes, books show-unit visits, after-sales help | Customers (LINE, WhatsApp, Messenger, web chat) |
+| 3 | `site-engineer` | Site Engineer | Turns customer photos and measurements into a to-scale layout on satellite/drone images, then CAD models and drawings in STEVE | sales-support, qa-reviewer |
+| 4 | `qa-reviewer` | QA Reviewer | Checks every layout, drawing pack and quote above the threshold before it goes out: right numbers, disclaimers, prices from the price list | site-engineer, sales-support, ops-manager |
+| 5 | `supply-customs` | Supply & Customs | Supplier messages in Chinese (drafts), production tracking, the 0% duty gate, shipping documents, bonded-warehouse releases | Supplier (WeCom, drafts only), customs broker (email drafts), ops-manager |
+| 6 | `back-office` | Back Office | Price list, stock, CRM, orders, deposits, invoice drafts for the accountant, weekly KPI report | All agents (internal), accountant (exports) |
+| 7 | `marketing` | Marketing | Content in the brand voice, ad drafts, Lazada listings, competitor and project research | ops-manager (approvals), back-office (prices) |
+
+### Phase 2: split when volume grows
+
+| New agent | Split from | Trigger to split (suggested) |
+|-----------|-----------|------------------------------|
+| `after-sales` | sales-support | Support tickets slow down sales replies |
+| `dispatch` | ops-manager | Truck owned + deliveries/truck-hire bookings weekly |
+| `cad-drafter` | site-engineer | Layout requests queue for more than a day |
+| `research` | marketing | Tender and project tracking becomes a weekly job |
+| `b2b-sales` | sales-support | Data-centre / contractor deals need longer, multi-person conversations |
+
+## 3. Each agent's setup in QwenPaw
+
+### Channels
+
+| Agent | Channels |
+|-------|----------|
+| ops-manager | Telegram (owner only), Console |
+| sales-support | LINE + WhatsApp (via bridge or custom channel, see §5), Facebook Messenger, website chat |
+| supply-customs | WeCom (supplier), Console. Drafts go to the owner for sending/approval |
+| All others | Internal only (agent-to-agent, Console) |
+
+### Tools (QwenPaw built-in tools page: enable only what's listed)
+
+| Tool | ops-manager | sales-support | site-engineer | qa-reviewer | supply-customs | back-office | marketing |
+|------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| execute_shell_command | – | **off** | ✓ (layout script) | – | – | ✓ (exports) | – |
+| read_file / grep / glob | ✓ | ✓ (knowledge base only) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| write_file / edit_file | ✓ | **off** | ✓ | – | ✓ | ✓ | ✓ |
+| browser_use | – | **off** | – | – | – | – | ✓ (research only) |
+| view_image | ✓ | ✓ (customer photos) | ✓ | ✓ | ✓ (production photos) | – | ✓ |
+| view_video | – | ✓ | – | – | ✓ (production videos) | – | ✓ |
+| send_file_to_user | ✓ | ✓ | – | – | – | – | – |
+| desktop_screenshot | – | – | – | – | – | – | – |
+| delegate_external_agent | – | – | – | – | – | – | – |
+| MCP: STEVE | – | – | ✓ | ✓ (read-only use: inspect) | – | – | – |
+
+### Skills
+
+| Agent | Our skills (`qwenpaw/skills/`) | QwenPaw built-in skills |
+|-------|-------------------------------|-------------------------|
+| ops-manager | `approvals`, `form-e-duty-gate` (read) | cron, chat_with_agent, channel_message |
+| sales-support | `brand-voice-sales`, `prefab-catalog`, `prefab-site-intake`, `prefab-quote` | chat_with_agent |
+| site-engineer | `prefab-catalog`, `prefab-site-layout`, `prefab-cad-model` | chat_with_agent |
+| qa-reviewer | `qa-checklists`, `prefab-catalog` | chat_with_agent |
+| supply-customs | `supplier-liaison`, `form-e-duty-gate` | cron, chat_with_agent, pdf, xlsx |
+| back-office | `order-to-cash`, `prefab-quote` (price lookups) | cron, xlsx, docx, pdf |
+| marketing | `content-marketing`, `brand-voice-sales` (voice only), `prefab-catalog` | browser, docx |
+
+### Models
+
+| Agent | Needs | Choice |
+|-------|-------|--------|
+| sales-support, site-engineer, qa-reviewer, supply-customs | Strong reasoning, Thai/English/Chinese, **image reading** (photos, drawings) | A capable vision model |
+| ops-manager, back-office, marketing | Routine text work | A cheaper/faster model, upgraded if quality drops |
+
+Pick the models on QwenPaw's Models page; compare cost per agent in Agent Statistics after the first 2 weeks.
+
+## 4. How work flows
+
+### A. Customer wants a unit on their land
+
+| Step | Agent | Output |
+|------|-------|--------|
+| 1 | sales-support | Consent, measurements confirmed by the customer, photos, location → `site.json` |
+| 2 | site-engineer | Layout on satellite/drone image + STEVE model + drawings |
+| 3 | qa-reviewer | Pass / list of fixes |
+| 4 | back-office | Prices and stock for the quote lines |
+| 5 | sales-support | Quote (via `prefab-quote`); if above the threshold → ops-manager → owner approves on Telegram |
+| 6 | sales-support | Sends layout, 3D link, drawing PDF and quote to the customer |
+
+### B. Customer pays a deposit
+
+| Step | Agent | Output |
+|------|-------|--------|
+| 1 | back-office | Matches the payment slip to the order; **owner confirms** the money arrived (until bank matching is automated) |
+| 2 | back-office | Reserves a unit serial in stock; drafts the deposit receipt/tax invoice for the accountant |
+| 3 | supply-customs | Releases that unit from bonded storage (0% duty + VAT paid) |
+| 4 | ops-manager | Books delivery: crane-truck hire, install crew, electrician |
+| 5 | sales-support | Confirms the date with the customer; sends the site checklist |
+
+### C. Ordering a container
+
+| Step | Agent | Output |
+|------|-------|--------|
+| 1 | supply-customs | Checks `form-e-duty-gate` = PASS for every product. If not, **stop** |
+| 2 | supply-customs | Drafts the PO in Chinese + English; owner approves and sends |
+| 3 | supply-customs | Weekly production chaser; pre-shipment document check (Form E matches invoice/packing list/B-L) |
+| 4 | back-office | Adds units to stock as "in transit" |
+
+## 5. Channel gap: LINE and WhatsApp
+
+LINE and WhatsApp aren't in QwenPaw's built-in channel list, and they're our two
+most important customer channels.
 
 | Option | How | Status |
 |--------|-----|--------|
-| A. Custom channel | QwenPaw's "Custom" channels tab: write a LINE Messaging API channel and a WhatsApp Cloud API channel | Check QwenPaw's channel/plugin docs for the custom-channel interface (couldn't load the docs site from here) |
-| B. Bridge via MQTT | A small gateway service receives LINE/WhatsApp webhooks and publishes to an MQTT topic; QwenPaw's built-in MQTT channel answers on a reply topic; the gateway sends the reply back through the official API | Works with what's already installed. **Test with one LINE test account first** |
-| C. Twilio | Twilio sells a WhatsApp messaging API. Whether QwenPaw's Twilio channel supports WhatsApp (not just SMS/voice) is **unknown** | Check the Twilio channel's settings |
+| **A. Bridge via MQTT** (recommended first) | A small gateway receives LINE Messaging API / WhatsApp Cloud API webhooks and publishes to an MQTT topic; QwenPaw's built-in MQTT channel replies on a reply topic; the gateway sends the reply back through the official API | Test with one LINE test account first |
+| B. Custom channel | QwenPaw "Custom" channels tab | Check QwenPaw's channel/plugin docs |
+| C. Twilio | Twilio sells a WhatsApp API; whether QwenPaw's Twilio channel supports WhatsApp is unknown | Check the channel's settings |
 
-Recommendation: **B first** (fastest, uses the built-in MQTT channel), then move
-to A if QwenPaw's custom-channel interface is straightforward.
+Supplier: use **WeCom** (official) rather than a personal WeChat login, to avoid account bans.
 
-**WeChat warning:** check how QwenPaw's WeChat channel connects. If it logs in as
-a personal WeChat account through an unofficial protocol, the account can be
-banned, and that would cut us off from the supplier. Prefer **WeCom** (the official
-business version, which can message normal WeChat users) for supplier chats.
-
-## 3. Agent roster mapped to QwenPaw agents
-
-Existing agent names come from the screenshots. Their *current* roles are
-assumed from the names: confirm or reassign.
-
-| Business role (doc 06) | QwenPaw agent | Channels | Skills to load |
-|------------------------|---------------|----------|----------------|
-| Operations lead / approvals router | **Friday** (CEO/Operations, via `a2a_friday`) | Telegram (owner), Console | form-e-duty-gate, approvals |
-| Engineering lead | **CTO Fred** | Console, A2A | prefab-cad-model, prefab-site-layout (reviews) |
-| Sales agent (brand character) | **Sales Rep Steve** | LINE + WhatsApp (via bridge), Messenger | prefab-quote, prefab-site-intake |
-| CRM / price list / stock | **Dex Database Agent** | Internal | price-list read/write (human-approved changes) |
-| Research (competitors, tenders, projects) | **Web Scraper Digger** | Internal | browser_use (research only) |
-| Visualiser renders | **Ian Image Agent** | Internal | prefab-site-layout (render step) |
-| Elevation / multi-view renders | **Image Left Position Larry**, **Right Position Roger**, **Back Position Barry** | Internal | Front/left/right/back views of a configured unit (if that matches their current job) |
-| KPI reports | **Rick Kis Reports** | Telegram (owner) | Weekly KPIs from doc 09 §7 |
-| Quality check of quotes, drawings, layouts before they go out | **QA Agent** | Internal | Checks against the rules in each skill |
-| After-sales support | **Terry Tech** | LINE + WhatsApp | support manuals, ticketing |
-| **New:** Site layout engineer | *create* "Layla Layout" | Internal | prefab-site-intake, prefab-site-layout |
-| **New:** CAD engineer | *create* "Cad Carl" | Internal + STEVE MCP | prefab-cad-model |
-| **New:** Supplier liaison | *create* "Lin Supplier" | WeCom/WeChat (drafts only) | supplier-liaison |
-| **New:** Customs & compliance desk | *create* "Customs Kai" | Internal | form-e-duty-gate |
-| Spare | Jen, Dazza, Default, others | — | Assign later |
-
-## 4. The engineering pipeline (site photo → layout → CAD → quote)
-
-```
-Customer (LINE/WhatsApp)                Sales Rep Steve
-  sends: measurement photos,     ──►    collects inputs (prefab-site-intake)
-  sketch, location pin,                        │ A2A
-  optional drone photo                         ▼
-                                        Layla Layout ── site.json + layout PNG on
-                                               │        satellite or drone image
-                                               ▼
-                                        Cad Carl ── STEVE design: unit(s) + screw
-                                               │     piles + site slab outline;
-                                               │     drawings PDF, GLB 3D model
-                                               ▼
-                                        QA Agent ── checks scale, clearances,
-                                               │     labels, disclaimers
-                                               ▼
-                                        Sales Rep Steve ── sends layout + 3D link
-                                               + quote (prefab-quote) to customer
-                                               │
-                              Friday ◄─────────┘ approval if above threshold
-```
-
-Target turnaround: decide after testing (each step's time is in Agent Statistics).
-
-## 5. Cron jobs to set up
+## 6. Cron jobs
 
 | Job | Agent | Schedule (suggested) |
 |-----|-------|----------------------|
-| Follow up quotes with no reply | Sales Rep Steve | Daily, 10:00 |
-| After-sales check-ins (day 7 / 30 / 180) | Terry Tech | Daily |
-| Production + shipment status chase | Lin Supplier (draft) → owner sends | Weekdays, 09:00 China time |
-| KPI report | Rick Kis Reports | Monday 08:00 |
-| Competitor price check | Web Scraper Digger | Weekly |
-| Form E / duty status until resolved | Customs Kai | Daily until the gate passes |
+| Morning brief to owner (approvals waiting, new leads, stuck jobs) | ops-manager | Daily 08:00 |
+| Follow up quotes with no reply after 3 days | sales-support | Daily 10:00 |
+| After-sales check-ins (day 7 / 30 / 180) | sales-support | Daily 11:00 |
+| Production + shipment chaser (draft) | supply-customs | Weekdays 09:00 China time |
+| 0% duty gate status until PASS | supply-customs | Daily |
+| KPI report (doc 09 §7) | back-office | Monday 08:00 |
+| Content calendar for the week (drafts for approval) | marketing | Friday 14:00 |
+| Competitor price check | marketing | Weekly |
 
-Remember QwenPaw's cron rule: always pass `--agent-id` explicitly.
+QwenPaw rule: always pass `--agent-id` to cron commands.
 
-## 6. Installing our skills
+## 7. Approval limits
 
-| Step | Action |
-|------|--------|
-| 1 | Zip each folder in `qwenpaw/skills/` (one zip per skill) |
-| 2 | QwenPaw → Workspace → Skills → **Upload via Zip** for the agent that needs it (or add to the Skill Pool and **Load from Skill Pool**) |
-| 3 | Fill in `references/catalog.md` with the real unit dimensions from the supplier drawings |
-| 4 | MCP page → add STEVE's MCP server (URL and token from your STEVE account) to Cad Carl |
-| 5 | Run a test with a dummy site before going live |
+| Action | Who can do it |
+|--------|---------------|
+| Answer questions, collect site info, send standard brochures | sales-support alone |
+| Send a quote below THB [threshold] with standard terms | sales-support after qa-reviewer pass |
+| Quote above the threshold, any discount, custom item | Owner (via ops-manager) |
+| Confirm a payment was received | Owner |
+| Send a PO, pay the supplier, change specs | Owner |
+| Publish content or ads, change ad budget | Owner |
+| Issue a final tax invoice | Accountant |
+| Refunds, warranty claims, complaints with legal threats | Owner |
+
+## 8. Setup checklist
+
+| # | Step |
+|---|------|
+| 1 | Create the 7 agents with the IDs above (Agent Management) |
+| 2 | Paste each agent's instructions from [`qwenpaw/agents/`](../qwenpaw/agents/) into its persona/system settings |
+| 3 | Run `tools/package_skills.sh` and upload each skill zip to the agents in the §3 table |
+| 4 | Set each agent's tools per the §3 table (turn the rest off) |
+| 5 | Add STEVE as an MCP server for site-engineer and qa-reviewer |
+| 6 | Connect Telegram to ops-manager (owner only), WeCom to supply-customs |
+| 7 | Build and test the LINE/WhatsApp bridge, then connect it to sales-support |
+| 8 | Create the cron jobs in §6 |
+| 9 | Test with fake customers and a dummy site before going live |

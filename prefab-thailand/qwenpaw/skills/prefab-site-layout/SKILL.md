@@ -33,7 +33,7 @@ Load `prefab-catalog` first (catalogue dimensions, layout rules, site.json forma
    - where a rule's minimum is `TBD`: report the measured gap but don't call it compliant
 7. **Look at `layout.png`** with `view_image` to confirm it reads correctly (labels visible, scale bar present, disclaimer present).
 8. **Update `site.json`**: `outputs.layout_png`, `checks` (copy the report), status `laid_out`.
-9. **Hand off** to the CAD agent (Cad Carl) with `chat_with_agent`, passing the `site.json` path.
+9. **Continue** with the `prefab-cad-model` skill (same agent).
 
 ## Customer edits
 

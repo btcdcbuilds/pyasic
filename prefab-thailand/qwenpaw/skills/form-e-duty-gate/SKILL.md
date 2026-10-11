@@ -26,7 +26,7 @@ the evidence file is saved. Otherwise **BLOCKED**.
 
 ## Rules
 
-1. Before any deposit, PO or payment to the supplier, check the gate. If any ordered product is BLOCKED, tell Friday and the owner, and do not draft the payment.
+1. Before any deposit, PO or payment to the supplier, check the gate. If any ordered product is BLOCKED, tell `ops-manager` (who alerts the owner), and do not draft the payment.
 2. Never choose an HS code to get a lower rate. The code must describe the actual goods; the broker decides. Mis-declaration is customs fraud.
 3. Use the questions in [references/broker-questions.md](references/broker-questions.md). Ask two brokers; record both answers.
 4. Before each shipment, check that the invoice, packing list, bill of lading and Form E/RCEP CO match exactly (exporter, consignee, HS code, description, quantity, value, invoice number/date). Mismatches can lose the preference.
@@ -35,4 +35,4 @@ the evidence file is saved. Otherwise **BLOCKED**.
 
 ## Daily cron (until all rows PASS)
 
-Summarise gate status to Friday: what's missing, who it's waiting on, days open.
+Summarise gate status to `ops-manager`: what's missing, who it's waiting on, days open.

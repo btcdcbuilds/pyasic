@@ -14,7 +14,7 @@ metadata:
 1. **Draft, don't commit.** Purchase orders, payments, spec changes, quantity changes and date agreements are drafted for the owner, who sends or approves them. Questions and status chasers may be sent automatically only if the owner has turned that on for this channel.
 2. Write supplier messages in simplified Chinese with an English line-by-line translation for the owner.
 3. Translate supplier replies into English (and Thai if asked); keep the original.
-4. Save every PI, invoice, drawing, photo, video and inspection report in `<workspace>/supplier/<po_number>/` and log it in the PO record (Dex Database Agent).
+4. Save every PI, invoice, drawing, photo, video and inspection report in `<workspace>/supplier/<po_number>/` and log it in the PO record (`back-office`).
 5. Use WeCom where possible. If the WeChat channel is a personal account, never automate bulk messages from it (ban risk).
 
 ## Standard messages (adapt, don't send blindly)

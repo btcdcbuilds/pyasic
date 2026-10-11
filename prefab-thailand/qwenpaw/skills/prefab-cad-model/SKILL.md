@@ -38,7 +38,7 @@ up calls instead of guessing them.
    - Don't invent tolerances, datums or approvals.
 7. `generate_model` (full build), then check the `drawings` metadata for `overflow`, `dangling`, `dimension_problems`, `error`, and the fit check for overlaps. Fix and rebuild until clean.
 8. Update `site.json`: `outputs.steve_document_id`, status `modelled`.
-9. Hand off to QA Agent, then Sales Rep Steve. Tell them the drawings and 3D exports are in STEVE (Export → Drawing / Drawings SVG·DXF; the model export for GLB/STEP). You can't download them yourself.
+9. Send the job to `qa-reviewer` with `chat_with_agent`; after it passes, tell `sales-support`. Tell them the drawings and 3D exports are in STEVE (Export → Drawing / Drawings SVG·DXF; the model export for GLB/STEP). You can't download them yourself.
 
 ## Engineering limits
 

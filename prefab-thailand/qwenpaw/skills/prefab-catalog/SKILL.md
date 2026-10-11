@@ -19,6 +19,6 @@ This skill holds facts other skills depend on. Read the reference that applies:
 
 ## Rules
 
-1. Use only values written in these references. If a value is `TBD`, say it is not confirmed yet and ask a human (Friday or CTO Fred); never estimate or invent a dimension, weight or rating.
+1. Use only values written in these references. If a value is `TBD`, say it is not confirmed yet and ask `ops-manager`, who gets the answer from the owner; never estimate or invent a dimension, weight or rating.
 2. Prices never come from this skill. Use `prefab-quote`.
-3. If a customer asks for something not in the catalogue (custom size, 3-storey stacking, special fire rating), hand off to CTO Fred.
+3. If a customer asks for something not in the catalogue (custom size, 3-storey stacking, special fire rating), hand off to `ops-manager` for an owner decision.
