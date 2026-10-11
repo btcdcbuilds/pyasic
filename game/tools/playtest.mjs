@@ -4,6 +4,7 @@
 // Usage (from game/):
 //   npm run build
 //   node tools/playtest.mjs --levels 1-1,1-3,3-2 --styles bot,naive --speed 2 --out playtest/run
+//   (--upgrades N --weapon rifle to give the player a realistic loadout; --ui for menu screenshots)
 //
 // Levels are "world-level", 1-based (1-1 = Golden Bridge level 1).
 // Styles: bot   = good player (steers for the best gate/reward, dodges traps)
@@ -26,6 +27,7 @@ const out = path.resolve(args.out || 'playtest/run');
 const shotEvery = +(args['shots-every'] || 4); // game seconds between screenshots
 const diff = args.difficulty || 'soldier';
 const upgrades = +(args.upgrades || 0);
+const weapon = args.weapon || 'pistol';
 const maxGameSeconds = +(args['max-seconds'] || 300);
 
 function findChrome() {
@@ -55,6 +57,32 @@ const url = `http://127.0.0.1:${server.address().port}/?speed=${speed}`;
 
 fs.mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: findChrome(), args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+// --ui: screenshot every menu screen (fresh player and a returning player with progress)
+if (args.ui) {
+  for (const [who, saveData] of [['new', null], ['veteran', { progress: 22, coins: 8400, tutorialDone: true, owned: ['pistol', 'smg', 'rifle', 'shotgun'], equipped: 'rifle', upgrades: { troops: 6, damage: 5 }, stars: { '0-0-soldier': 3, '0-1-soldier': 2 }, stats: { kills: 25000, levelsWon: 22, levelsPlayed: 30, bossesKilled: 50, bestArmy: 1400, playSeconds: 7200 } }]]) {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true });
+    if (saveData) await page.addInitScript((d) => localStorage.setItem('armyrush.save.v1', JSON.stringify(d)), saveData);
+    await page.goto(url);
+    await page.waitForTimeout(700);
+    await page.screenshot({ path: path.join(out, `ui-${who}-0-start.png`) });
+    if (await page.isVisible('#btn-daily')) { await page.click('#btn-daily'); await page.waitForTimeout(200); }
+    for (const scr of ['worlds', 'armory', 'upgrades', 'stats', 'settings']) {
+      await page.click(`#scr-menu [data-go=${scr}]`);
+      await page.waitForTimeout(250);
+      await page.screenshot({ path: path.join(out, `ui-${who}-${scr}.png`), fullPage: true });
+      await page.click(`#scr-${scr} [data-go=menu]`);
+    }
+    await page.click('#btn-play');
+    await page.waitForTimeout(2500);
+    await page.screenshot({ path: path.join(out, `ui-${who}-play.png`) });
+    await page.click('#btn-pause');
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: path.join(out, `ui-${who}-pause.png`) });
+    await page.close();
+  }
+  console.log('UI screenshots saved');
+}
+
 const report = { generated: new Date().toISOString(), difficulty: diff, upgrades, speed, note: 'Headless software rendering: FPS numbers are much lower than a real phone and only useful for relative comparison.', runs: [] };
 
 for (const [wi, li] of levels) {
@@ -66,12 +94,15 @@ for (const [wi, li] of levels) {
     await page.goto(url);
     await page.waitForFunction(() => window.__game);
     const tag = `w${wi + 1}-l${li + 1}-${style}`;
-    await page.evaluate(({ wi, li, diff, upgrades, style }) => {
+    await page.evaluate(({ wi, li, diff, upgrades, style, weapon }) => {
       const g = window.__game;
       const save = g.save;
       save.progress = 40;
       save.difficulty = diff;
       for (const k of ['troops', 'damage', 'rate', 'armor', 'income']) save.upgrades[k] = upgrades;
+      if (!save.owned.includes(weapon)) save.owned.push(weapon);
+      save.equipped = weapon;
+      save.tutorialDone = !(wi === 0 && li === 0);
       // in-page telemetry
       const T = window.__pt = {
         events: {}, losses: {}, expire: [], hits: 0, unlocked: 0, collected: 0, missed: 0, gateMax: 0, gatesHit: 0,
@@ -111,7 +142,7 @@ for (const [wi, li] of levels) {
           if (style === 'naive') { drift = Math.max(-2, Math.min(2, drift + (Math.random() - 0.5) * 2)); g.setTarget(drift); }
         }, 1500);
       }
-    }, { wi, li, diff, upgrades, style });
+    }, { wi, li, diff, upgrades, style, weapon });
 
     let lastShot = -shotEvery;
     let shots = 0;
