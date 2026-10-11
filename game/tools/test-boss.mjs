@@ -19,7 +19,8 @@ for (const [wi, li] of [[0, 0], [0, 2], [3, 0], [5, 2], [7, 4]]) {
     sim.events.length = 0;
     t += 1 / 60; f++;
     const b = sim.boss;
-    if (b.alive && b.d - sim.d <= 14) {
+    if (!b.alive && windowStart !== null && b === fb) { windows.push(Math.round(lastHp)); windowStart = null; } // died mid-window
+    if (b.alive && b.awake) { // from the moment it can be shot (~110 m out)
       if (windowStart === null) { windowStart = t; lastHp = b.hp; }
       if (t - windowStart >= 10) {
         windows.push(Math.round(lastHp - b.hp));

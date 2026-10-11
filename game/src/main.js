@@ -6,7 +6,7 @@ import { Sfx } from './audio.js';
 import { Music } from './music.js';
 import { levelCoins } from './economy.js';
 import { drawWeaponIcon } from './icons.js';
-import { THEMES, themeById, themedWorld } from './themes.js';
+import { THEMES, themeById, themedWorld, say } from './themes.js';
 
 import { App } from '@capacitor/app';
 import { Preferences } from '@capacitor/preferences';
@@ -452,7 +452,8 @@ function finish(won) {
     save.stars[k] = Math.max(save.stars[k] || 0, stars);
   }
   persist();
-  $('#res-title').textContent = won ? (firstChallengeWin ? 'Challenge complete!' : 'Victory!') : 'Defeated';
+  const th = themeById(save.theme);
+  $('#res-title').textContent = won ? (firstChallengeWin ? 'Challenge complete!' : say(th, 'Victory!')) : say(th, 'Defeated');
   $('#res-stars').innerHTML = [0, 1, 2].map((i) => `<span class="${i < stars ? 'on' : ''}">★</span>`).join('');
   $('#res-surv').textContent = won ? `${fmt(survivors)} (peak ${fmt(sim.peak)})` : '0';
   $('#res-bonus').textContent = won ? `x${bonusMult}` : '-';

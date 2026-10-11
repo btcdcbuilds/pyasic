@@ -1,11 +1,11 @@
 // Three.js renderer: draws the Sim state each frame.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { HW, armyRadius, HERO_POWER, BOSS_WAKE } from './sim.js';
+import { HW, armyRadius, HERO_POWER } from './sim.js';
 import { weaponById } from './data.js';
 import { drawWeaponIcon, drawHeroIcon, drawBtc } from './icons.js';
 import { buildEnvironment } from './env.js';
-import { themeById, themedWorld } from './themes.js';
+import { themeById, themedWorld, say } from './themes.js';
 import { Particles } from './particles.js';
 
 const QUALITY = {
@@ -214,6 +214,7 @@ export class Renderer {
     this.figures = new Map();
     this.setTheme('classic');
     this.matTinted = new THREE.MeshLambertMaterial({ vertexColors: true });
+    this.matEnemy = new THREE.MeshLambertMaterial({ vertexColors: true, emissive: 0x3a0606 }); // slight glow so enemies stand out in dark worlds
     this.matFixed = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.matGhost = new THREE.MeshBasicMaterial({ color: 0xf4f6ff, transparent: true, opacity: 0.75, depthWrite: false });
     this.shadowTex = radialTexture('rgba(0,0,0,0.45)', 'rgba(0,0,0,0)');
@@ -299,6 +300,7 @@ export class Renderer {
     this.root = new THREE.Group();
     scene.add(this.root);
     this.followers = null;
+    this.spinners = null;
     buildEnvironment(this, world, sim.level.length + 120, this.theme, sim.bosses.map((b) => b.d));
     this.buildDividers(sim);
 
@@ -306,7 +308,7 @@ export class Renderer {
     this.maxEnemy = q.enemy;
     this.army = this.makeCrowd(q.army, this.armyColor);
     this.armyPos = Array.from({ length: q.army }, () => ({ x: 0, z: 0, ph: Math.random() * 6.28, fresh: 2 }));
-    this.enemies = this.makeCrowd(q.enemy, new THREE.Color(world.enemy), this.enemyTinted, this.enemyFixed);
+    this.enemies = this.makeCrowd(q.enemy, new THREE.Color(world.enemy), this.enemyTinted, this.enemyFixed, this.matEnemy);
     this.heroes = [];
     this.armyShadow = this.makeShadow();
 
@@ -348,7 +350,7 @@ export class Renderer {
 
   dispose() {
     if (!this.root) return;
-    const keep = new Set([...[...this.figures.values()].flatMap((f) => [f.tinted, f.fixed]), this.matTinted, this.matFixed, this.matGhost, this.shadowTex, this.glowTex]);
+    const keep = new Set([...[...this.figures.values()].flatMap((f) => [f.tinted, f.fixed]), this.matTinted, this.matEnemy, this.matFixed, this.matGhost, this.shadowTex, this.glowTex]);
     for (const t of this.texCache.values()) keep.add(t);
     this.scene.traverse((o) => {
       if (o.geometry && !keep.has(o.geometry)) o.geometry.dispose();
@@ -367,8 +369,8 @@ export class Renderer {
     this.overlay.querySelectorAll('.pop').forEach((p) => p.remove());
   }
 
-  makeCrowd(max, color, tinted = this.soldierTinted, fixed = this.soldierFixed) {
-    const t = new THREE.InstancedMesh(tinted, this.matTinted, max);
+  makeCrowd(max, color, tinted = this.soldierTinted, fixed = this.soldierFixed, mat = this.matTinted) {
+    const t = new THREE.InstancedMesh(tinted, mat, max);
     const f = new THREE.InstancedMesh(fixed, this.matFixed, max);
     for (const m of [t, f]) {
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -606,11 +608,7 @@ export class Renderer {
         sh.rotation.x = -Math.PI / 2;
         sh.position.y = 0.03;
         g.add(sh);
-        // shield bubble until the army gets close enough to wake the boss
-        const shield = new THREE.Mesh(new THREE.SphereGeometry(5.2, 24, 16), new THREE.MeshBasicMaterial({ color: 0x6ab8ff, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
-        shield.position.y = 4.5;
-        g.add(shield);
-        Object.assign(v, b, { shield });
+        Object.assign(v, b);
         break;
       }
     }
@@ -833,10 +831,10 @@ export class Renderer {
           popText(ev.text, 'good', sim.x, 3, armyZ);
           break;
         case 'hero':
-          popText('HERO JOINED!', 'weapon', sim.x, 3, armyZ);
+          popText(say(this.theme, 'HERO JOINED!'), 'weapon', sim.x, 3, armyZ);
           break;
         case 'allies':
-          popText(`+${ev.k} FREED`, 'good', sim.x, 3, armyZ);
+          popText(`+${ev.k} ${say(this.theme, 'FREED')}`, 'good', sim.x, 3, armyZ);
           break;
         case 'gateFlip': {
           const e = ev.e;
@@ -897,7 +895,7 @@ export class Renderer {
           }
           this.shake = Math.max(this.shake, ev.hit ? 0.8 : 0.4);
           if (ev.hit && ev.k > 0) popText(`-${ev.k}`, 'bad', sim.x, 2.5, -sim.d);
-          else popText('DODGED!', 'good', sim.x, 2.5, -sim.d);
+          else popText(say(this.theme, 'DODGED!'), 'good', sim.x, 2.5, -sim.d);
           break;
         }
         case 'enemyFire': {
@@ -914,7 +912,7 @@ export class Renderer {
           popText('STEER HERE!', 'coin', (ev.e.x0 + ev.e.x1) / 2, 3.5, -ev.e.d);
           break;
         case 'bossWake':
-          popText('FIGHT!', 'weapon', ev.e.x, 9, -ev.e.d);
+          popText(say(this.theme, 'FIGHT!'), 'weapon', ev.e.x, 9, -ev.e.d);
           this.sparkle(ev.e.x, 5, -ev.e.d, 0x6ab8ff, 40);
           this.shake = Math.max(this.shake, 0.4);
           break;
@@ -923,7 +921,7 @@ export class Renderer {
           this.shake = Math.max(this.shake, 0.5);
           break;
         case 'bonusStart':
-          popText('BONUS RUN!', 'weapon', sim.x, 3, -sim.d);
+          popText(say(this.theme, 'BONUS RUN!'), 'weapon', sim.x, 3, -sim.d);
           break;
         case 'bonusStep': {
           const e = ev.e;
@@ -934,12 +932,12 @@ export class Renderer {
         }
         case 'bossExposed': {
           const v = this.views.get(ev.e.id);
-          if (v && !v.weakHinted) { v.weakHinted = true; popText('WEAK SPOT! x2 DAMAGE', 'coin', ev.e.x, 7, -ev.e.d); }
+          if (v && !v.weakHinted) { v.weakHinted = true; popText(say(this.theme, 'WEAK SPOT! x2 DAMAGE'), 'coin', ev.e.x, 7, -ev.e.d); }
           break;
         }
         case 'stageClear':
-          popText('STAGE CLEAR!', 'weapon', 0, 5, -sim.d);
-          popText(`+${ev.k} TROOPS`, 'good', 0, 3, -sim.d);
+          popText(say(this.theme, 'STAGE CLEAR!'), 'weapon', 0, 5, -sim.d);
+          popText(`+${ev.k} ${say(this.theme, 'TROOPS')}`, 'good', 0, 3, -sim.d);
           break;
         case 'bossDown': {
           const v = this.views.get(ev.e.id);
@@ -1067,7 +1065,7 @@ export class Renderer {
           const bob = moving ? Math.abs(Math.sin(ph)) * 0.14 : Math.abs(Math.sin(t * 3 + k)) * 0.03;
           tmpE.set(moving ? 0.28 : 0, Math.PI + Math.sin(k * 5.1) * 0.15, moving ? Math.sin(ph) * 0.08 : 0);
           tmpQ.setFromEuler(tmpE);
-          tmpM.compose(tmpP.set(e.x + Math.cos(th) * rr, bob, -e.d + Math.sin(th) * rr * 0.9), tmpQ, tmpS.set(1, 1, 1));
+          tmpM.compose(tmpP.set(e.x + Math.cos(th) * rr, bob, -e.d + Math.sin(th) * rr * 0.9), tmpQ, tmpS.set(1.25, 1.25, 1.25)); // a bit bigger so a horde reads from far away
           this.enemies.t.setMatrixAt(ei, tmpM);
           this.enemies.f.setMatrixAt(ei, tmpM);
           ei++;
@@ -1243,6 +1241,7 @@ export class Renderer {
       pos.needsUpdate = true;
     }
     if (this.followers) for (const f of this.followers) f.position.z = armyZ - 260;
+    if (this.spinners) for (const c of this.spinners) c.rotation.y += dt * 1.6;
 
     this.placeLabel(this.armyLabel, sim.x, 1.5 + R * 0.35, armyZ, fmt(sim.n) + (sim.heroes ? ` <small>+${sim.heroes}★</small>` : ''));
 
@@ -1266,11 +1265,6 @@ export class Renderer {
     v.g.position.z = -e.d;
     const t = this.time;
     const awake = e.alive && e.d - this.sim.d < 70;
-    if (v.shield) {
-      const on = e.alive && e.d - this.sim.d > BOSS_WAKE;
-      v.shield.visible = on;
-      if (on) v.shield.material.opacity = 0.18 + Math.sin(t * 3) * 0.06;
-    }
     const sw = awake ? Math.sin(t * 2.2) * 0.12 : 0;
     v.legL.rotation.x = 0;
     v.legR.rotation.x = 0;

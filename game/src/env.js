@@ -43,14 +43,57 @@ export function buildEnvironment(r, world, len, theme = { env: 'world' }, bossDs
     root.add(new THREE.Mesh(mergeGeometries(pg), lam(world.props === 'bridge' ? world.rail : 0x4a4440)));
   }
   addProps(r, world, len);
-  if (theme.env === 'bitcoin') addBitcoinProps(r, len);
+  if (theme.env === 'bitcoin') addBitcoinProps(r, len, bossDs);
   addAmbient(r, world);
 }
 
-// Bitcoin theme extras on top of the world scenery: rows of mining rigs and coin billboards.
-function addBitcoinProps(r, len) {
+// Bitcoin theme extras on top of the world scenery: the coin logo painted on the road, rising
+// candlestick charts, mining rigs, coin billboards, spinning coins in the sky and a giant coin
+// behind every bear boss.
+function addBitcoinProps(r, len, bossDs) {
   const root = r.root;
   const G = THREE;
+  const coinTex = r.cachedTex('btc', 128, 128, drawBtc);
+  const rnd = mulberry((len | 0) + 21);
+  // road paint: coin logos and slogans every 30 m
+  const words = ['HODL', '21M', 'STACK SATS', 'HODL', 'NO SELLING'];
+  const wordTex = words.map((w) => r.cachedTex(`road-${w}`, 512, 128, (ctx, cw, ch) => {
+    ctx.fillStyle = 'rgba(247,147,26,0.9)';
+    ctx.font = `${ch * 0.78}px "Lilita One", "Arial Black", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(w, cw / 2, ch / 2 + 4);
+  }));
+  const logoMat = new G.MeshBasicMaterial({ map: coinTex, transparent: true, opacity: 0.8, depthWrite: false });
+  for (let z = -18, k = 0; z > -len; z -= 30, k++) {
+    const paint = k % 2 === 0
+      ? new G.Mesh(new G.PlaneGeometry(5.2, 5.2), logoMat)
+      : new G.Mesh(new G.PlaneGeometry(9, 2.25), new G.MeshBasicMaterial({ map: wordTex[(k >> 1) % words.length], transparent: true, depthWrite: false }));
+    paint.rotation.x = -Math.PI / 2;
+    paint.position.set(0, 0.015, z);
+    root.add(paint);
+  }
+  // candlestick charts just beyond the mining rigs: a choppy bull market that climbs, then
+  // resets after each "halving cycle"
+  const green = [], red = [], wick = [];
+  for (const s of [-1, 1]) {
+    let price = 1;
+    for (let z = -4; z > -len - 60; z -= 1.6) {
+      const up = rnd() < 0.62;
+      const move = 0.2 + rnd() * 0.9;
+      const open = price;
+      price = Math.max(0.6, price + (up ? move : -move * 0.8));
+      if (price > 9) price = 1.5;
+      const lo = Math.min(open, price), hi = Math.max(open, price);
+      const x = s * (HW + 4.6);
+      (up ? green : red).push(new G.BoxGeometry(0.9, Math.max(0.25, hi - lo), 0.9).translate(x, 0.3 + (lo + hi) / 2, z));
+      wick.push(new G.BoxGeometry(0.12, hi - lo + 0.6 + rnd() * 0.8, 0.12).translate(x, 0.3 + (lo + hi) / 2, z));
+    }
+  }
+  root.add(new G.Mesh(mergeGeometries(green), new G.MeshBasicMaterial({ color: 0x22c55e })));
+  root.add(new G.Mesh(mergeGeometries(red), new G.MeshBasicMaterial({ color: 0xef4444 })));
+  root.add(new G.Mesh(mergeGeometries(wick), new G.MeshBasicMaterial({ color: 0xdfe6ee })));
+  // mining rigs with fans and blinking-green LEDs right along the rails
   const rigs = [], fans = [], leds = [], posts = [];
   for (let z = -6; z > -len; z -= 3.2) {
     for (const s of [-1, 1]) {
@@ -63,19 +106,54 @@ function addBitcoinProps(r, len) {
   root.add(new G.Mesh(mergeGeometries(rigs), new G.MeshLambertMaterial({ color: 0x8c9096 })));
   root.add(new G.Mesh(mergeGeometries(fans), new G.MeshLambertMaterial({ color: 0x2a2c30 })));
   root.add(new G.Mesh(mergeGeometries(leds), new G.MeshBasicMaterial({ color: 0x3aff6a })));
-  const tex = r.cachedTex('btc', 128, 128, drawBtc);
-  const faceMat = new G.MeshBasicMaterial({ map: tex, transparent: true });
+  // billboards: alternate the coin logo and slogans
+  const faceMat = new G.MeshBasicMaterial({ map: coinTex, transparent: true });
+  const boardTex = ['BUY THE DIP', 'NOT YOUR KEYS', 'TICK TOCK', 'FIX THE MONEY'].map((w) => r.cachedTex(`bb-${w}`, 256, 128, (ctx, cw, ch) => {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.fillStyle = '#f7931a';
+    ctx.fillRect(0, ch - 14, cw, 14);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = `${w.length > 10 ? 34 : 42}px "Lilita One", "Arial Black", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(w, cw / 2, ch / 2 - 4);
+  }));
   let k = 0;
-  for (let z = -30; z > -len; z -= 46) {
-    const s = k++ % 2 ? 1 : -1;
-    const x = s * (HW + 6.5);
+  for (let z = -30; z > -len; z -= 40) {
+    const s = k % 2 ? 1 : -1;
+    const x = s * (HW + 7.5);
     posts.push(new G.CylinderGeometry(0.18, 0.18, 6, 6).translate(x, 3, z - 0.2));
-    const sign = new G.Mesh(new G.PlaneGeometry(4.2, 4.2), faceMat);
+    const logo = k % 3 !== 2;
+    const sign = new G.Mesh(logo ? new G.PlaneGeometry(4.2, 4.2) : new G.PlaneGeometry(6, 3), logo ? faceMat : new G.MeshBasicMaterial({ map: boardTex[k % boardTex.length] }));
     sign.position.set(x, 7.2, z);
     sign.rotation.y = -s * 0.25;
     root.add(sign);
+    k++;
   }
   if (posts.length) root.add(new G.Mesh(mergeGeometries(posts), new G.MeshLambertMaterial({ color: 0x55585e })));
+  // 3D coins: spinning ones in the sky and a giant one standing behind every boss
+  const coinGeo = new G.CylinderGeometry(1, 1, 0.16, 32).rotateX(Math.PI / 2);
+  const rim = new G.MeshLambertMaterial({ color: 0xf7931a, emissive: 0x5a3000 });
+  const face = new G.MeshBasicMaterial({ map: coinTex });
+  r.spinners = [];
+  for (let z = -50, i = 0; z > -len; z -= 55, i++) {
+    const c = new G.Mesh(coinGeo, [rim, face, face]);
+    c.scale.setScalar(2.2);
+    c.position.set((i % 2 ? 1 : -1) * (HW + 16 + rnd() * 10), 14 + rnd() * 8, z);
+    root.add(c);
+    r.spinners.push(c);
+  }
+  // a big coin on each side of every boss, like trophies to win
+  for (const bd of bossDs) {
+    for (const s of [-1, 1]) {
+      const c = new G.Mesh(coinGeo, [rim, face, face]);
+      c.scale.setScalar(4.5);
+      c.position.set(s * (HW + 9), 7, -(bd + 4));
+      c.rotation.y = -s * 0.5;
+      root.add(c);
+    }
+  }
 }
 
 // Football stadium for the gridiron and footy themes: striped turf, field markings, advertising

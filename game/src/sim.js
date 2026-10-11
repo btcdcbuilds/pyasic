@@ -12,7 +12,9 @@ export const WEAK_SPOT_TIME = 1.6; // seconds of double damage after each boss a
 export const BONUS_MULTS = [1.2, 1.5, 2, 3, 5];
 export const CHARGE_DIST = 75; // enemy squads start charging from this far
 export const MIN_TRAVEL = 120; // every bullet flies at least this far up the track
-export const BOSS_WAKE = 30; // a boss is shielded until your army is this close
+export const CROWD_MULT = 1.5; // enemy squads are this many times bigger, each soldier this much weaker
+export const SQUAD_AIM = 65; // soldiers start aiming at a charging squad this close (straight shots still hit it further out)
+export const BOSS_WAKE = 110; // a boss can be shot (and its health is sized) once your army is this close
 const LANE2 = [[-HW, 0], [0, HW]];
 const LANE3 = [[-HW, -2], [-2, 2], [2, HW]];
 
@@ -64,9 +66,11 @@ export function generateLevel(wi, li, diffId, seedExtra = 0, opts = {}) {
   };
   const pBad = Math.min(0.7, (0.25 + L * 0.015) * diff.bad);
   const maxTier = Math.min(9, 1 + wi + (mod.boardWeight ? 1 : 0));
-  const enemyHp = 1.4 * (1 + 0.19 * L) * Math.sqrt(D) * (mod.shield || 1);
+  // big crowds of weaker soldiers: same total health per squad, but more bodies to shoot down
+  const CROWD = CROWD_MULT;
+  const enemyHp = 1.4 * (1 + 0.19 * L) * Math.sqrt(D) * (mod.shield || 1) / CROWD;
   let mulLeft = 1 + (L > 15 ? 1 : 0); // multiplier gates are rare treats
-  const squadSize = (i) => Math.round((5 + i * 1.6 + L * 1.0) * Math.sqrt(D));
+  const squadSize = (i) => Math.round((5 + i * 1.6 + L * 1.0) * Math.sqrt(D) * CROWD);
 
   const goodGate = (i, allowMul) => {
     const r = rng();
@@ -231,7 +235,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0, opts = {}) {
   // Bonus run after the final boss (like the ads): multiplier steps. Each step costs a few
   // soldiers; the bigger your surviving army, the further you climb.
   const bonusStart = dd + 8 + 26;
-  const bonusBase = Math.max(4, Math.round(squadSize(rows) * 0.8));
+  const bonusBase = Math.max(4, Math.round(squadSize(rows) * 0.8 / CROWD));
   BONUS_MULTS.forEach((mult, k) => add({ type: 'bonus', d: bonusStart + k * 11, x0: -HW, x1: HW, mult, step: k, cost: Math.round(bonusBase * [1, 1.6, 2.5, 4, 6][k]) }));
   dd = bonusStart + BONUS_MULTS.length * 11 + 6;
   ents.sort((a, b) => a.d - b.d);
@@ -391,10 +395,12 @@ export class Sim {
     const R = this.radius;
     const range = this.range();
     const pellets = w.pellets || 1;
-    const maxVis = w.rate <= 1.2 ? 14 : w.rate < 3 ? 30 : 60;
+    const maxVis = w.rate <= 1.2 ? 20 : w.rate < 3 ? 45 : 90;
     const perSec = clamp(this.n * w.rate * this.rateMult, 3, maxVis);
     const dmg = this.dps() / (perSec * pellets);
-    const target = this.aimTarget(range);
+    const target = this.aimTarget(Math.max(range, MIN_TRAVEL));
+    const boss = this.boss;
+    const bossT = boss && boss.alive && boss.awake && Math.abs(boss.x - this.x) < this.radius + boss.half + 3 ? boss : null;
     this.fireAcc += perSec * dt;
     let shots = 0;
     while (this.fireAcc >= 1) {
@@ -404,9 +410,14 @@ export class Sim {
       const r = Math.sqrt(Math.random()) * R * 0.85;
       const sx = this.x + Math.cos(a) * r;
       const sd = this.d + Math.sin(a) * r * 0.85;
+      // most shots go for the nearest enemy (and fly over banners and gates to reach it);
+      // the rest fly straight on and hit whatever is in your lane, so gates still grow
+      let aimed = target && Math.random() < 0.7 ? target : null;
+      // in a boss fight, half the aimed fire keeps hammering the boss while its squads charge
+      if (aimed && aimed.type === 'squad' && bossT && Math.random() < 0.6) aimed = bossT;
       for (let p = 0; p < pellets; p++) {
         const spread = pellets > 1 ? ((p / (pellets - 1)) - 0.5) * (w.spread || 0) : 0;
-        this.spawn(sx + spread, sd, dmg, range, w, false, target);
+        this.spawn(sx + spread, sd, dmg, range, w, false, aimed);
       }
     }
     // heroes fire their own minigun streams
@@ -418,7 +429,7 @@ export class Sim {
       while (this.heroAcc >= 1) {
         this.heroAcc -= 1;
         const i = Math.floor(Math.random() * this.heroes);
-        this.spawn(this.heroX(i), this.d + 0.5, heroDps / hs, mg.range, mg, true, this.aimTarget(mg.range));
+        this.spawn(this.heroX(i), this.d + 0.5, heroDps / hs, mg.range, mg, true, this.aimTarget(MIN_TRAVEL));
       }
     }
     if (shots) this.emit('shot', { w: w.id, k: shots });
@@ -435,6 +446,7 @@ export class Sim {
       if (e.d - this.d > range) break;
       if (!e.alive || (e.type !== 'squad' && e.type !== 'boss')) continue;
       if (e.type === 'boss' && e.d - this.d > BOSS_WAKE) continue;
+      if (e.type === 'squad' && e.d - this.d > SQUAD_AIM) continue; // let the horde come into view first
       const half = e.type === 'boss' ? e.half : armyRadius(e.m);
       if (Math.abs(e.x - this.x) > R + half + 3 || e.d < this.d + 4) continue;
       if (e.d < bestD) { bestD = e.d; best = e; }
@@ -451,7 +463,10 @@ export class Sim {
       const t = Math.max(0.05, (target.d - d) / w.speed);
       vx = clamp((tx - x) / t, -0.25 * w.speed, 0.25 * w.speed);
     }
-    this.proj.push({ x, vx, d, d0: d, dmg, range, travel: Math.max(range, MIN_TRAVEL), speed: w.speed, pierce: w.pierce || 0, hit: null, w, hero });
+    // kills: how many soldiers of a squad one bullet can drop (overkill is wasted), so a crowd
+    // melts one by one instead of vanishing on the first hit
+    const kills = (hero ? 2 : 1) + (w.pierce || 0);
+    this.proj.push({ x, vx, d, d0: d, dmg, range, travel: Math.max(range, MIN_TRAVEL), speed: w.speed, pierce: w.pierce || 0, hit: null, w, hero, aimed: !!target, kills });
   }
 
   heroX(i) {
@@ -491,6 +506,7 @@ export class Sim {
         const e = ents[i];
         if (e.d - 8 > p.d) break; // entities are roughly sorted by d
         if (!this.shootable(e) || (p.hit && p.hit.has(e.id))) continue;
+        if (p.aimed && e.type !== 'squad' && e.type !== 'boss') continue; // aimed fire flies over obstacles
         const [x0, x1, d0, d1] = this.spanOf(e);
         if (p.x < x0 || p.x > x1) continue;
         if (d1 < prev || d0 > p.d) continue;
@@ -498,7 +514,7 @@ export class Sim {
       }
       if (best) {
         const dmg = p.d - p.d0 > p.range ? p.dmg * 0.5 : p.dmg;
-        this.damage(best, dmg);
+        this.damage(best, dmg, p.kills);
         this.emit('hit', { x: p.x, d: Math.max(prev, bestD), w: p.w.id, ent: best.type });
         if (p.w.splash) this.splash(p.x, bestD, p.w.splash, p.dmg * 0.6, best);
         if (p.w.chain) this.chain(p.x, bestD, p.w.chain, p.dmg * 0.7, best);
@@ -521,7 +537,7 @@ export class Sim {
       if (Math.abs(e.d - d) > r + 1.5) continue;
       const [x0, x1] = this.spanOf(e);
       if (x < x0 - r || x > x1 + r) continue;
-      this.damage(e, dmg);
+      this.damage(e, dmg, Math.ceil(r * 2.5));
     }
     this.emit('boom', { x, d, r });
   }
@@ -536,12 +552,12 @@ export class Sim {
     }
     targets.sort((a, b) => a[0] - b[0]);
     for (const [, e, ex] of targets.slice(0, count)) {
-      this.damage(e, dmg);
+      this.damage(e, dmg, 1);
       this.emit('arc', { x0: x, d0: d, x1: ex, d1: e.d });
     }
   }
 
-  damage(e, dmg) {
+  damage(e, dmg, cap = Infinity) {
     switch (e.type) {
       case 'gate': {
         // only +/- gates react to bullets. Progress counts bullets that hit (not damage), so a
@@ -565,13 +581,14 @@ export class Sim {
       }
       case 'squad': {
         e.acc += dmg;
-        const k = Math.min(e.m, Math.floor(e.acc / e.hpEach));
+        const k = Math.min(e.m, Math.floor(e.acc / e.hpEach), cap);
         if (k > 0) {
           e.m -= k;
           e.acc -= k * e.hpEach;
           this.kills += k;
           this.emit('kill', { e, k });
         }
+        if (k >= cap) e.acc = Math.min(e.acc, e.hpEach * 0.99); // no overkill onto the next soldier
         if (e.m <= 0) { e.alive = false; e.acc = 0; }
         return;
       }
@@ -689,20 +706,23 @@ export class Sim {
         if (!e.scaled && e.d - this.d < 200) {
           // sized as it comes into view: at least ~12% of your army (more on harder difficulties)
           e.scaled = true;
-          const want = Math.round(this.n * 0.12 * Math.sqrt(this.level.diff.hp));
+          const want = Math.round(this.n * 0.12 * CROWD_MULT * Math.sqrt(this.level.diff.hp));
           if (want > e.m) { e.m = want; e.m0 = want; }
         }
         const r = armyRadius(e.m);
         const gap = e.d - r - (this.d + R * 0.8);
         const lateral = Math.abs(e.x - this.x) < R + r * 0.9;
         if (gap <= 0 && lateral) {
-          // clash: both sides lose soldiers at the same rate
+          // clash: enemy soldiers are weaker than yours, so each one takes 1/CROWD_MULT of a soldier with it
           this.clashing = true;
           const rate = Math.max(18, (this.n + e.m) * 2.2);
-          const k = Math.min(this.n + this.heroes * HERO_HP, e.m, Math.ceil(rate * dt));
+          const k = Math.min(Math.ceil((this.n + this.heroes * HERO_HP) * CROWD_MULT), e.m, Math.ceil(rate * dt));
           e.m -= k;
           this.kills += k;
-          this.lose(k, 'clash');
+          this.clashAcc = (this.clashAcc || 0) + k / CROWD_MULT;
+          const lost = Math.floor(this.clashAcc);
+          this.clashAcc -= lost;
+          if (lost > 0) this.lose(lost, 'clash');
           this.emit('kill', { e, k, clash: true });
           if (!e.contact) { e.contact = true; this.emit('clash', { e }); }
           if (e.m <= 0) e.alive = false;
@@ -755,16 +775,18 @@ export class Sim {
     if (e.flash > 0) e.flash = Math.max(0, e.flash - dt * 8);
     if (e.exposed > 0) e.exposed = Math.max(0, e.exposed - dt);
     const dist = e.d - this.d;
-    if (dist > 70) return;
+    if (dist > BOSS_WAKE + 5) return;
     if (!e.awake && dist <= BOSS_WAKE) {
       e.awake = true;
       // Size the boss to the army that actually arrived: about `fightSecs` of its current
       // firepower, never more than the designed maximum and never less than a third of it.
       const heroDps = this.heroes * HERO_POWER * 16.5 * this.dmgMult;
-      const want = (this.dps() + heroDps) * e.fightSecs * Math.pow(this.level.diff.hp, 0.35);
+      // you start shooting it from ~110 m, so the walk in counts as part of the fight
+      const approach = Math.max(0, dist - BOSS_STAND) / SPEED * 0.5; // far shots do half damage
+      const want = (this.dps() + heroDps) * (e.fightSecs + approach) * Math.pow(this.level.diff.hp, 0.35);
       // floor stops a tiny army from one-shotting it; the cap stops a weak army facing a wall
-      let hp = clamp(want, e.maxHp / (e.final ? 4 : 8), e.maxHp);
-      hp = Math.round(Math.min(hp, (this.dps() + heroDps) * (e.final ? 22 : 14))); // cap at ~22 s (mid-boss 14 s) of your fire
+      let hp = clamp(want, e.maxHp / (e.final ? 4 : 8), e.maxHp * 1.6);
+      hp = Math.round(Math.min(hp, (this.dps() + heroDps) * ((e.final ? 22 : 14) + approach))); // cap at ~22 s (mid-boss 14 s) of fire once close
       e.atkT = 0.8; // first attack comes right away
       e.hp = e.maxHp = hp;
       this.emit('bossWake', { e });

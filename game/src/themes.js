@@ -17,6 +17,7 @@ export const THEMES = [
     swatch: ['#f7931a', '#8a2a2a'],
     army: 0xf7931a, rail: 0xf7931a, armyKind: 'bull', enemyKind: 'bear', enemy: 0xb3262e, proj: 'tracer', projColor: 0xffb347, env: 'bitcoin', coin: 'btc',
     hero: { main: 0xf7931a, trim: 0xffffff },
+    words: { 'DODGED!': 'HODL!', 'FIGHT!': 'BEAR ATTACK!', 'BONUS RUN!': 'TO THE MOON!', 'WEAK SPOT! x2 DAMAGE': 'WEAK HANDS! x2 DAMAGE', 'STAGE CLEAR!': 'BLOCK MINED!', 'HERO JOINED!': 'WHALE JOINED!', TROOPS: 'BULLS', 'Victory!': 'TO THE MOON!', Defeated: 'REKT!', FREED: 'HODLERS' },
     worlds: [
       { name: 'Genesis Block', boss: { name: 'Grizzly Bear', color: 0x6b4226, accent: 0x3e2414, eye: 0xff2a2a, bear: true } },
       { name: 'Mining Canyon', boss: { name: 'FUD Golem', color: 0xa86b3a, accent: 0x5a3415, eye: 0xff2a2a, bear: true } },
@@ -34,6 +35,7 @@ export const THEMES = [
     swatch: ['#1f4fd0', '#d0262a'],
     army: 0x1f4fd0, armyKind: 'gridiron', enemyKind: 'gridiron', enemy: 0xd0262a, proj: 'ball', ball: 0x7a3f1a, env: 'gridiron', coin: 'gold',
     hero: { main: 0x1f4fd0, trim: 0xffc81a },
+    words: { 'DODGED!': 'JUKED!', 'FIGHT!': 'KICKOFF!', 'BONUS RUN!': 'VICTORY LAP!', 'STAGE CLEAR!': 'TOUCHDOWN!', 'HERO JOINED!': 'STAR PLAYER!', TROOPS: 'PLAYERS', 'Victory!': 'TOUCHDOWN!', FREED: 'SIGNED' },
     worlds: [
       { name: 'Rookie Bowl', boss: { name: 'The Big Lineman' } },
       { name: 'Desert Dome', boss: { name: 'Sand Linebacker' } },
@@ -51,6 +53,7 @@ export const THEMES = [
     swatch: ['#1d3fa8', '#c8202a'],
     army: 0x1d3fa8, armyKind: 'footy', enemyKind: 'footy', enemy: 0xc8202a, proj: 'ball', ball: 0xc8261e, env: 'footy', coin: 'gold',
     hero: { main: 0x1d3fa8, trim: 0xffffff },
+    words: { 'DODGED!': 'SIDESTEP!', 'FIGHT!': 'BALL UP!', 'BONUS RUN!': 'LAP OF HONOUR!', 'STAGE CLEAR!': 'GOAL!', 'HERO JOINED!': 'STAR PLAYER!', TROOPS: 'PLAYERS', 'Victory!': 'PREMIERS!', FREED: 'SIGNED' },
     worlds: [
       { name: 'Harbour Oval', boss: { name: 'The Big Ruckman' } },
       { name: 'Outback Oval', boss: { name: 'Outback Ruckman' } },
@@ -64,6 +67,8 @@ export const THEMES = [
   },
 ];
 export const themeById = (id) => THEMES.find((t) => t.id === id) || THEMES[0];
+// A theme's wording for a game message (falls back to the classic text)
+export const say = (theme, text) => (theme.words && theme.words[text]) || text;
 
 // The world as the renderer and menus should show it under a theme. Gameplay fields (mod, ids,
 // props for the world twist) are kept; names, boss look and enemy colour can change.

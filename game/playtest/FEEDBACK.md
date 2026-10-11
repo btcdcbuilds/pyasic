@@ -3,6 +3,14 @@
 Write your notes from playing on your phone here, newest first. The playtest agent reads this file
 before every playtest and checks each point in the game.
 
+## 2026-10-11 (v1.0.17)
+
+- The Bitcoin theme isn't really a Bitcoin theme: it's mostly orange. Put the Bitcoin logo and more Bitcoin things in it.
+- Enemies die on the first bullet. There should be loads of them and they should disappear one by one as you shoot.
+- The last big guy (boss) sits in a bubble. Bullets should start killing him from as far back as possible.
+- When we go through the banners (people, coins, weapons), the enemy behind them isn't getting shot.
+- The part where the enemy comes at us and we shoot them needs a lot of work.
+
 ## 2026-10-11 (v1.0.3)
 
 - The enemy needs a lot of work. It doesn't work properly.

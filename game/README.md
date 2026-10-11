@@ -37,7 +37,7 @@ Then go to repo **Settings → Secrets and variables → Actions** and add these
 | Action | Effect |
 |---|---|
 | Drag left/right | Steer your army (arrow keys or A/D on desktop) |
-| Your army fires automatically | Every soldier shoots on its own rhythm, so bullets stream out continuously. Soldiers aim at enemy squads and bosses near your path; gates, boards and walls only get hit if you are in their lane |
+| Your army fires automatically | Bullets stream out continuously. About 70% of shots aim at the nearest enemy (squads within 65 m, bosses within 110 m) and fly over banners and gates to reach it; the rest fly straight and hit whatever is in your lane, which is how gates grow |
 | Shoot a blue `+` gate | Raises its number. There is no cap, but each extra point takes a few more hits than the last |
 | Shoot a red `-` gate | Lowers the penalty until it flips to a `+` gate |
 | `x2`, `÷2`, % DAMAGE and % FIRE RATE gates | Can't be changed by shooting |
@@ -46,8 +46,8 @@ Then go to repo **Settings → Secrets and variables → Actions** and add these
 | Run into a board/wall that still has HP | You lose soldiers in proportion to how much of your army hits it |
 | `+1` / `+N` bonus strips | Blocks lined up in one lane. Run through as many as you can |
 | Walled 3-lane sections | Once inside you can't switch lanes, but the enemy horde jumps the low walls to reach you. One lane has a `+1` strip, one has the horde with a better weapon at the end, and one has big `+N` bonuses behind a hero board or wall |
-| Enemy squad | Charges at you from 75 m, cuts across lanes toward your army and shoots back (red tracers) once within 20 m. A red warning pulses when a big one is coming. Shoot it down before contact. On contact both sides lose soldiers 1:1 |
-| Stages and bosses | Each level has 2 stages (3 from level 4 of a world). A stage ends with a boss behind a shield; the shield drops when you get close (FIGHT!). Your army stops at a distance and trades fire. The boss marks red zones on the ground before each slam, sweep or rock fall: steer out of them (DODGED!). Below 60% health it gets ANGRY, below 30% ENRAGED (faster attacks, double slams), and it keeps sending squads at you. Beating a mid-boss gives you reinforcements and the run continues; the final boss ends the level |
+| Enemy squad | A big crowd of weak soldiers. It charges at you from 75 m, cuts across lanes toward your army and shoots back (red tracers) once within 20 m. Each bullet drops one enemy (piercing, explosive and chain weapons drop a few), so a crowd melts one by one. On contact, every 3 enemies take 2 of your soldiers with them |
+| Stages and bosses | Each level has 2 stages (3 from level 4 of a world). A stage ends with a boss. You can shoot it from 110 m away as you march in (FIGHT!), and your army stops at a distance to trade fire. The boss marks red zones on the ground before each slam, sweep or rock fall: steer out of them (DODGED!). Below 60% health it gets ANGRY, below 30% ENRAGED (faster attacks, double slams), and it keeps sending squads at you. Beating a mid-boss gives you reinforcements and the run continues; the final boss ends the level |
 
 ## Worlds (8 worlds × 5 levels = 40 levels)
 
@@ -94,12 +94,12 @@ On top of that, every level scales up. Obstacle HP grows +30% per level, enemy t
 
 `node tools/balance.mjs <difficulty> career` runs a bot through all 40 levels × 3 random layouts (120 runs). At each level it gets the upgrades and weapon a player could plausibly own by then (upgrade level = level number ÷ 3, weapon tier = level number ÷ 6). The bot steers greedily, so real players will do somewhat worse.
 
-| Difficulty | Bot wins (of 120) | Average level length | Average final-boss fight (wins, from first hit) |
+| Difficulty | Bot wins (of 120) | Average level length | Average final-boss fight (wins, from the first hit at ~110 m) |
 |---|---|---|---|
-| Recruit | 120 | 152 s | 10.8 s |
-| Soldier | 120 | 155 s | 12.5 s |
-| Veteran | 120 | 159 s | 15.2 s |
-| Nightmare | 119 | 164 s | 21.5 s |
+| Recruit | 120 | 149 s | 18.3 s |
+| Soldier | 120 | 156 s | 22.9 s |
+| Veteran | 118 | 164 s | 28.4 s |
+| Nightmare | 89 | 176 s | 40.2 s |
 
 This bot dodges every boss attack perfectly, so these numbers are a best case.
 
@@ -107,9 +107,9 @@ This bot dodges every boss attack perfectly, so these numbers are a best case.
 
 | Difficulty | Levels cleared | Attempts needed |
 |---|---|---|
-| Soldier | 40/40 | 40 |
-| Veteran | 40/40 | 42 |
-| Nightmare | 40/40 | 93 (up to 9 tries on one level) |
+| Soldier | 40/40 | 41 |
+| Veteran | 40/40 | 51 |
+| Nightmare | 40/40 | 99 |
 
 ## Automated playtesting
 
@@ -167,7 +167,7 @@ Menu → **Themes** changes the look of the whole game. Levels, worlds, weapons 
 | Theme | Your team | Enemies | Scenery | Projectiles | Example worlds and bosses |
 |---|---|---|---|---|---|
 | Army Rush (classic) | Blue soldiers | Red soldiers | The 8 worlds | Tracers | Golden Bridge (Red Brute) |
-| Bitcoin Bulls | Orange soldiers with bull horns | Red bears | The 8 worlds plus ₿ billboards and mining-rig rows | Orange tracers | Genesis Block (Grizzly Bear), Crypto Winter (Polar Bear), To The Moon (The Last Bear) |
+| Bitcoin Bulls | Orange soldiers with bull horns | Red bears | The 8 worlds plus ₿ logos and HODL / 21M / STACK SATS painted on the road, green and red candlestick charts, mining rigs, ₿ and slogan billboards, spinning ₿ coins and giant ₿ coins beside every bear boss; HUD coins become ₿ coins; messages like HODL!, BLOCK MINED!, TO THE MOON! and REKT! | Orange tracers | Genesis Block (Grizzly Bear), Crypto Winter (Polar Bear), To The Moon (The Last Bear) |
 | Gridiron Rush | Blue players with helmets and pads | Red players | Stadium: yard lines and numbers, crowds, floodlights, goal posts at each boss | Footballs | Rookie Bowl (The Big Lineman), Frozen Tundra Field (Ice Nose Tackle) |
 | Footy Rush | Blue guernseys, white shorts | Red guernseys | Oval: centre square and circle, crowds, four posts at each boss | Red footballs | Harbour Oval (The Big Ruckman), Alpine Oval (Snowy Ruckman) |
 

@@ -148,3 +148,14 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ink); 
 .theme-worlds { margin-top: 4px; font-size: 11px; color: var(--gold); font-family: Roboto, sans-serif; }
 .theme-pick { font-size: 13px; padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.12); white-space: nowrap; }
 .theme-card.on .theme-pick { background: var(--gold); color: #2a1a00; }
+
+/* Bitcoin theme: coin icon becomes the orange B coin, orange menu */
+body[data-theme="bitcoin"] .coin-ic {
+  background: #f7931a url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg transform='rotate(14 16 16)' fill='none' stroke='%23fff' stroke-width='2.6' stroke-linejoin='round'%3E%3Cpath d='M11 8h6.5a3.6 3.6 0 0 1 0 7.2H11zM11 15.2h7.5a3.9 3.9 0 0 1 0 7.8H11zM11 6.5v18M14 5v3M17 5v3M14 23v3.5M17 23v3.5'/%3E%3C/g%3E%3C/svg%3E") center / 100% no-repeat;
+  border-color: #b8650a;
+}
+body[data-theme="bitcoin"] .menu-bg { background: radial-gradient(circle at 50% 22%, rgba(247,147,26,.45), transparent 60%), linear-gradient(160deg, #241405 0%, #120c06 60%, #2a1405 100%); }
+body[data-theme="bitcoin"] .title-top { color: #f7931a; text-shadow: 0 6px 0 #6a3a05; }
+body[data-theme="bitcoin"] .title-bot { color: #ffffff; -webkit-text-stroke-color: #f7931a; text-shadow: 0 6px 0 #6a3a05; }
+body[data-theme="gridiron"] .menu-bg { background: radial-gradient(circle at 50% 20%, rgba(255,255,255,.18), transparent 55%), linear-gradient(160deg, #0f3a1a 0%, #0b2412 60%, #1a1030 100%); }
+body[data-theme="footy"] .menu-bg { background: radial-gradient(circle at 50% 20%, rgba(255,255,255,.18), transparent 55%), linear-gradient(160deg, #164a1e 0%, #0c2a12 60%, #102050 100%); }
