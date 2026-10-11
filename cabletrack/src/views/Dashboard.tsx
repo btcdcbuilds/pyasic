@@ -3,6 +3,7 @@ import { today, useStore } from '../store';
 import { Bar, Empty } from '../ui';
 import { crewSummaries, fmt, MEASURE_UNIT, stageTarget, stageTotals, progressIndex } from '../lib/calc';
 import type { AppData } from '../types';
+import { lotProgress } from '../lib/itp';
 
 function addDays(d: string, n: number) {
   const x = new Date(d + 'T00:00:00');
@@ -60,12 +61,14 @@ export default function Dashboard() {
         <div className="card">
           <h2>Getting started</h2>
           <ol style={{ lineHeight: 1.9, margin: 0 }}>
-            <li><a href="#settings">Settings</a>: name the project, check the work stages (Roughed in, Tied in, Spliced, Terminated, Tested).</li>
-            <li><a href="#library">Cable library</a>: confirm the contract cable types (1728F / 864F / 64F) and enter datasheet OD, weight and bend radius.</li>
-            <li><a href="#crews">Crews &amp; workers</a>: add your crews and each worker.</li>
-            <li><a href="#cables">Cable schedule</a>: import your cable schedule CSV or bulk-add cable tags with lengths.</li>
-            <li><a href="#layout">Floor layout</a>: place racks, draw baskets/trays and drops; check fill on <a href="#pathways">Trays &amp; baskets</a>.</li>
-            <li>Each day: <a href="#log">Log work</a> and <a href="#hours">Hours</a> per crew, then print the daily report from <a href="#reports">Reports</a>.</li>
+            <li><a href="#settings">Settings</a>: your name, project details, work stages (or apply a job template), loss budget allowances.</li>
+            <li><a href="#library">Library</a>: confirm cable types and enter datasheet OD, weight and bend radius.</li>
+            <li><a href="#crews">Crews &amp; people</a>: crews, workers, and people who sign off.</li>
+            <li><a href="#locations">Points &amp; areas</a>: buildings, floors, rooms and the A/B points (racks, frames, outlets, pits).</li>
+            <li><a href="#layout">Floor layout</a> / <a href="#pathways">Pathways</a>: upload plans, draw or enter trays, baskets, conduits; add drops.</li>
+            <li><a href="#cables">Cable schedule</a>: import your schedule CSV, then Auto-route all.</li>
+            <li><a href="#itp">ITP</a>: agree the inspection points, create lots.</li>
+            <li>Each day: <a href="#log">Log work</a>, <a href="#hours">Hours</a>, <a href="#diary">Site diary</a>, <a href="#tests">Tests</a>, then print the report from <a href="#reports">Reports</a>.</li>
           </ol>
         </div>
       </>
@@ -120,6 +123,13 @@ export default function Dashboard() {
           <div className="value">{hoursInRange > 0 ? fmt(pulledInRange / hoursInRange, 1) : '—'}</div>
           <div className="sub">{fmt(pulledInRange)} m in period</div>
         </div>
+      </div>
+
+      <div className="kpis">
+        <div className="kpi"><div className="label">Cables tested</div><div className="value">{new Set(data.tests.map((t) => t.cableId)).size} / {cables.length}</div><div className="sub">{data.tests.filter((t) => t.result === 'fail').length} failed results</div></div>
+        <div className="kpi"><div className="label">Labelled both ends</div><div className="value">{cables.filter((c) => c.labelA && c.labelB).length} / {cables.length}</div></div>
+        <div className="kpi"><div className="label">ITP hold points open</div><div className="value">{data.itpLots.reduce((a, l) => a + lotProgress(data, l).holdsOpen, 0)}</div><div className="sub">{data.itpLots.filter((l) => l.closed).length} / {data.itpLots.length} lots closed</div></div>
+        <div className="kpi"><div className="label">Open issues</div><div className="value">{data.issues.filter((i) => i.status !== 'closed').length}</div><div className="sub">{data.issues.filter((i) => i.status !== 'closed' && i.priority === 'high').length} high priority</div></div>
       </div>
 
       <div className="card">

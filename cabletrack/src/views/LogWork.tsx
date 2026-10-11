@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
-import { today, uid, useStore } from '../store';
+import { me, today, uid, useStore } from '../store';
+import { blockingHolds } from '../lib/itp';
+import type { AppData } from '../types';
 import { Empty, Field, confirmDelete } from '../ui';
 import { cableStageStatus, fmt, progressIndex, MEASURE_UNIT } from '../lib/calc';
 import type { ProgressEntry } from '../types';
 
 export default function LogWork() {
+  const data = useStore() as unknown as AppData;
   const { cables, cableTypes, stages, crews, progress, upsertMany, remove } = useStore();
+  const holdMode = data.project.holdPointMode ?? 'warn';
   const [date, setDate] = useState(today());
   const [crewId, setCrewId] = useState(crews[0]?.id ?? '');
   const [stageId, setStageId] = useState(stages[0]?.id ?? '');
@@ -48,11 +52,19 @@ export default function LogWork() {
 
   const save = () => {
     if (!crewId || !stage) return;
+    if (holdMode !== 'off') {
+      const held = Object.keys(sel).flatMap((id) => blockingHolds(data, id, stage.id).map((h) => `${cables.find((c) => c.id === id)?.tag}: ${h.lot.number} item ${h.item.ref} ${h.item.activity}`));
+      if (held.length) {
+        const text = `Hold point not released for ${held.length} cable/item(s):\n\n${held.slice(0, 12).join('\n')}${held.length > 12 ? '\n…' : ''}`;
+        if (holdMode === 'block') return alert(text + '\n\nSign the hold point on the ITP first.');
+        if (!confirm(text + '\n\nLog anyway?')) return;
+      }
+    }
     const entries: ProgressEntry[] = [];
     for (const [cableId, v] of Object.entries(sel)) {
       const qty = Number(v);
       if (!qty || qty <= 0) continue;
-      entries.push({ id: uid(), date, crewId, cableId, stageId: stage.id, qty, notes: note || undefined, createdAt: Date.now() });
+      entries.push({ id: uid(), date, crewId, cableId, stageId: stage.id, qty, notes: note || undefined, createdAt: Date.now(), createdBy: me() });
     }
     upsertMany('progress', entries);
     const tot = entries.reduce((a, e) => a + e.qty, 0);
@@ -154,6 +166,7 @@ export default function LogWork() {
                       </td>
                       <td>
                         <b>{c.tag}</b>
+                        {holdMode !== 'off' && blockingHolds(data, c.id, stage!.id).length > 0 && <span className="pill warn" style={{ marginLeft: 6 }} title="ITP hold point not released">HOLD</span>}
                         <div className="small muted">
                           {c.fromLabel} → {c.toLabel}
                         </div>

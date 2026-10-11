@@ -6,7 +6,7 @@ const COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300'
 const ROLES = ['Supervisor', 'Leading hand', 'Technician', 'Splicer', 'Cabler', 'Apprentice', 'Labourer'];
 
 export default function Crews() {
-  const { crews, workers, upsert, remove } = useStore();
+  const { crews, workers, members, upsert, remove } = useStore();
   const [crewName, setCrewName] = useState('');
   const [wName, setWName] = useState('');
   const [wRole, setWRole] = useState('Technician');
@@ -146,6 +146,32 @@ export default function Crews() {
                       </td>
                     </tr>
                   ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <div className="card">
+        <div className="row" style={{ marginBottom: 10 }}>
+          <h2 style={{ margin: 0 }}>People who sign off (supervisors, client reps)</h2>
+          <div className="spacer" />
+          <button className="btn" onClick={() => upsert('members', { id: uid(), name: '', role: 'supervisor' })}>+ Person</button>
+        </div>
+        <p className="small muted" style={{ marginTop: 0 }}>Names offered when signing ITP items. Cloud logins and permissions are managed in Settings &gt; Cloud &amp; team.</p>
+        {members.length === 0 ? <Empty>No people added.</Empty> : (
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Company</th><th>Email</th><th>Role</th><th /></tr></thead>
+              <tbody>
+                {members.map((m) => (
+                  <tr key={m.id}>
+                    <td><input value={m.name} onChange={(e) => upsert('members', { ...m, name: e.target.value })} /></td>
+                    <td><input value={m.company ?? ''} onChange={(e) => upsert('members', { ...m, company: e.target.value || undefined })} /></td>
+                    <td><input type="email" value={m.email ?? ''} onChange={(e) => upsert('members', { ...m, email: e.target.value || undefined })} /></td>
+                    <td><select value={m.role} onChange={(e) => upsert('members', { ...m, role: e.target.value as typeof m.role })}><option value="admin">Admin</option><option value="supervisor">Supervisor</option><option value="crew_lead">Crew lead</option><option value="viewer">Client / viewer</option></select></td>
+                    <td><button className="btn sm danger" onClick={() => confirmDelete(m.name || 'person') && remove('members', m.id)}>Delete</button></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

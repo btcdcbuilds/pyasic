@@ -4,6 +4,10 @@ import { Empty, Field } from '../ui';
 import { crewSummaries, fmt, MEASURE_UNIT, stageTotals } from '../lib/calc';
 import { download, toCSV } from '../lib/csv';
 import type { AppData } from '../types';
+import { exportData } from '../store';
+import { lotProgress } from '../lib/itp';
+import { endLabel } from './Cables';
+import { ISSUE_LABEL } from './Issues';
 
 export default function Reports() {
   const data = useStore() as unknown as AppData;
@@ -48,6 +52,35 @@ export default function Reports() {
         }),
       ]),
     );
+
+  const diaryIn = data.diary.filter((d) => inRange(d.date)).sort((a, b) => a.date.localeCompare(b.date));
+  const testsIn = data.tests.filter((t) => inRange(t.date));
+  const openIssues = data.issues.filter((i) => i.status !== 'closed');
+  const exportLabels = () => download(`labels-${today()}.csv`, toCSV([
+    ['cable', 'label_A', 'label_B', 'A_end', 'B_end', 'type', 'applied_A', 'applied_B'],
+    ...[...cables].sort((a, b) => a.tag.localeCompare(b.tag, undefined, { numeric: true })).map((c) => {
+      const fa = c.fromRackId ? data.locations.find((l) => l.id === c.fromRackId) : undefined;
+      const tb = c.toRackId ? data.locations.find((l) => l.id === c.toRackId) : undefined;
+      const lab = (here?: typeof fa, port?: string, far?: typeof fa, farPort?: string) => `${c.tag} ${here?.code || here?.name || ''}${port ? ':' + port : ''} > ${far?.code || far?.name || ''}${farPort ? ':' + farPort : ''}`.trim();
+      return [c.tag, lab(fa, c.fromPort, tb, c.toPort), lab(tb, c.toPort, fa, c.fromPort), endLabel(data, c, 'A'), endLabel(data, c, 'B'), typeMap.get(c.typeId)?.name, c.labelA, c.labelB];
+    }),
+  ]));
+  const exportItpRegister = () => download(`itp-register-${today()}.csv`, toCSV([
+    ['lot', 'title', 'itp', 'cables', 'items_signed', 'items_total', 'failed', 'holds_open', 'closed', 'closed_by', 'client_accepted'],
+    ...data.itpLots.map((l) => { const p = lotProgress(data, l); return [l.number, l.title, data.itpTemplates.find((t) => t.id === l.templateId)?.code, l.cableIds.map((id) => cableMap.get(id)?.tag).join(' '), p.done, p.total, p.failed, p.holdsOpen, l.closed?.date, l.closed?.by, l.closed?.clientBy]; }),
+  ]));
+  const exportIssues = () => download(`issues-${today()}.csv`, toCSV([
+    ['ref', 'kind', 'title', 'status', 'priority', 'raised', 'due', 'closed', 'description', 'closeout'],
+    ...data.issues.map((i) => [i.ref, ISSUE_LABEL[i.kind], i.title, i.status, i.priority, i.raisedDate, i.dueDate, i.closedDate, i.description, i.closeout]),
+  ]));
+  const exportTestsSummary = () => download(`test-summary-${today()}.csv`, toCSV([
+    ['cable', 'type', 'A_end', 'B_end', 'length_m', 'tests', 'pass', 'fail', 'worst_margin_db', 'last_test'],
+    ...cables.map((c) => {
+      const ts = data.tests.filter((t) => t.cableId === c.id);
+      const margins = ts.filter((t) => t.measuredDb != null && t.limitDb != null).map((t) => t.limitDb! - t.measuredDb!);
+      return [c.tag, typeMap.get(c.typeId)?.name, endLabel(data, c, 'A'), endLabel(data, c, 'B'), c.lengthM, ts.length, ts.filter((t) => t.result === 'pass').length, ts.filter((t) => t.result === 'fail').length, margins.length ? Math.min(...margins).toFixed(2) : '', ts.map((t) => t.date).sort().pop()];
+    }),
+  ]));
 
   return (
     <>
@@ -177,6 +210,41 @@ export default function Reports() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="card">
+        <h2>Site diary</h2>
+        {diaryIn.length === 0 ? <Empty>No diary entries in this period.</Empty> : (
+          <table>
+            <thead><tr><th>Date</th><th>Weather</th><th>Notes</th><th>Delays</th><th>Safety</th><th>Visitors</th></tr></thead>
+            <tbody>{diaryIn.map((d) => <tr key={d.id}><td>{d.date}</td><td className="small">{d.weather}</td><td className="small" style={{ whiteSpace: 'pre-wrap' }}>{d.notes}</td><td className="small">{d.delays}</td><td className="small">{d.safety}</td><td className="small">{d.visitors}</td></tr>)}</tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="card">
+        <h2>Quality status</h2>
+        <table>
+          <tbody>
+            <tr><th>Tests in period</th><td>{testsIn.length} ({testsIn.filter((t) => t.result === 'pass').length} pass, {testsIn.filter((t) => t.result === 'fail').length} fail)</td></tr>
+            <tr><th>Cables tested to date</th><td>{new Set(data.tests.map((t) => t.cableId)).size} / {cables.length}</td></tr>
+            <tr><th>Cables labelled both ends</th><td>{cables.filter((c) => c.labelA && c.labelB).length} / {cables.length}</td></tr>
+            <tr><th>ITP lots</th><td>{data.itpLots.length} ({data.itpLots.filter((l) => l.closed).length} closed, {data.itpLots.reduce((a, l) => a + lotProgress(data, l).holdsOpen, 0)} hold points open)</td></tr>
+            <tr><th>Open issues</th><td>{openIssues.length}{openIssues.length ? ': ' + openIssues.slice(0, 8).map((i) => `${i.ref} ${i.title}`).join('; ') : ''}</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="card no-print">
+        <h2>Exports</h2>
+        <div className="row">
+          <button className="btn" onClick={exportLabels}>Label schedule (CSV for label printer)</button>
+          <button className="btn" onClick={exportItpRegister}>ITP register (CSV)</button>
+          <button className="btn" onClick={exportIssues}>Issues (CSV)</button>
+          <button className="btn" onClick={exportTestsSummary}>Test summary by cable (CSV)</button>
+          <button className="btn" onClick={() => download(`handover-${today()}.json`, JSON.stringify(exportData(), null, 2), 'application/json')}>Full data (JSON)</button>
+        </div>
+        <p className="small muted">Cable schedule and test results exports are also on their own pages. ITP sign-off sheets print from each lot.</p>
       </div>
     </>
   );

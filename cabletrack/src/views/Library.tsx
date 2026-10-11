@@ -3,6 +3,10 @@ import { uid, useStore } from '../store';
 import { Field, Modal, Num, confirmDelete } from '../ui';
 import { fmt } from '../lib/calc';
 import { STANDARDS } from '../data/library';
+import { EXTRA_STANDARDS } from '../data/norms';
+import { today } from '../store';
+import { Empty } from '../ui';
+import type { Drum, FibreClass } from '../types';
 import type { CableCategory, CableType, RackModel, Termination } from '../types';
 
 const TERM_LABEL: Record<Termination, string> = {
@@ -16,7 +20,7 @@ const TERM_LABEL: Record<Termination, string> = {
 };
 
 export default function Library() {
-  const [tab, setTab] = useState<'cables' | 'racks' | 'standards'>('cables');
+  const [tab, setTab] = useState<'cables' | 'racks' | 'drums' | 'standards'>('cables');
   return (
     <>
       <div className="page-head">
@@ -24,11 +28,13 @@ export default function Library() {
         <div className="row">
           <button className={'btn' + (tab === 'cables' ? ' active' : '')} onClick={() => setTab('cables')}>Cable types</button>
           <button className={'btn' + (tab === 'racks' ? ' active' : '')} onClick={() => setTab('racks')}>Rack models</button>
+          <button className={'btn' + (tab === 'drums' ? ' active' : '')} onClick={() => setTab('drums')}>Drums / reels</button>
           <button className={'btn' + (tab === 'standards' ? ' active' : '')} onClick={() => setTab('standards')}>Standards &amp; guidance</button>
         </div>
       </div>
       {tab === 'cables' && <CableTypes />}
       {tab === 'racks' && <RackModels />}
+      {tab === 'drums' && <Drums />}
       {tab === 'standards' && <Standards />}
     </>
   );
@@ -163,6 +169,11 @@ function CableTypeForm({ value, onChange }: { value: CableType; onChange: (t: Ca
         <Field label="Fibres per ribbon"><Num value={value.ribbonSize} onChange={(v) => set({ ribbonSize: v })} /></Field>
         <Field label="Fibres per connector (MPO-16 = 16)"><Num value={value.fibresPerConnector} onChange={(v) => set({ fibresPerConnector: v })} /></Field>
         <Field label="Ends terminated/spliced"><Num value={value.ends} onChange={(v) => set({ ends: v ?? 2 })} /></Field>
+        <Field label="Fibre class (loss budget)">
+          <select value={value.fibreClass ?? ''} onChange={(e) => set({ fibreClass: (e.target.value || undefined) as FibreClass | undefined })}>
+            <option value="">—</option><option value="sm-isp">Singlemode inside plant</option><option value="sm-osp">Singlemode outside plant</option><option value="mm">Multimode</option>
+          </select>
+        </Field>
         <Field label="Source URL"><input value={value.sourceUrl ?? ''} onChange={(e) => set({ sourceUrl: e.target.value || undefined })} /></Field>
         <label className="row small" style={{ gap: 6, alignSelf: 'end' }}>
           <input type="checkbox" checked={value.verified} onChange={(e) => set({ verified: e.target.checked })} /> I have checked these values against the datasheet
@@ -287,7 +298,7 @@ function Standards() {
         <table>
           <thead><tr><th>Topic</th><th>Rule</th><th>Source</th></tr></thead>
           <tbody>
-            {STANDARDS.map((s) => (
+            {[...STANDARDS, ...EXTRA_STANDARDS].map((s) => (
               <tr key={s.topic}>
                 <td><b>{s.topic}</b></td>
                 <td className="small">{s.rule}</td>
@@ -297,6 +308,52 @@ function Standards() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function Drums() {
+  const { drums, cableTypes, cables, upsert, remove } = useStore();
+  const [edit, setEdit] = useState<Drum | null>(null);
+  const used = (d: Drum) => cables.filter((c) => c.drumId === d.id).reduce((a, c) => a + (c.markA != null && c.markB != null ? Math.abs(c.markB - c.markA) : c.lengthM), 0);
+  return (
+    <div className="card">
+      <div className="row" style={{ marginBottom: 12 }}>
+        <h2 style={{ margin: 0 }}>Drum / reel register</h2>
+        <div className="spacer" />
+        <button className="btn primary" disabled={!cableTypes.length} onClick={() => setEdit({ id: uid(), code: 'DRUM-' + String(drums.length + 1).padStart(3, '0'), typeId: cableTypes[0].id, lengthM: 0, receivedDate: today(), receiptTest: 'not-tested' })}>+ Drum</button>
+      </div>
+      <p className="small muted" style={{ marginTop: 0 }}>Record drums on delivery (receipt inspection / reel test is ITP item 2.1). Link cables to a drum on the cable schedule; remaining length uses measured lengths where jacket marks are entered.</p>
+      {drums.length === 0 ? <Empty>No drums recorded.</Empty> : (
+        <div className="table-wrap">
+          <table>
+            <thead><tr><th>Drum</th><th>Cable type</th><th className="num">Length m</th><th className="num">Used m</th><th className="num">Remaining m</th><th>Received</th><th>Receipt test</th><th /></tr></thead>
+            <tbody>{drums.map((d) => { const u = used(d); return (
+              <tr key={d.id}><td><b>{d.code}</b></td><td className="small">{cableTypes.find((t) => t.id === d.typeId)?.name}</td><td className="num">{fmt(d.lengthM)}</td><td className="num">{fmt(u)}</td>
+                <td className="num" style={{ color: d.lengthM - u < 0 ? 'var(--bad)' : undefined }}>{fmt(d.lengthM - u)}</td><td className="small">{d.receivedDate}</td>
+                <td><span className={'pill ' + (d.receiptTest === 'pass' ? 'ok' : d.receiptTest === 'fail' ? 'bad' : '')}>{d.receiptTest ?? 'not-tested'}</span></td>
+                <td><button className="btn sm" onClick={() => setEdit(d)}>Edit</button></td></tr>
+            ); })}</tbody>
+          </table>
+        </div>
+      )}
+      {edit && (
+        <Modal title={edit.code} onClose={() => setEdit(null)}>
+          <div className="grid g2">
+            <Field label="Drum / reel no."><input value={edit.code} onChange={(e) => setEdit({ ...edit, code: e.target.value })} /></Field>
+            <Field label="Cable type"><select value={edit.typeId} onChange={(e) => setEdit({ ...edit, typeId: e.target.value })}>{cableTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>
+            <Field label="Length on drum (m)"><Num value={edit.lengthM} onChange={(v) => setEdit({ ...edit, lengthM: v ?? 0 })} /></Field>
+            <Field label="Received"><input type="date" value={edit.receivedDate ?? ''} onChange={(e) => setEdit({ ...edit, receivedDate: e.target.value || undefined })} /></Field>
+            <Field label="Receipt test"><select value={edit.receiptTest ?? 'not-tested'} onChange={(e) => setEdit({ ...edit, receiptTest: e.target.value as Drum['receiptTest'] })}><option value="not-tested">Not tested</option><option value="pass">Pass</option><option value="fail">Fail</option></select></Field>
+          </div>
+          <Field label="Notes"><textarea rows={2} value={edit.notes ?? ''} onChange={(e) => setEdit({ ...edit, notes: e.target.value || undefined })} /></Field>
+          <div className="row" style={{ marginTop: 12 }}>
+            {drums.some((d) => d.id === edit.id) && <button className="btn danger" onClick={() => { if (confirmDelete(edit.code)) { remove('drums', edit.id); setEdit(null); } }}>Delete</button>}
+            <div className="spacer" />
+            <button className="btn primary" onClick={() => { upsert('drums', edit); setEdit(null); }}>Save</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
