@@ -119,3 +119,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ink); 
 .res-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .res-table td { padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,.1); text-align: left; }
 .res-table td:last-child { text-align: right; color: var(--gold); }
+
+#toast { position: fixed; left: 50%; bottom: calc(90px + var(--safe-bot)); translate: -50% 20px; max-width: 88vw; background: rgba(13,21,48,.95); border: 2px solid rgba(255,255,255,.3); border-radius: 14px; padding: 10px 16px; font-size: 14px; font-family: Roboto, sans-serif; text-align: center; opacity: 0; pointer-events: none; transition: opacity .25s, translate .25s; z-index: 50; }
+#toast.show { opacity: 1; translate: -50% 0; }

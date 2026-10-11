@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "playtest": "node tools/playtest.mjs"
+    "playtest": "node tools/playtest.mjs",
+    "test": "node tools/test-save.mjs && node tools/test-sim.mjs && node tools/test-boss.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.1",
     "@capacitor/core": "8.5.3",
     "three": "0.186.1"
   },

@@ -30,10 +30,14 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Install
+        run: npm ci
+
+      - name: Test (save data, all 160 level/difficulty combos, boss regression)
+        run: npm test
+
       - name: Build web game
-        run: |
-          npm ci
-          npm run build
+        run: npm run build
 
       - name: Sync into Android project
         run: npx cap sync android

@@ -4,22 +4,13 @@ import { Renderer, fmt } from './render.js';
 import { Sfx } from './audio.js';
 import { drawWeaponIcon } from './icons.js';
 
+import { App } from '@capacitor/app';
+import { loadSave, persistSave, defaults } from './save.js';
+
 // ------------------------------------------------------------------ save data
-const SAVE_KEY = 'armyrush.save.v1';
-const defaults = () => ({
-  coins: 0, progress: 0, stars: {}, upgrades: {}, owned: ['pistol'], equipped: 'pistol',
-  difficulty: 'soldier', sound: true, vibe: true, quality: 'high',
-});
-function loadSave() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (raw) return { ...defaults(), ...JSON.parse(raw) };
-  } catch { /* storage unavailable */ }
-  return defaults();
-}
 let save = loadSave();
 function persist() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch { /* ignore */ }
+  if (!persistSave(save)) toast('Could not save progress (storage full or blocked)');
 }
 const upLvl = (id) => save.upgrades[id] || 0;
 const TOTAL_LEVELS = WORLDS.length * LEVELS_PER_WORLD;
@@ -54,9 +45,20 @@ function vibrate(ms) {
   }
 }
 
+function toast(msg, ms = 2600) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
 // ------------------------------------------------------------------ screens
 const screens = ['menu', 'worlds', 'armory', 'upgrades', 'settings', 'pause', 'result'];
+let screen = 'menu';
 function show(name) {
+  screen = name;
   dangerEl.style.opacity = 0;
   for (const s of screens) $('#scr-' + s).classList.toggle('hidden', s !== name);
   $('#hud').classList.toggle('hidden', !!name && name !== 'pause' && name !== 'result');
@@ -68,6 +70,7 @@ function show(name) {
   $$('.coins-total').forEach((el) => (el.textContent = fmt(save.coins)));
 }
 function hideAll() {
+  screen = 'game';
   for (const s of screens) $('#scr-' + s).classList.add('hidden');
   $('#hud').classList.remove('hidden');
 }
@@ -330,6 +333,14 @@ function finish(won) {
   }
   coins = Math.round(coins * diff.coin * income) + sim.coins;
   save.coins += coins;
+  const st = save.stats;
+  st.levelsPlayed++;
+  if (won) st.levelsWon++;
+  st.kills += sim.kills;
+  st.bossesKilled += sim.bosses.filter((b) => !b.alive).length;
+  st.bestArmy = Math.max(st.bestArmy, sim.peak);
+  st.playSeconds += Math.round(sim.t);
+  st.coinsEarned += coins;
   if (won) {
     if (L === save.progress) save.progress = Math.min(TOTAL_LEVELS, L + 1);
     const k = starKey(wi, li, save.difficulty);
@@ -384,14 +395,53 @@ const keys = new Set();
 window.addEventListener('keydown', (e) => keys.add(e.key));
 window.addEventListener('keyup', (e) => keys.delete(e.key));
 
+function pauseGame() {
+  if (sim && !paused && sim.state === 'run') { paused = true; show('pause'); }
+}
 // pause when the app goes to the background
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden && sim && !paused && sim.state === 'run') { paused = true; show('pause'); }
-});
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+
+// Android back button: close the current screen, pause a running level, or leave the app.
+function handleBack() {
+  if (screen === 'game') return pauseGame();
+  if (screen === 'pause') return $('#btn-resume').click();
+  if (screen === 'menu') {
+    try { App.exitApp(); } catch { /* not on Android */ }
+    return;
+  }
+  sfx.click();
+  if (screen === 'result') return show('menu');
+  show('menu');
+}
+try {
+  App.addListener('backButton', handleBack);
+  App.addListener('appStateChange', ({ isActive }) => { if (!isActive) { pauseGame(); persist(); } });
+} catch { /* web build without the native bridge */ }
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape') handleBack(); });
 
 // ------------------------------------------------------------------ loop
+let errorCount = 0;
+function recover(err) {
+  console.error(err);
+  errorCount++;
+  paused = true;
+  sim = null;
+  try { show('menu'); } catch { /* ignore */ }
+  toast(errorCount > 3 ? 'Something keeps going wrong. Try lowering Graphics in Settings.' : 'Something went wrong. Back to the menu, your progress is saved.');
+}
+window.addEventListener('error', (e) => { if (sim && !paused) recover(e.error || e.message); });
+window.addEventListener('unhandledrejection', (e) => console.error(e.reason));
+
 function frame(now) {
   requestAnimationFrame(frame);
+  try {
+    tick(now);
+  } catch (err) {
+    recover(err);
+  }
+}
+
+function tick(now) {
   const rawDt = Math.min(0.1, (now - lastT) / 1000);
   if (window.__game.onFrame) window.__game.onFrame(rawDt);
   let dt = rawDt * timeScale;
