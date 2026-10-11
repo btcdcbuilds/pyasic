@@ -8,6 +8,8 @@ export const HERO_POWER = 12; // a hero shoots like this many soldiers
 export const HERO_HP = 10; // soldiers a hero is worth when the army is wiped
 export const MAX_ARMY = 9999;
 export const BOSS_STAND = 13; // how far from a boss the army stops
+export const CHARGE_DIST = 75; // enemy squads start charging from this far
+export const MIN_TRAVEL = 120; // every bullet flies at least this far up the track
 export const BOSS_WAKE = 30; // a boss is shielded until your army is this close
 const LANE2 = [[-HW, 0], [0, HW]];
 const LANE3 = [[-HW, -2], [-2, 2], [2, HW]];
@@ -60,7 +62,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
   const maxTier = Math.min(9, 1 + wi + (mod.boardWeight ? 1 : 0));
   const enemyHp = 1.4 * (1 + 0.14 * L) * Math.sqrt(D) * (mod.shield || 1);
   let mulLeft = 1 + (L > 15 ? 1 : 0); // multiplier gates are rare treats
-  const squadSize = (i) => Math.round((5 + i * 1.6 + L * 1.3) * Math.sqrt(D));
+  const squadSize = (i) => Math.round((5 + i * 1.6 + L * 1.0) * Math.sqrt(D));
 
   const goodGate = (i, allowMul) => {
     const r = rng();
@@ -92,7 +94,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
     const other = rng();
     if (other < 0.4) add({ type: 'hero', d: dd, x0: o[0] + 0.2, x1: o[1] - 0.2, hp: (40 + 8 * i) * hpScale });
     else if (other < 0.75) add({ type: 'cage', d: dd, x0: o[0] + 0.3, x1: o[1] - 0.3, hp: (10 + 3 * i) * hpScale, allies: 5 + Math.floor(L * 0.4) + i });
-    else gate(o, dd, goodGate(i, false));
+    else gate(o, dd + 14, goodGate(i, false));
   };
   const squad = (dd, x, m, lane = null) => add({
     type: 'squad', d: dd, x, m, m0: m, hpEach: enemyHp, acc: 0, contact: false, lane,
@@ -155,7 +157,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
     dividers.push({ d0: dd, d1: dd + len, xs: [-2, 2] });
     strip(stripLane, dd + 4, 16, 1 + Math.floor(L / 15));
     const hc = (hordeLane[0] + hordeLane[1]) / 2;
-    const hm = squadSize(i + 2);
+    const hm = squadSize(i);
     for (let k = 0; k < 3; k++) squad(dd + 14 + k * 16, hc, Math.round(hm * (0.6 + k * 0.25)));
     weaponBoard(hordeLane, dd + len - 4, i, 1);
     const g = rng() < 0.5
@@ -170,12 +172,14 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
   // reinforcements and the run continues to the next stage. The last boss ends the level.
   const stages = li >= 3 ? 3 : 2;
   const rowsPer = Math.ceil(rows / stages);
-  const baseBossHp = 13000 * Math.exp(0.145 * L) * Math.sqrt(D);
+  // early bosses are gentler (ramp to full strength by world 3) so new players can learn the fight
+  const ramp = Math.min(1, 0.55 + L * 0.045);
+  const baseBossHp = 13000 * Math.exp(0.145 * L) * Math.sqrt(D) * ramp;
   const bosses = [];
   let dd = 45;
   for (let i = 0, st = 0; st < stages; st++) {
    for (let k = 0; k < rowsPer && i < rows; k++, i++) {
-    if (i > 2 && i % 6 === 3) {
+    if (L >= 20 ? i > 5 && i % 6 === 5 : i > 2 && i % 6 === 3) {
       dd += gauntlet(i, dd) + 24;
       continue;
     }
@@ -214,7 +218,7 @@ export function generateLevel(wi, li, diffId, seedExtra = 0) {
     const hp = Math.round(baseBossHp * (final ? 3.5 : 1.2 + 0.4 * st));
     bosses.push(add({
       type: 'boss', d: dd + 8, x: 0, half: 2.8, hp, maxHp: hp, final, stage: st, stages,
-      hitBase: Math.ceil((2 + L * 0.5) * Math.sqrt(D)), atkT: 2.5, atk: null, phase: 1, engaged: false,
+      hitBase: Math.ceil((2 + L * 0.5) * Math.sqrt(D)), ramp, atkT: 2.5, atk: null, phase: 1, engaged: false,
       minions: Math.round((4 + L * 1.1) * Math.sqrt(D) * (final ? 1 : 0.7)), callT: 3,
       reinforce: 6 + Math.floor(L * 0.6), contact: false,
     }));
@@ -342,6 +346,7 @@ export class Sim {
     this.fire(dt);
     this.updateProjectiles(dt);
     this.updateEntities(dt);
+    this.resort();
     this.collide();
 
     if (this.n <= 0 && this.heroes <= 0) {
@@ -415,7 +420,7 @@ export class Sim {
       if (!e.alive || (e.type !== 'squad' && e.type !== 'boss')) continue;
       if (e.type === 'boss' && e.d - this.d > BOSS_WAKE) continue;
       const half = e.type === 'boss' ? e.half : armyRadius(e.m);
-      if (Math.abs(e.x - this.x) > R + half + 3 || e.d < this.d) continue;
+      if (Math.abs(e.x - this.x) > R + half + 3 || e.d < this.d + 4) continue;
       if (e.d < bestD) { bestD = e.d; best = e; }
     }
     return best;
@@ -428,9 +433,9 @@ export class Sim {
       const half = target.type === 'boss' ? target.half * 0.7 : armyRadius(target.m) * 0.7;
       const tx = target.x + (Math.random() * 2 - 1) * half;
       const t = Math.max(0.05, (target.d - d) / w.speed);
-      vx = (tx - x) / t;
+      vx = clamp((tx - x) / t, -0.25 * w.speed, 0.25 * w.speed);
     }
-    this.proj.push({ x, vx, d, d0: d, dmg, range, speed: w.speed, pierce: w.pierce || 0, hit: null, w, hero });
+    this.proj.push({ x, vx, d, d0: d, dmg, range, travel: Math.max(range, MIN_TRAVEL), speed: w.speed, pierce: w.pierce || 0, hit: null, w, hero });
   }
 
   heroX(i) {
@@ -476,7 +481,8 @@ export class Sim {
         if (d0 < bestD) { bestD = d0; best = e; }
       }
       if (best) {
-        this.damage(best, p.dmg);
+        const dmg = p.d - p.d0 > p.range ? p.dmg * 0.5 : p.dmg;
+        this.damage(best, dmg);
         this.emit('hit', { x: p.x, d: Math.max(prev, bestD), w: p.w.id, ent: best.type });
         if (p.w.splash) this.splash(p.x, bestD, p.w.splash, p.dmg * 0.6, best);
         if (p.w.chain) this.chain(p.x, bestD, p.w.chain, p.dmg * 0.7, best);
@@ -487,7 +493,7 @@ export class Sim {
         }
         continue;
       }
-      if (p.d - p.d0 < p.range) out.push(p);
+      if (p.d - p.d0 < p.travel) out.push(p);
       else this.emit('expire', { travel: p.d - p.d0, x: p.x });
     }
     this.proj = out;
@@ -526,7 +532,7 @@ export class Sim {
         // huge army can't snowball a gate. No cap: each point above the starting value needs a
         // few more hits than the last, so a gate keeps growing the longer you shoot it.
         if (e.op !== '+' && e.op !== '-') return;
-        if (e.v0 === undefined) e.v0 = e.op === '+' ? e.v : 1;
+        if (e.v0 === undefined) e.v0 = e.v; // for a - gate: the size it can grow back to once flipped
         e.acc += 1;
         for (;;) {
           const cost = e.op === '+' ? 2 * Math.pow(2, Math.max(0, e.v - e.v0) / Math.max(3, e.v0 / 2)) : 2;
@@ -574,9 +580,15 @@ export class Sim {
         if (e.hp <= 0) {
           e.hp = 0;
           if (e.type === 'board' || e.type === 'hero' || e.type === 'cage') {
-            // Shot open: the reward now waits in its lane. Run through it to collect.
-            e.unlocked = true;
-            this.emit('unlock', { e });
+            if (this.overlap(e.x0, e.x1) > 0) {
+              // shot open from its lane: the reward now runs over to your army
+              e.unlocked = true;
+              this.emit('unlock', { e });
+            } else {
+              // stray bullets from the next lane can't open it: steer over to claim it
+              e.hp = 1;
+              if (!e.hinted) { e.hinted = true; this.emit('steerHere', { e }); }
+            }
           } else this.destroy(e);
         }
     }
@@ -634,6 +646,21 @@ export class Sim {
     return e;
   }
 
+  // Entities move (squads charge, rewards run to you), so restore the sort by distance
+  // every frame. The projectile scan relies on it; an out-of-order entity used to hide the
+  // boss from bullets. Insertion sort is cheap because the list is almost sorted.
+  resort() {
+    const a = this.ents;
+    for (let i = 1; i < a.length; i++) {
+      const e = a[i];
+      let j = i - 1;
+      if (a[j].d <= e.d) continue;
+      while (j >= 0 && a[j].d > e.d) { a[j + 1] = a[j]; j--; }
+      a[j + 1] = e;
+    }
+    while (this.cursor > 0 && a[this.cursor - 1].d >= this.d - 15) this.cursor--;
+  }
+
   updateEntities(dt) {
     const R = this.radius;
     this.clashing = false;
@@ -658,15 +685,28 @@ export class Sim {
         } else if (e.d < this.d - R - r - 1) {
           e.alive = false; // ran past
           this.emit('dodge', { e });
-        } else if (e.d - this.d < 52) {
+        } else if (e.d - this.d < CHARGE_DIST) {
           e.d -= 8 * dt;
-          // charge: run at the army and steer hard toward it
-          e.x += clamp(this.x - e.x, -1, 1) * 3.4 * dt;
+          // charge: run at the army and cut across lanes toward it; close in hard at the end
+          const near = gap < 6 && Math.abs(e.x - this.x) < R + r + 1.5;
+          e.x += clamp(this.x - e.x, -1, 1) * (near ? 8 : 5) * dt;
           e.x = clamp(e.x, -HW + r, HW - r);
           e.charging = true;
-          if (Math.abs(e.x - this.x) < R + r + 1.5) {
-            const closeness = 1 - Math.max(0, gap) / 52;
+          const inLine = Math.abs(e.x - this.x) < R + r + 1.5;
+          if (inLine) {
+            const closeness = 1 - Math.max(0, gap) / CHARGE_DIST;
             this.danger = Math.max(this.danger, Math.min(1.5, e.m / Math.max(1, this.n)) * closeness);
+          }
+          // they shoot back once within 20 m
+          if (inLine && gap < 20) {
+            e.fireAcc = (e.fireAcc || 0) + 0.02 * e.m * this.lossMult * dt;
+            if (e.fireAcc >= 1) {
+              const k = Math.floor(e.fireAcc);
+              e.fireAcc -= k;
+              this.lose(k, 'shot');
+            }
+            e.tracer = (e.tracer || 0) + Math.min(12, e.m) * dt * 2;
+            while (e.tracer >= 1) { e.tracer -= 1; this.emit('enemyFire', { e }); }
           }
         }
       } else if (e.type === 'boss') {
@@ -702,7 +742,9 @@ export class Sim {
       if (e.callT <= 0) {
         e.callT = [5, 4, 3][phase - 1];
         const m = Math.round(e.minions * (0.7 + 0.3 * phase));
-        this.spawnSquad(e.d - e.half - 1.5, (Math.random() - 0.5) * 7, m);
+        const side = Math.random() < 0.5 ? -1 : 1;
+        this.spawnSquad(this.d + 25, side * (1.5 + Math.random() * 2.5), Math.ceil(m / 2));
+        this.spawnSquad(this.d + 28, -side * (1.5 + Math.random() * 2.5), Math.ceil(m / 2));
       }
     }
     if (!e.engaged) return;
@@ -738,10 +780,10 @@ export class Sim {
     let f = 0;
     for (const [a, b] of atk.zones) f += this.overlap(a, b);
     f = Math.min(1, f);
-    const share = { slam: 0.4, sweep: 0.35, rocks: 0.3, double: 0.4 }[atk.kind];
+    const share = { slam: 0.22, sweep: 0.18, rocks: 0.15, double: 0.22 }[atk.kind];
     let k = 0;
     if (f > 0) {
-      k = (Math.ceil(this.n * f * share) + e.hitBase) * this.lossMult;
+      k = (Math.ceil(this.n * f * share * e.ramp) + e.hitBase) * this.lossMult;
       this.lose(Math.min(this.n + this.heroes * HERO_HP, k), 'boss');
     }
     this.emit('bossImpact', { e, atk, hit: f > 0, k: Math.round(k) });

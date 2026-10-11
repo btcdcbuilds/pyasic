@@ -29,7 +29,7 @@ An Android emulator is not available in the cloud container (no /dev/kvm and no 
    - `bossFightSeconds`, `bossHpLeft`, `result`, `timeline`
    - `errors` (any JavaScript error is a bug)
    - `fps` is software rendering and only useful for relative comparisons
-6. Optionally run the balance bot for numbers: `node tools/balance.mjs soldier career`.
+6. Run the balance bot and the boss regression test: `node tools/balance.mjs soldier career` and `node tools/test-boss.mjs`.
 7. Write `game/playtest/REPORT.md` with these sections:
    - **Feedback check**: a table with one row per FEEDBACK.md point: status (fixed / still a problem / partly),
      the evidence (screenshot file or metric), and a proposed fix.

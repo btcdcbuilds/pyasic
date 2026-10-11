@@ -571,9 +571,13 @@ export class Renderer {
     }
   }
 
+  later(delay, fn) {
+    (this.delayed ||= []).push({ t: delay, fn });
+  }
+
   ghost(x, z, flip = false) {
     if (this.ghosts.length >= MAX_GHOSTS) this.ghosts.shift();
-    this.ghosts.push({ x, z, life: 0.9, ry: flip ? Math.PI : 0, vx: (Math.random() - 0.5) * 1.2, vz: (Math.random() - 0.5) * 1.2 + (flip ? -1.5 : 1.5) });
+    this.ghosts.push({ x: Math.max(-HW + 0.3, Math.min(HW - 0.3, x)), z, life: 0.6, ry: flip ? Math.PI : 0, vx: (Math.random() - 0.5) * 1.2, vz: (Math.random() - 0.5) * 1.2 + (flip ? -1.5 : 1.5) });
   }
 
   sparkle(x, y, z, color = 0xffe066, n = 24) {
@@ -745,6 +749,19 @@ export class Renderer {
           else popText('DODGED!', 'good', sim.x, 2.5, -sim.d);
           break;
         }
+        case 'enemyFire': {
+          const e = ev.e;
+          const r = armyRadius(e.m);
+          const sx = e.x + (Math.random() - 0.5) * r * 1.6;
+          const tx = sim.x + (Math.random() - 0.5) * sim.radius * 1.6;
+          const sz = -e.d + r * 0.6;
+          const tz = -sim.d;
+          this.glow.spawn({ x: sx, y: 0.7, z: sz, vx: (tx - sx) * 2.5, vy: 0, vz: (tz - sz) * 2.5, life: 0.4, size: 0.32, grow: 1, color: 0xff3020 });
+          break;
+        }
+        case 'steerHere':
+          popText('STEER HERE!', 'coin', (ev.e.x0 + ev.e.x1) / 2, 3.5, -ev.e.d);
+          break;
         case 'bossWake':
           popText('FIGHT!', 'weapon', ev.e.x, 9, -ev.e.d);
           this.sparkle(ev.e.x, 5, -ev.e.d, 0x6ab8ff, 40);
@@ -759,7 +776,12 @@ export class Renderer {
           break;
         case 'bossDown': {
           const v = this.views.get(ev.e.id);
-          for (let i = 0; i < 4; i++) this.explosion((Math.random() - 0.5) * 3, 2 + i, -ev.e.d, 3);
+          for (let i = 0; i < 10; i++) {
+            const bx = ev.e.x + (Math.random() - 0.5) * 5;
+            const by = 1 + Math.random() * 7;
+            this.later(i * 0.12, () => { this.explosion(bx, by, -ev.e.d, 1.2 + Math.random()); this.shake = Math.max(this.shake, 0.35); });
+          }
+          this.later(1.3, () => this.sparkle(ev.e.x, 3, -ev.e.d, 0xffe066, 50));
           this.shake = 1;
           if (v) v.dying = 1;
           break;
@@ -848,6 +870,7 @@ export class Renderer {
     }
 
     // ---- enemies + entities
+    this.labelRects = [];
     let ei = 0;
     const camZ = this.camera.position.z;
     let bossVisible = false;
@@ -857,7 +880,7 @@ export class Renderer {
       const inView = dz < 25 && dz > -200;
       if (e.type === 'squad') {
         const show = e.alive && inView;
-        if (show) this.placeLabel(v.label, e.x, 1.4 + armyRadius(e.m) * 0.3, -e.d, fmt(e.m));
+        if (show) this.placeLabel(v.label, e.x, 1.4 + armyRadius(e.m) * 0.3, -e.d, fmt(e.m), true);
         else v.label.style.display = 'none';
         v.shadow.visible = show;
         if (!show) continue;
@@ -956,7 +979,8 @@ export class Renderer {
     this.ghosts = this.ghosts.filter((g) => (g.life -= dt) > 0);
     let gi = 0;
     for (const g of this.ghosts) {
-      const k = 1 - g.life / 0.9;
+      const k = 1 - g.life / 0.6;
+      g.x = Math.max(-HW + 0.3, Math.min(HW - 0.3, g.x));
       g.x += g.vx * dt;
       g.z += g.vz * dt;
       tmpE.set(-0.3 - k * 0.6, g.ry, 0);
@@ -1015,6 +1039,11 @@ export class Renderer {
     this.arcGeo.attributes.position.needsUpdate = true;
 
     // ---- particles & ambient
+    if (this.delayed && this.delayed.length) {
+      const due = [];
+      this.delayed = this.delayed.filter((d) => ((d.t -= dt) > 0 ? true : (due.push(d), false)));
+      for (const d of due) d.fn();
+    }
     this.glow.update(dt, this.pointScale);
     this.smoke.update(dt, this.pointScale);
     if (this.ambient) {
@@ -1103,12 +1132,21 @@ export class Renderer {
     }
   }
 
-  placeLabel(el, x, y, z, html) {
+  placeLabel(el, x, y, z, html, stack = false) {
     tmpP.set(x, y, z).project(this.camera);
     if (tmpP.z > 1 || tmpP.z < -1) { el.style.display = 'none'; return; }
     el.style.display = 'block';
     const sx = (tmpP.x * 0.5 + 0.5) * window.innerWidth;
-    const sy = (-tmpP.y * 0.5 + 0.5) * window.innerHeight;
+    let sy = (-tmpP.y * 0.5 + 0.5) * window.innerHeight;
+    if (stack) {
+      // nudge up until it no longer overlaps another enemy label placed this frame
+      for (let tries = 0; tries < 6; tries++) {
+        const hit = this.labelRects.find((r) => Math.abs(r.x - sx) < 44 && Math.abs(r.y - sy) < 24);
+        if (!hit) break;
+        sy = hit.y - 26;
+      }
+      this.labelRects.push({ x: sx, y: sy });
+    }
     el.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -100%)`;
     if (el._html !== html) { el.innerHTML = html; el._html = html; }
   }
