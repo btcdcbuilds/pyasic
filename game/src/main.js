@@ -2,6 +2,7 @@ import { WORLDS, WEAPONS, DIFFICULTIES, UPGRADES, LEVELS_PER_WORLD, upgradeCost,
 import { generateLevel, Sim, levelIndex, botTarget } from './sim.js';
 import { Renderer, fmt } from './render.js';
 import { Sfx } from './audio.js';
+import { Music } from './music.js';
 import { drawWeaponIcon } from './icons.js';
 
 import { App } from '@capacitor/app';
@@ -25,6 +26,9 @@ const renderer = new Renderer(canvas, overlay);
 renderer.setQuality(save.quality);
 const sfx = new Sfx();
 sfx.enabled = save.sound;
+const music = new Music(sfx);
+music.enabled = save.music;
+function menuMusic() { music.play(current ? current.wi : 0, 'menu'); }
 
 let sim = null;
 let current = null; // { wi, li }
@@ -62,6 +66,7 @@ function show(name) {
   dangerEl.style.opacity = 0;
   for (const s of screens) $('#scr-' + s).classList.toggle('hidden', s !== name);
   $('#hud').classList.toggle('hidden', !!name && name !== 'pause' && name !== 'result');
+  if (name !== 'pause') menuMusic();
   if (name === 'menu') renderMenu();
   if (name === 'worlds') renderWorlds();
   if (name === 'armory') renderArmory();
@@ -76,6 +81,7 @@ function hideAll() {
 }
 document.addEventListener('click', (ev) => {
   sfx.unlock();
+  if (screen !== 'game') menuMusic();
   const go = ev.target.closest('[data-go]');
   if (go) { sfx.click(); show(go.dataset.go); }
 });
@@ -212,10 +218,12 @@ function renderUpgrades() {
 
 function renderSettings() {
   $('#set-sound').textContent = save.sound ? 'On' : 'Off';
+  $('#set-music').textContent = save.music ? 'On' : 'Off';
   $('#set-vibe').textContent = save.vibe ? 'On' : 'Off';
   $('#set-quality').textContent = { high: 'High', medium: 'Medium', low: 'Low' }[save.quality];
 }
 $('#set-sound').onclick = () => { save.sound = !save.sound; sfx.enabled = save.sound; persist(); renderSettings(); };
+$('#set-music').onclick = () => { save.music = !save.music; music.setEnabled(save.music); persist(); renderSettings(); };
 $('#set-vibe').onclick = () => { save.vibe = !save.vibe; persist(); renderSettings(); };
 $('#set-quality').onclick = () => {
   save.quality = { high: 'medium', medium: 'low', low: 'high' }[save.quality];
@@ -505,6 +513,7 @@ function tick(now) {
     if (slowFrames > 90 && renderer.lowerResolution()) slowFrames = 0;
     handleSimEvents();
     if ($('#hud-weapon').textContent !== sim.weapon.name) updateWeaponHud();
+    music.play(current.wi, sim.boss.awake && sim.boss.alive ? 'boss' : 'run');
     hintTimer += dt;
     if (hintTimer > 5) $('#hint').classList.add('hidden');
   }
