@@ -27,6 +27,7 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from webapp.booking import BookingError, booking_times, quote
+from webapp.google_photos import live_photos
 from webapp.pricing import is_auto, nightly_rate
 from webapp.store import Store
 
@@ -73,9 +74,18 @@ STORE = Store(os.environ.get("DB_PATH", str(ROOT / "data" / "bookings.db")))
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
 
 
+def preview_photos(site: dict) -> list[dict]:
+    """Google Maps photos, live and attributed, only for unsold pitch previews."""
+    key = os.environ.get("GOOGLE_MAPS_API_KEY")
+    if site.get("status") != "preview" or site.get("photos") or not site.get("google_place_id") or not key:
+        return []
+    return live_photos(site["google_place_id"], key)
+
+
 def render_site(site: dict, base: str) -> HTMLResponse:
     html = env.get_template("site.html.j2").render(
-        site=site, base=base, times=booking_times(site), today=date.today().isoformat())
+        site=site, base=base, times=booking_times(site), today=date.today().isoformat(),
+        google_photos=preview_photos(site))
     return HTMLResponse(html)
 
 

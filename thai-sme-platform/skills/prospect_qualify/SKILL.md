@@ -1,6 +1,6 @@
 ---
 name: prospect_qualify
-description: Score a found business and record what it is missing (website, booking, LINE OA, OTA listing).
+description: "Score a found business and record what it is missing (website, booking, LINE OA, OTA listing)."
 ---
 
 # prospect_qualify

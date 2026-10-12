@@ -65,6 +65,23 @@
   </ul>
 </section>
 
+{% if google_photos %}
+<section class="block google-photos" aria-label="Photos from Google Maps">
+  <div class="gp-head">
+    <strong>Google Maps</strong>
+    <span lang="th">รูปจาก Google Maps สำหรับตัวอย่างเท่านั้น — เว็บจริงจะใช้รูปของร้านเอง</span>
+    <span lang="en">Photos from Google Maps for this preview only — the live site uses your own photos</span>
+  </div>
+  <div class="gallery">
+  {% for ph in google_photos %}
+    <figure><img src="{{ ph.src }}" alt="" loading="lazy">
+      <figcaption>{% for a in ph.authors %}{% if a.uri %}<a href="{{ a.uri }}" target="_blank" rel="noopener">{{ a.name }}</a>{% else %}{{ a.name }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</figcaption>
+    </figure>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+
 {% if site.photos and site.photos|length > 1 %}
 <section class="block gallery">
   {% for ph in site.photos[1:9] %}<figure><img src="{{ ph.src }}" alt="{{ ph.alt or site.name.en }}" loading="lazy">{% if ph.credit %}<figcaption>{{ ph.credit }}</figcaption>{% endif %}</figure>{% endfor %}
@@ -107,7 +124,7 @@
     <article class="card">
       {% if r.photos %}<figure class="card-photo has-img"><img src="{{ r.photos[0].src }}" alt="{{ r.name.en }}" loading="lazy">{% if r.photos[0].credit %}<figcaption class="photo-note">{{ r.photos[0].credit }}</figcaption>{% endif %}</figure>
       {% else %}<div class="card-photo" aria-hidden="true">{{ site.theme.hero_icon }}</div>{% endif %}
-      <h3>{{ r.name|t }}</h3>
+      <h3>{{ r.name|t }}{% if r.confirmed is sameas false %} <span class="draft-chip"><span lang="th">ร่าง รอยืนยัน</span><span lang="en">Draft – to confirm</span></span>{% endif %}</h3>
       <p>{{ r.desc|t }}</p>
       <p class="meta">👤 {{ r.capacity }} · <strong>{{ r.rate|baht }}</strong> <span lang="th">/ คืน</span><span lang="en">/ night</span></p>
       <a class="btn btn-small" href="#book" data-pick-room="{{ r.code }}"><span lang="th">เลือกห้องนี้</span><span lang="en">Choose</span></a>

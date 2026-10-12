@@ -72,3 +72,5 @@ either direction — the pilot must measure them.
 | Custom .com domain add-on (we register it in their name and manage it) | ฿590/year | Domain $11.25 ≈ ฿375 + margin |
 | Customer brings their own domain | Free | They point an A record at our server |
 | Deposit collection for bookings | 0% platform fee in pilot; gateway fee passed through | Undercuts OTA commissions (Agoda ~15–20%, Booking.com 10–25% per vendor blogs, grade C) |
+| Auto Pricing add-on (hotels) | ฿290/month up to 15 rooms; ฿790/month larger | See docs/PRICING.md; competitors ~$10–200/month (grade C) |
+| Google Maps photos in previews | Our cost: Place Photos $7 per 1,000 after 1,000 free/month (grade B) | ~6 photo calls per preview view |

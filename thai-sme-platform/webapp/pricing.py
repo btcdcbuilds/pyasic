@@ -10,7 +10,9 @@ costs, and the owner sets every lever plus a floor and a ceiling. Inputs per nig
 Optional later input: a competitor median rate from a licensed rate-shopping feed.
 
 Price = base x product(1 + pct/100) for every rule that applies, clamped to
-[floor, ceiling] and rounded. mode: "auto" applies it on the website;
+[floor, ceiling] and rounded. Premiums multiply; only the largest discount applies.
+Keep the ceiling moderate: Thailand's Prices of Goods and Services Act s.29 prohibits
+"unreasonably high" prices (see docs/PRICING.md). mode: "auto" applies it on the website;
 "suggest" keeps the base rate on the website and shows suggestions to the owner.
 """
 
@@ -65,6 +67,12 @@ def nightly_rate(room: dict, cfg: dict | None, night: date, today: date,
     if eb and days_ahead >= eb["beyond_days"]:
         adj.append(("early_bird", eb["pct"]))
 
+    # Premiums stack; discounts don't - only the single largest discount applies
+    # (same convention PriceLabs documents), so a quiet low-season night isn't
+    # discounted twice.
+    premiums = [a for a in adj if a[1] > 0]
+    discounts = sorted((a for a in adj if a[1] < 0), key=lambda a: a[1])[:1]
+    adj = premiums + discounts
     price = float(base)
     for _, pct in adj:
         price *= 1 + pct / 100

@@ -44,6 +44,26 @@ rooms:
     capacity: 5
     units: 2
     rate: 3900
+# Automatic pricing (docs/PRICING.md). Season dates are Koh Samui defaults from
+# C9 Hotelworks + travel-guide seasonality; the owner should adjust them.
+pricing:
+  mode: auto            # auto = website charges this price; suggest = owner approves
+  floor_pct: 80
+  ceiling_pct: 150
+  weekend_pct: 10
+  round_to: 50
+  occupancy:
+    - {above: 50, pct: 10}
+    - {above: 75, pct: 20}
+    - {above: 90, pct: 30}
+  last_minute: {within_days: 3, below_occupancy: 50, pct: -15}
+  early_bird: {beyond_days: 90, pct: -5}
+  seasons:                       # first match wins - list special periods first
+    - {name: songkran, from: "04-12", to: "04-16", pct: 20}
+    - {name: new-year-peak, from: "12-20", to: "01-10", pct: 30}
+    - {name: high, from: "01-11", to: "04-30", pct: 15}
+    - {name: summer-holidays, from: "07-01", to: "08-31", pct: 10}
+    - {name: monsoon, from: "10-15", to: "12-15", pct: -10}
 booking:
   type: room
   deposit_percent: 30

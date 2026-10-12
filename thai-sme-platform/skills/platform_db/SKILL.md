@@ -1,6 +1,6 @@
 ---
 name: platform_db
-description: Read and write the platform's Supabase/Postgres database (businesses, sites, outreach_messages, agent_runs, platform_settings).
+description: "Read and write the platform's Supabase/Postgres database (businesses, sites, outreach_messages, agent_runs, platform_settings)."
 ---
 
 # platform_db

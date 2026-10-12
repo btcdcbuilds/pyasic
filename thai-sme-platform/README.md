@@ -14,6 +14,8 @@ This folder is self-contained and will move to its own repository.
 | [docs/INDUSTRIES.md](docs/INDUSTRIES.md) | The 5 target industries, sample sites, research and legal notes |
 | [docs/HOSTING.md](docs/HOSTING.md) | VPS hosting, HTTPS, domain model and deploy steps |
 | [docs/TESTING.md](docs/TESTING.md) | How to run the sample sites and the manual test checklist |
+| [docs/PRICING.md](docs/PRICING.md) | Automatic room pricing: rules, default seasons, Thai law, add-on price |
+| [docs/PHOTOS_AND_ROOMS.md](docs/PHOTOS_AND_ROOMS.md) | Using Google Maps photos and room types in the pitch, legally |
 
 | Path | Contents |
 |---|---|

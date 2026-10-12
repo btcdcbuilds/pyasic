@@ -45,3 +45,10 @@ def test_floor_applies():
 
 def test_no_config_means_base_rate():
     assert nightly_rate(ROOM, None, date(2026, 10, 24), TODAY, 100)["price"] == 2000
+
+
+def test_discounts_do_not_stack():
+    cfg = {**CFG, "seasons": [{"name": "low", "from": "10-01", "to": "10-31", "pct": -10}]}
+    r = nightly_rate(ROOM, cfg, date(2026, 10, 14), TODAY, 0)  # low season + last minute
+    assert [a[0] for a in r["adjustments"]] == ["last_minute"]
+    assert r["price"] == 1700

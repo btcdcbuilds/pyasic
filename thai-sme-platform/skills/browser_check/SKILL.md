@@ -1,6 +1,6 @@
 ---
 name: browser_check
-description: Open a business's own public web pages to verify links, booking and contact details.
+description: "Open a business's own public web pages to verify links, booking and contact details."
 ---
 
 # browser_check

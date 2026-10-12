@@ -1,6 +1,6 @@
 ---
 name: reply_handler
-description: Answer replies from businesses, take payment, start onboarding.
+description: "Answer replies from businesses, take payment, start onboarding."
 ---
 
 # reply_handler

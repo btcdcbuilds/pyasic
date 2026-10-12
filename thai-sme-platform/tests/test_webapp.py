@@ -34,7 +34,7 @@ def test_all_five_sample_sites_render(client):
 
 
 def test_room_price_and_deposit():
-    site = appmod.SITES["baan-lom-talay"]
+    site = {**appmod.SITES["baan-lom-talay"], "pricing": {"mode": "suggest"}}  # base rates
     q = quote(site, {**BASE, "room": "sea", "check_in": D(10), "check_out": D(13), "guests": 2}, TODAY)
     assert q["nights"] == 3 and q["total"] == 7800 and q["deposit"] == 2340
 
@@ -100,3 +100,20 @@ def test_domain_routing_and_tls_check(client):
     assert "Sabai Hands" in r.text
     assert client.get(f"/internal/tls-check?domain={host}").status_code == 200
     assert client.get("/internal/tls-check?domain=evil.example.org").status_code == 404
+
+
+def test_room_auto_pricing_sums_nightly_rates():
+    site = appmod.SITES["baan-lom-talay"]  # mode: auto
+    q = quote(site, {**BASE, "room": "sea", "check_in": D(10), "check_out": D(13), "guests": 2}, TODAY)
+    assert len(q["nightly"]) == 3
+    assert q["total"] == sum(n["price"] for n in q["nightly"])
+    for n in q["nightly"]:  # always within the owner's floor/ceiling
+        assert 2600 * 0.8 <= n["price"] <= 2600 * 1.5
+
+
+def test_rates_api(client):
+    r = client.get("/api/baan-lom-talay/rates?days=7")
+    assert r.status_code == 200 and r.json()["mode"] == "auto"
+    assert len(r.json()["rooms"]) == 3 and len(r.json()["rooms"][0]["nights"]) == 7
+    assert client.get("/api/baan-lom-talay/rates?days=abc").status_code == 400
+    assert client.get("/api/krua-baan-suan/rates").status_code == 404

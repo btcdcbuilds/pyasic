@@ -1,6 +1,6 @@
 ---
 name: site_build
-description: Build or update the full website from owner-supplied content in `business_content`.
+description: "Build or update the full website from owner-supplied content in `business_content`."
 ---
 
 # site_build

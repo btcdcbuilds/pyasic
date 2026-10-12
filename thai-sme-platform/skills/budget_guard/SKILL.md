@@ -1,6 +1,6 @@
 ---
 name: budget_guard
-description: Enforce daily AI spend and outreach limits before assigning work.
+description: "Enforce daily AI spend and outreach limits before assigning work."
 ---
 
 # budget_guard

@@ -1,6 +1,6 @@
 ---
 name: site_qa
-description: Quality gate before a site or change is published.
+description: "Quality gate before a site or change is published."
 ---
 
 # site_qa

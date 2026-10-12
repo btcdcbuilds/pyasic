@@ -1,6 +1,6 @@
 ---
 name: places_discovery
-description: Find candidate businesses in a region using the official Google Places API (New). Never scrape Google or Apple Maps.
+description: "Find candidate businesses in a region using the official Google Places API (New). Never scrape Google or Apple Maps."
 ---
 
 # places_discovery

@@ -30,6 +30,15 @@ Automated checks: `python -m pytest -q tests` (14 tests).
 | 11 | Privacy notice link works and reads correctly in both languages | All |
 | 12 | Thai wording sounds natural to a Thai speaker (please have a Thai speaker review) | All |
 
+## Pricing and photos checks
+
+| # | Check |
+|---|---|
+| 13 | `/admin/baan-lom-talay?key=demo` shows a 30-night price calendar; hover a price to see why |
+| 14 | Book several sea-view nights for one date → that night's price rises on the calendar |
+| 15 | A room quote for a Fri/Sat night is 10% higher than a quiet weekday |
+| 16 | With `GOOGLE_MAPS_API_KEY` set, a site YAML with `google_place_id` + `status: preview` shows a "Google Maps" photo block with author names |
+
 ## Not built yet (next phase)
 
 | Item | Plan |

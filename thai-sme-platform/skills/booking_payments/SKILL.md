@@ -1,6 +1,6 @@
 ---
 name: booking_payments
-description: Set up availability, bookings and payment links for a site.
+description: "Set up availability, bookings and payment links for a site."
 ---
 
 # booking_payments

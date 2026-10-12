@@ -41,18 +41,28 @@ agents:
   - id: build-preview
     team: build
     model: claude-haiku-5-5
-    skills: [site_preview, platform_db]
-    role: Fills a template with public basics to make a pitch preview.
+    skills: [site_preview, owner_photos, room_catalogue, platform_db]
+    role: >
+      Fills a template with public basics, live Google Maps photos and draft room
+      types to make a pitch preview.
   - id: build-site
     team: build
     model: claude-sonnet-5-5
-    skills: [site_build, booking_payments, platform_db]
+    skills: [site_build, booking_payments, owner_photos, room_catalogue, platform_db]
     role: Builds the full site from owner-supplied content after payment.
   - id: build-changes
     team: build
     model: claude-sonnet-5-5
     skills: [site_build, platform_db]
     role: Applies owner change requests and reports price/time.
+
+  - id: build-revenue
+    team: build
+    model: claude-haiku-5-5
+    skills: [dynamic_pricing, platform_db]
+    role: >
+      Daily check of each hotel customer's rate calendar; proposes pricing changes
+      to owners in suggest mode and watches guardrails in auto mode.
 
   # ---------------- Outreach ----------------
   - id: outreach-writer

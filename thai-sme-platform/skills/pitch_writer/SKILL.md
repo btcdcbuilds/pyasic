@@ -1,6 +1,6 @@
 ---
 name: pitch_writer
-description: Draft a short, honest pitch in Thai (with English copy) offering the preview site.
+description: "Draft a short, honest pitch in Thai (with English copy) offering the preview site."
 ---
 
 # pitch_writer
