@@ -1,0 +1,25 @@
+<svg viewBox="0 0 520 330" xmlns="http://www.w3.org/2000/svg">
+ <ellipse cx="260" cy="300" rx="230" ry="18" fill="#000" opacity=".08"/>
+ <!-- screw piles -->
+ <g stroke="#7a8696" stroke-width="6"><line x1="95" y1="250" x2="95" y2="292"/><line x1="255" y1="282" x2="255" y2="312"/><line x1="420" y1="200" x2="420" y2="240"/><line x1="265" y1="168" x2="265" y2="205"/></g>
+ <!-- floor frame -->
+ <polygon points="80,240 260,275 440,190 265,160" fill="#4b5563"/>
+ <!-- front wall -->
+ <polygon points="80,240 260,275 260,140 80,108" fill="#f3f4f6" stroke="#cbd2db"/>
+ <!-- side wall -->
+ <polygon points="260,275 440,190 440,60 260,140" fill="#dfe4ea" stroke="#cbd2db"/>
+ <!-- roof -->
+ <polygon points="70,104 260,138 452,56 268,26" fill="#374151"/>
+ <polygon points="70,104 260,138 260,146 70,112" fill="#1f2937"/>
+ <!-- door -->
+ <polygon points="110,236 150,244 150,170 110,163" fill="#8a96a8"/><circle cx="143" cy="207" r="2.5" fill="#fff"/>
+ <!-- windows front -->
+ <polygon points="175,205 238,217 238,170 175,159" fill="#9fd3ea" stroke="#6b7c93" stroke-width="2"/>
+ <!-- windows side -->
+ <polygon points="290,205 345,180 345,130 290,153" fill="#9fd3ea" stroke="#6b7c93" stroke-width="2"/>
+ <polygon points="370,170 420,147 420,98 370,120" fill="#9fd3ea" stroke="#6b7c93" stroke-width="2"/>
+ <!-- AC outdoor unit -->
+ <polygon points="380,215 425,195 425,170 380,189" fill="#fff" stroke="#9aa5b4" stroke-width="2"/><circle cx="402" cy="192" r="8" fill="none" stroke="#9aa5b4" stroke-width="2"/>
+ <!-- brand stripe -->
+ <polygon points="80,124 260,157 260,165 80,132" fill="#e8711a"/>
+</svg>
