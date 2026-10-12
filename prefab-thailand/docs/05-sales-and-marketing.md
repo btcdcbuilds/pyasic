@@ -23,9 +23,9 @@ profiles. It works better long term and keeps every account safe.
 
 | Element | Plan |
 |---------|------|
-| Name | e.g. "Khun [Name] from [BRAND]" (a mascot/illustrated character, not a fake real person) |
+| Name | e.g. "Khun [Name] from BaanPub" (a mascot/illustrated character, not a fake real person) |
 | Personality | Practical site-engineer type: friendly, straight-talking, knows foundations, electrics, permits, sizing, heat insulation |
-| Disclosure | Bio and first message say it's [BRAND]'s AI assistant, with a human team behind it. Required to stay within Meta's rules ([Meta: inauthentic behaviour](https://transparency.meta.com/en-gb/policies/community-standards/inauthentic-behavior/)) and protects us under consumer law |
+| Disclosure | Bio and first message say it's BaanPub's AI assistant, with a human team behind it. Required to stay within Meta's rules ([Meta: inauthentic behaviour](https://transparency.meta.com/en-gb/policies/community-standards/inauthentic-behavior/)) and protects us under consumer law |
 | Voice | Thai first, English second, Chinese for suppliers; casual-polite (ครับ/ค่ะ set by the persona) |
 | Content pillars | 1) How-to (foundations, AC sizing, permits) 2) Real installs 3) Cost breakdowns 4) Site-office checklists 5) Staff-accommodation standards |
 | Where it posts | Our Page, our LINE OA timeline (VOOM), our TikTok/YouTube, our website blog. In Facebook groups, **as the Page** where group admins allow Pages, following each group's rules |

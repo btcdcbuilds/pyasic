@@ -12,6 +12,10 @@ lines.csv     one row per SKU in the container (see lines_template.csv)
 
 Shared costs (freight, insurance, port, broker, haulage, unloading,
 inspection, local fit-out) are allocated to lines in proportion to FOB value.
+
+Pricing rule (owner, 2026-10-12): cost-plus. Selling price ex VAT =
+landed cost x (1 + markup), rounded UP to the next `round_up_thb`. With a 25%
+markup the gross margin is 20% of the selling price.
 Import VAT is charged on CIF + duty. If the company is VAT-registered it is
 reported but excluded from cost, because it can be claimed as input tax.
 
@@ -20,6 +24,7 @@ stops the script instead of guessing.
 """
 import argparse
 import csv
+import math
 import sys
 
 SHIPMENT_KEYS = [
@@ -34,8 +39,10 @@ SHIPMENT_KEYS = [
     "local_fitout_thb",
     "import_vat_rate",
     "vat_registered",
+    "markup",
+    "round_up_thb",
 ]
-LINE_KEYS = ["sku", "qty", "fob_usd_each", "duty_rate", "target_margin"]
+LINE_KEYS = ["sku", "qty", "fob_usd_each", "duty_rate"]
 
 
 def read_shipment(path):
@@ -64,12 +71,21 @@ def read_lines(path):
                     "qty": int(row["qty"]),
                     "fob_usd_each": float(row["fob_usd_each"]),
                     "duty_rate": float(row["duty_rate"]),
-                    "target_margin": float(row["target_margin"]),
                 }
             )
     if not lines:
         sys.exit("lines file: no rows")
     return lines
+
+
+def cost_plus_price(unit_cost, markup, round_up_thb):
+    """Cost-plus price ex VAT, rounded up to the next multiple of round_up_thb."""
+    if markup < 0:
+        raise ValueError("markup must not be negative")
+    raw = unit_cost * (1 + markup)
+    if round_up_thb <= 0:
+        return raw
+    return math.ceil(round(raw / round_up_thb, 9)) * round_up_thb
 
 
 def calculate(shipment, lines, duty_override=None):
@@ -104,10 +120,7 @@ def calculate(shipment, lines, duty_override=None):
             cost_thb += import_vat_thb
 
         unit_cost = cost_thb / l["qty"]
-        margin = l["target_margin"]
-        if not 0 <= margin < 1:
-            raise ValueError(f"{l['sku']}: target_margin must be between 0 and 1")
-        price_ex_vat = unit_cost / (1 - margin)
+        price_ex_vat = cost_plus_price(unit_cost, shipment["markup"], shipment["round_up_thb"])
         results.append(
             {
                 "sku": l["sku"],
@@ -119,6 +132,7 @@ def calculate(shipment, lines, duty_override=None):
                 "other_thb_each": other_thb / l["qty"],
                 "landed_cost_thb_each": unit_cost,
                 "price_ex_vat_thb": price_ex_vat,
+                "gross_margin": (price_ex_vat - unit_cost) / price_ex_vat if price_ex_vat else 0.0,
                 "price_inc_vat_thb": price_ex_vat * (1 + shipment["import_vat_rate"]),
             }
         )
@@ -144,6 +158,7 @@ def main(argv=None):
         ("other_thb_each", "Other/unit"),
         ("landed_cost_thb_each", "Landed/unit"),
         ("price_ex_vat_thb", "Price exVAT"),
+        ("gross_margin", "Margin"),
         ("price_inc_vat_thb", "Price incVAT"),
     ]
     print("| " + " | ".join(h for _, h in cols) + " |")
@@ -152,7 +167,7 @@ def main(argv=None):
         cells = []
         for key, _ in cols:
             v = r[key]
-            if key == "duty_rate":
+            if key in ("duty_rate", "gross_margin"):
                 cells.append(f"{v:.1%}")
             elif isinstance(v, float):
                 cells.append(f"{v:,.0f}")

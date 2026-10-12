@@ -21,7 +21,7 @@ else and aren't used.
 | # | Agent ID | Display name | Job | Talks to |
 |---|----------|--------------|-----|----------|
 | 1 | `ops-manager` | Ops Manager | Runs the day: routes work, keeps the approval queue, morning brief, chases anything stuck, sends approvals to the owner | Owner (Telegram), all agents |
-| 2 | `sales-support` | Brand character (e.g. "Khun [Name] from [BRAND]") | All customer conversations: answers questions, collects site info, sends layouts and quotes, books show-unit visits, after-sales help | Customers (LINE, WhatsApp, Messenger, web chat) |
+| 2 | `sales-support` | Brand character (e.g. "Khun [Name] from BaanPub") | All customer conversations: answers questions, collects site info, sends layouts and quotes, books show-unit visits, after-sales help | Customers (LINE, WhatsApp, Messenger, web chat) |
 | 3 | `site-engineer` | Site Engineer | Turns customer photos and measurements into a to-scale layout on satellite/drone images, then CAD models and drawings in STEVE | sales-support, qa-reviewer |
 | 4 | `qa-reviewer` | QA Reviewer | Checks every layout, drawing pack and quote above the threshold before it goes out: right numbers, disclaimers, prices from the price list | site-engineer, sales-support, ops-manager |
 | 5 | `supply-customs` | Supply & Customs | Supplier messages in Chinese (drafts), production tracking, the 0% duty gate, shipping documents, bonded-warehouse releases | Supplier (WeCom, drafts only), customs broker (email drafts), ops-manager |

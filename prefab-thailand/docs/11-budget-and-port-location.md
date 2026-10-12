@@ -83,3 +83,29 @@ The Laem Chabang / Sriracha / Chonburi area also suits the target customers:
 EEC industrial estates and data-centre projects are in Chonburi/Rayong, and
 Bangkok is reachable by motorway. (This is a location argument, not a tax
 incentive.)
+
+## 4. Update 2026-10-12: Jinming catalogue
+
+The catalogue says a 40HQ container holds **12 Folding Container Houses**
+(UNIT-FD-20, p.10). If the USD 1,300 price is for that model (not yet confirmed):
+
+| Item | USD | Basis |
+|------|----:|-------|
+| 12 units × 1,300 (one full 40HQ) | 15,600 | Owner's price × catalogue capacity |
+| Minimum import VAT at 0% duty (7% × FOB; real base is CIF, so higher) | 1,092 | Arithmetic |
+| **Left from 20,000 for freight, insurance, broker, port, haulage, unloading, storage, company setup, website, ads** | **3,308** | 20,000 − 15,600 − 1,092 |
+| Duty at 80% instead (FOB basis) + VAT | 14,445.60 | Not affordable: full container would cost 30,045.60 before freight |
+
+**Reading:** a full container of 12 folding units at 0% duty leaves only about
+USD 3,300 for everything else. That's very likely too little once ocean freight
+and clearance are quoted. Options to put to the owner once freight quotes arrive:
+
+| Option | Effect |
+|--------|--------|
+| Order fewer units (e.g. 8) and fill the space with screw piles / furniture | Lowers FOB spend; keeps one container |
+| Pre-sell with deposits before ordering | Customer money funds part of the order |
+| Bonded storage, pay VAT per unit on release | Spreads the import VAT payment |
+| Add funds | Simplest, if available |
+
+Selling price under the cost-plus 25% rule (doc 16) can only be worked out
+once the landed cost is known from real quotes.

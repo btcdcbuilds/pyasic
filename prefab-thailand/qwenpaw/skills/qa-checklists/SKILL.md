@@ -41,7 +41,7 @@ in `site.json` `checks[]` (or the quote record).
 
 | # | Check |
 |---|-------|
-| 1 | Every line's price matches a currently valid price-list row (ask `back-office`) |
+| 1 | Every line's price matches a currently valid price-list row (ask `back-office`); no line priced by hand, no discount without owner approval |
 | 2 | Quantities and options match what the customer asked for / the layout |
 | 3 | VAT 7% computed on the ex-VAT total; totals add up |
 | 4 | Validity, payment terms, inclusions/exclusions, permit note present |

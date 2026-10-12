@@ -2,7 +2,7 @@
 
 ## 1. Concept (one paragraph)
 
-[BRAND] imports fold-out / expandable prefab units from a known Chinese
+BaanPub imports fold-out / expandable prefab units from a known Chinese
 manufacturer (about a 30-day production lead time, per the owner), holds stock in a
 Thai warehouse, and sells them ready to use: pre-wired with lights, power
 points, a small switchboard, an external connection point and optional

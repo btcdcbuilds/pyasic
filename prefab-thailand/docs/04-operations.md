@@ -37,7 +37,7 @@
 
 | Item | Plan |
 |------|------|
-| Branding | Sub-brand on the same LINE OA / website: "[BRAND] Truck & Crane Hire" |
+| Branding | Sub-brand on the same LINE OA / website: "BaanPub Truck & Crane Hire" |
 | Booking | Website/LINE booking form → dispatch agent checks the truck calendar → quote → human confirms |
 | Priority | Our own unit deliveries take priority; hire fills the gaps |
 | Pricing | Per trip by distance band + crane hours; minimum charge |

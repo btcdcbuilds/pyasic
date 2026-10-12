@@ -1,6 +1,6 @@
-# [BRAND] — Prefab Offices, Homes & Site Accommodation (Thailand)
+# BaanPub — Prefab Offices, Homes & Site Accommodation (Thailand)
 
-Working name: **[BRAND]** (to be chosen — check DBD company-name availability and the `.co.th` / `.com` domains before committing).
+Business name: **BaanPub** (บ้านพับ, "folding house"), chosen by the owner 2026-10-12. Still to do: reserve the name with the DBD, check the trademark register, and register the `.co.th` / `.com` domains.
 
 This folder holds the full business plan for a Thailand-based reseller of
 China-manufactured fold-out / expandable prefab units (site offices, homes,
@@ -29,6 +29,7 @@ later (`git subtree split --prefix=prefab-thailand` or simply copy the folder).
 | 13 | [AI agent team](docs/13-qwenpaw-agent-team.md) | Our 7-agent QwenPaw team: jobs, channels, tools, skills, models, workflows, cron jobs, approval limits |
 | 14 | [Site layout & CAD service](docs/14-site-layout-and-cad-service.md) | Measurement photo → satellite/drone layout → STEVE CAD drawings + 3D model |
 | 15 | [0% duty plan](docs/15-zero-duty-plan.md) | Hard gate: Form E / RCEP routes, broker questions, supplier checks |
+| 16 | [Pricing policy](docs/16-pricing-policy.md) | Cost-plus 25%: what counts as cost, rounding, who can change it |
 | — | [QwenPaw skills](qwenpaw/skills/) + [agent instructions](qwenpaw/agents/) | 12 ready-to-upload skills and 7 agent persona files; `tools/package_skills.sh` zips the skills |
 | — | [Landed-cost calculator](tools/landed_cost.py) | Script: per-unit landed cost and margin from real quotes |
 
@@ -65,8 +66,8 @@ Only facts we could source are stated as facts. Everything else is marked
 | # | Question | Answer / status |
 |---|----------|-----------------|
 | 1 | Nationality of the shareholders? | ✅ All Thai |
-| 2 | Business name? | ❓ Choose from the [shortlist](docs/12-brand-names.md) |
+| 2 | Business name? | ✅ **BaanPub** (บ้านพับ): reserve with DBD + trademark + domains |
 | 3 | Warehouse region? | ✅ Near Laem Chabang port, ideally using bonded storage to defer duty ([doc 11](docs/11-budget-and-port-location.md)) |
-| 4 | Supplier drawings / prices | ⏳ Owner obtaining drawings; unit price about USD 1,300. Still need units per 40ft container |
-| 5 | Starting budget | ✅ USD 20,000 (see [doc 11](docs/11-budget-and-port-location.md): only works if the 0% Form E rate applies) |
+| 4 | Supplier drawings / prices | ✅ Supplier: **Henan Jinming Metal Material Co., Ltd.**; catalogue received (sizes, units per 40HQ in [catalog.md](qwenpaw/skills/prefab-catalog/references/catalog.md)). ⏳ Still need: which model the USD 1,300 is for, weights, electrical spec, door/window drawings |
+| 5 | Starting budget | ✅ USD 20,000 · pricing rule: **cost + 25%** ([doc 16](docs/16-pricing-policy.md)) (see [doc 11](docs/11-budget-and-port-location.md): only works if the 0% Form E rate applies) |
 | 6 | Own repository | ⏳ Owner to create an empty `prefab-thailand` repo on GitHub; the AI can't create repos with the current access |

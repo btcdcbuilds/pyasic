@@ -78,16 +78,16 @@ site_svg = """
 <circle cx="200" cy="140" r="46" fill="#6f9a52"/><circle cx="250" cy="170" r="34" fill="#7aa75c"/>
 <polygon points="80,60 920,60 920,540 80,540" fill="none" stroke="#1f6fff" stroke-width="4" stroke-dasharray="14 8"/>
 <rect x="420" y="530" width="120" height="20" fill="#fff"/><text x="436" y="546" font-size="13">Gate 4.0 m ✓</text>
-<g><rect x="330" y="300" width="260" height="110" fill="#e8711a" fill-opacity=".55" stroke="#c45a0a" stroke-width="3"/>
-<text x="380" y="352" font-size="18" font-weight="700">Office 1</text><text x="380" y="374" font-size="13">UNIT-FX-40 (size from drawings)</text>
-<rect x="590" y="330" width="18" height="30" fill="#fff" stroke="#888"/></g>
-<g><rect x="140" y="320" width="130" height="90" fill="#e8711a" fill-opacity=".55" stroke="#c45a0a" stroke-width="3"/>
-<text x="160" y="362" font-size="16" font-weight="700">Store</text><text x="160" y="382" font-size="12">UNIT-FX-20</text></g>
-<g stroke="#111" stroke-width="2"><line x1="270" y1="360" x2="330" y2="360"/><line x1="330" y1="410" x2="330" y2="540" stroke-dasharray="5 4"/></g>
-<rect x="268" y="335" width="64" height="20" fill="#fff"/><text x="274" y="350" font-size="13">gap ?.? m</text>
-<rect x="336" y="460" width="96" height="20" fill="#fff"/><text x="342" y="475" font-size="13">to fence ?.? m</text>
-<path d="M455 540 L455 420" stroke="#1f6f8b" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#a)"/>
-<text x="462" y="490" font-size="13" fill="#1f6f8b">crane truck access</text>
+<!-- drawn to the scale bar: 150 px = 10 m (15 px/m); sizes from Jinming catalogue -->
+<g><rect x="380" y="300" width="88.5" height="94.5" fill="#e8711a" fill-opacity=".55" stroke="#c45a0a" stroke-width="3"/>
+<text x="388" y="340" font-size="15" font-weight="700">Office 1</text><text x="388" y="358" font-size="11">UNIT-EX-20</text><text x="388" y="372" font-size="11">5.9 × 6.3 m</text></g>
+<g><rect x="190" y="345" width="87" height="37.5" fill="#e8711a" fill-opacity=".55" stroke="#c45a0a" stroke-width="3"/>
+<text x="196" y="361" font-size="11" font-weight="700">Store · FD-20</text><text x="196" y="375" font-size="10">5.8 × 2.5 m</text></g>
+<g stroke="#111" stroke-width="2"><line x1="277" y1="330" x2="380" y2="330"/><line x1="400" y1="394.5" x2="400" y2="540" stroke-dasharray="5 4"/></g>
+<rect x="282" y="306" width="92" height="20" fill="#fff"/><text x="288" y="321" font-size="13">gap 6.9 m</text>
+<rect x="406" y="440" width="104" height="20" fill="#fff"/><text x="412" y="455" font-size="13">to fence 9.7 m</text>
+<path d="M520 540 L520 420" stroke="#1f6f8b" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#a)"/>
+<text x="527" y="500" font-size="13" fill="#1f6f8b">crane truck access</text>
 <g transform="translate(930,110)"><circle r="22" fill="#fff" stroke="#333"/><path d="M0 -16 L7 6 L0 2 L-7 6Z" fill="#333"/><text x="-5" y="-26" font-size="14">N</text></g>
 <rect x="20" y="20" width="230" height="34" fill="#fff" opacity=".9"/><line x1="32" y1="42" x2="182" y2="42" stroke="#000" stroke-width="5"/><text x="190" y="47" font-size="15">10 m</text>
 <rect x="0" y="616" width="1000" height="24" fill="#fff"/><text x="10" y="633" font-size="13" fill="#c0392b">Concept layout for planning and quotation only. Not a survey. Not for permit submission unless checked by a licensed engineer.</text>
@@ -102,13 +102,13 @@ land = f"""<div class="wrap"><aside>
 <tr><td>Side boundary</td><td>from your sketch</td><td class="ok">✓</td></tr>
 <tr><td>Gate width</td><td>4.0 m (example)</td><td class="ok">✓</td></tr></table></div>
 <div class="step"><b>3 · Units</b>
-<label><input type="checkbox" checked> Office 1 · UNIT-FX-40 · AC-ready</label><br>
-<label><input type="checkbox" checked> Store · UNIT-FX-20</label><br>
+<label><input type="checkbox" checked> Office 1 · Expandable 20ft (UNIT-EX-20) · AC-ready</label><br>
+<label><input type="checkbox" checked> Store · Folding (UNIT-FD-20)</label><br>
 <span class="note">Drag units on the plan · rotate with R</span></div>
 <div class="step"><b>4 · Next</b><a class="btn pri" style="margin-top:6px">Get 3D model + drawings + quote</a>
 <div class="note" style="margin-top:8px">Our site engineer builds the CAD model; a checker reviews it before it's sent.</div></div>
 </aside><main>
-<div class="bar"><span class="chip">Base image: 🛰️ Satellite</span><span class="chip">🚁 Upload drone photo</span><span class="chip">↶ Undo</span><span class="chip">⤢ Fit</span><span class="pill" style="margin-left:auto">Gaps shown once unit sizes are confirmed</span></div>
+<div class="bar"><span class="chip">Base image: 🛰️ Satellite</span><span class="chip">🚁 Upload drone photo</span><span class="chip">↶ Undo</span><span class="chip">⤢ Fit</span><span class="pill" style="margin-left:auto">Example site · units drawn to catalogue size</span></div>
 <div class="canvas">{site_svg}</div>
 <div class="foot"><span class="chip">Units: 2</span><span class="chip">Overlaps: none ✓</span><span class="chip">Inside boundary ✓</span><span class="chip">Crane access path: clear</span><span class="chip">📤 Send to LINE</span></div>
 </main></div>"""
@@ -126,26 +126,26 @@ h2{margin:0 0 12px}.opts label{display:flex;justify-content:space-between;align-
 opt = lambda on, name, sku: f'<label class="{"on" if on else ""}"><span><input type="checkbox" {"checked" if on else ""}> {name}<br><span class="sku">{sku}</span></span><span class="price tbd">price list pending</span></label>'
 cfg = f"""<header style="display:flex;justify-content:space-between;padding:18px 40px;background:#fff;border-bottom:1px solid var(--line)"><b style="font-size:20px">{BRAND}<span style="color:var(--brand)">.</span> · Build your unit</b><span class="note">Step 2 of 4</span></header>
 <div class="wrap"><div class="card"><h2>1 · Size</h2>
-<div class="seg"><span>UNIT-FX-20 · 20ft class</span><span class="on">UNIT-FX-40 · 40ft class</span></div>
-<div class="note">Dimensions shown once supplier drawings are in: <span class="tbd">TBD</span></div>
+<div class="seg"><span class="on">Folding · UNIT-FD-20</span><span>Expandable · UNIT-EX-20</span><span>Detachable · UNIT-DT-20</span></div>
+<div class="note">Footprint 5.8 m × 2.5 m · 50 mm rock wool panels · 15 mm MGO floor (supplier catalogue)</div>
 <h2 style="margin-top:20px">2 · Options</h2><div class="opts">
-{opt(True,"AC-ready (bracket, pipe sleeve, dedicated circuit)","OPT-ACR-40")}
-{opt(False,"AC supplied &amp; installed (licensed partner)","OPT-ACI-40")}
-{opt(True,"Upgraded insulation (rock wool)","OPT-INS-40")}
-{opt(False,"Wet room (toilet, shower, basin)","OPT-WET-40")}
-{opt(True,"Security grilles + security door","OPT-SEC-40")}
+{opt(True,"AC-ready (bracket, pipe sleeve, dedicated circuit)","OPT-ACR-FD20")}
+{opt(False,"AC supplied &amp; installed (licensed partner)","OPT-ACI-FD20")}
+{opt(True,"Upgraded insulation (thicker panel, if supplier offers it)","OPT-INS-FD20")}
+{opt(False,"Wet room (toilet, shower, basin)","OPT-WET-FD20")}
+{opt(True,"Security grilles + security door","OPT-SEC-FD20")}
 {opt(True,"Site office furniture pack","FURN-F-SITE")}
-{opt(True,"Screw-pile kit (engineer-specified)","PILE-KIT-40")}
+{opt(True,"Screw-pile kit (engineer-specified)","PILE-KIT-FD20")}
 </div></div>
 <div><div class="card" style="text-align:center">{UNIT}<div class="note">Illustration · 3D model and AR view will use the real drawings</div>
 <div style="margin-top:10px;display:flex;gap:8px;justify-content:center"><a class="btn ghost">🔄 3D view</a><a class="btn ghost">📱 View on my land (AR)</a></div></div>
 <div class="card" style="margin-top:16px"><h2>Your estimate</h2>
 <table class="sum" style="width:100%;border-collapse:collapse">
-<tr><td>UNIT-FX-40 + 5 options</td><td class="tbd" style="text-align:right">pending</td></tr>
+<tr><td>UNIT-FD-20 + 5 options</td><td class="tbd" style="text-align:right">pending</td></tr>
 <tr><td>Delivery (postcode 20230)</td><td class="tbd" style="text-align:right">pending</td></tr>
 <tr><td>Installation on screw piles</td><td class="tbd" style="text-align:right">pending</td></tr>
 <tr><td>VAT 7%</td><td style="text-align:right">calculated</td></tr></table>
-<p class="note">Prices come only from our price list and appear here once it's set. Final quote is checked before it's sent.</p>
+<p class="note">Prices come only from our price list (cost + 25%) and appear here once it's set. Final quote is checked before it's sent.</p>
 <div style="display:flex;gap:10px"><a class="btn pri">Get formal quote</a><a class="btn line">Ask on LINE</a></div></div></div></div>"""
 
 # 4. LINE chat (phone) --------------------------------------------------------

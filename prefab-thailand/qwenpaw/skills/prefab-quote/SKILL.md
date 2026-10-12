@@ -16,6 +16,10 @@ by `back-office`) that are currently valid (`valid_from` ≤ today ≤
 `valid_to`). If a SKU has no valid price, say the price is being confirmed and
 hand off to a human. Never estimate.
 
+**Pricing rule (owner):** every price-list price is cost × 1.25, rounded up to
+the next THB 100, calculated by back-office's script. You never calculate a
+markup, margin or discount yourself, and never reveal cost or markup to customers.
+
 ## Steps
 
 1. Confirm the line items with the customer: model code, quantity, options, furniture packs, pile kits, delivery postcode/zone, installation yes/no.

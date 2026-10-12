@@ -23,7 +23,7 @@ in `<workspace>/records/*.csv` (use the xlsx skill to report).
 
 ## Rules
 
-1. **Prices:** answer price lookups from the price list only. Changes need owner approval (`approvals`).
+1. **Prices:** answer price lookups from the price list only. Price-list prices are **cost × (1 + markup)**, markup = 0.25 unless the owner changes it, rounded up to the next THB 100. Produce them only with `scripts/landed_cost.py` (units/piles; run with cwd = this skill's directory) or the cost sheet (services, furniture), using the cost definitions in [references/pricing-rule.md](references/pricing-rule.md). New or changed prices need owner approval (`approvals`).
 2. **Payments:** a slip from a customer is *not* proof. Send it to `ops-manager`; mark paid only after the owner confirms the money is in the bank.
 3. **Reserving stock:** reserve a serial only after the deposit is confirmed. A unit in `bonded` status must be released by `supply-customs` before delivery.
 4. **Invoices:** draft the tax invoice / receipt from the order and send it to the accountant; don't issue final tax invoices yourself.

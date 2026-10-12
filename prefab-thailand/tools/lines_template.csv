@@ -1,4 +1,3 @@
-sku,qty,fob_usd_each,duty_rate,target_margin
-UNIT-FX-20,,,,
-UNIT-FX-40,,,,
-PILE-KIT-20,,,,
+sku,qty,fob_usd_each,duty_rate
+UNIT-FD-20,,,
+PILE-KIT-FD20,,,
