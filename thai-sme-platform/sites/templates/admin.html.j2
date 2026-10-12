@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en" data-ui="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bookings · {{ site.name.en }}</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/static/site.css">
+<style>:root { --primary: {{ site.theme.primary }}; --accent: {{ site.theme.accent }}; --surface: #fff; --ink: #111; }</style>
+</head>
+<body>
+<main class="block">
+  <h1>Bookings — {{ site.name.en }}</h1>
+  {% if not bookings %}<p>No bookings yet.</p>{% else %}
+  <div class="table-wrap">
+  <table class="admin">
+    <thead><tr><th>Ref</th><th>Status</th><th>Summary</th><th>Name</th><th>Contact</th><th>Total</th><th>Deposit</th><th>Note</th></tr></thead>
+    <tbody>
+    {% for bk in bookings %}
+      <tr><td>{{ bk.ref }}</td><td>{{ bk.status }}</td><td>{{ bk.summary }}</td><td>{{ bk.name }}</td><td>{{ bk.contact }}</td>
+          <td>{{ bk.total|baht if bk.total else '—' }}</td><td>{{ bk.deposit|baht if bk.deposit else '—' }}</td><td>{{ bk.note }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</main>
+</body>
+</html>

@@ -47,6 +47,7 @@ either direction — the pilot must measure them.
 | Optimistic | 10.7% | 35% | 27 | $0.34 | $12.43 | $1.75 | $14.52 | $84.48 |
 
 - Delivery cost = AI build + QA + onboarding ($1.18, token budgets are **assumptions**) + .com domain ($11.25).
+- Pilot on one VPS instead (docs/HOSTING.md): ~$12–24/month replaces Supabase Pro + Vercel Pro.
 - Fixed platform cost ≈ **$86/month** (Supabase Pro + Vercel Pro + LINE OA Basic) → base case covers it with ~1 sale/month.
 - **Not included:** your time, human review of pitches, refunds, tax/company costs, phone/SIM costs.
 
@@ -65,8 +66,9 @@ either direction — the pilot must measure them.
 
 | Item | Price | Why |
 |---|---|---|
-| Setup incl. year 1 hosting, booking, LINE/WhatsApp buttons | **฿3,290 (~US$99)** | Matches your ~$100 target; ~85% margin in all three scenarios |
+| Setup incl. year 1 hosting on our subdomain, booking, LINE/WhatsApp buttons | **฿3,290 (~US$99)** | Matches your ~$100 target; ~85% margin in all three scenarios |
 | Renewal from year 2 | ฿1,290/year | Covers hosting share, domain if any, support |
 | Small change (menu price, photo, hours) | ฿150 each, or free in owner portal | Keeps owners on the platform; self-service is cheaper for us |
-| Custom .com domain add-on | ฿590/year | Domain $11.25 ≈ ฿375 + margin |
+| Custom .com domain add-on (we register it in their name and manage it) | ฿590/year | Domain $11.25 ≈ ฿375 + margin |
+| Customer brings their own domain | Free | They point an A record at our server |
 | Deposit collection for bookings | 0% platform fee in pilot; gateway fee passed through | Undercuts OTA commissions (Agoda ~15–20%, Booking.com 10–25% per vendor blogs, grade C) |

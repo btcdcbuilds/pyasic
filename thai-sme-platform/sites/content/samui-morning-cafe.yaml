@@ -1,0 +1,49 @@
+# SAMPLE — fictional business used to demo the café / bakery template.
+slug: samui-morning-cafe
+industry: cafe
+region: samui
+theme: {primary: "#2f5d50", accent: "#d98e5f", surface: "#f7f3ec", ink: "#1f2a27", hero_icon: "☕"}
+name: {th: "สมุย มอร์นิ่ง คาเฟ่", en: "Samui Morning Café"}
+tagline:
+  th: "กาแฟคั่วเอง ขนมอบสดทุกเช้า ใกล้หาดละไม"
+  en: "House-roasted coffee and fresh bakes every morning, near Lamai Beach"
+about:
+  th: "คาเฟ่ริมทาง บรรยากาศสบาย ๆ ใช้เมล็ดกาแฟจากชุมพรและเชียงราย มีขนมอบใหม่ทุกวัน รับสั่งเค้กวันเกิดล่วงหน้า"
+  en: "A relaxed roadside café using beans from Chumphon and Chiang Rai, baking fresh every day. Order birthday cakes in advance for pickup."
+contact:
+  phone: "+66 00 000 0002"
+  line_id: "@sample-samuimorning"
+  whatsapp: "66000000002"
+  address: {th: "ถนนตัวอย่าง ละไม เกาะสมุย จ.สุราษฎร์ธานี", en: "Sample Road, Lamai, Koh Samui, Surat Thani"}
+  map_query: "Lamai Koh Samui"
+hours:
+  - {days: {th: "ทุกวัน", en: "Daily"}, time: "07:00–17:00"}
+highlights:
+  - {icon: "🌱", th: "นมทางเลือก: โอ๊ต อัลมอนด์", en: "Oat & almond milk"}
+  - {icon: "📶", th: "Wi-Fi ฟรี เหมาะนั่งทำงาน", en: "Free Wi-Fi, laptop friendly"}
+  - {icon: "🎂", th: "สั่งเค้กล่วงหน้า 2 วัน", en: "Cakes to order, 2 days' notice"}
+menu:
+  - category: {th: "กาแฟ", en: "Coffee"}
+    items:
+      - {name: {th: "อเมริกาโน่", en: "Americano"}, price: 70}
+      - {name: {th: "ลาเต้", en: "Latte"}, price: 85}
+      - {name: {th: "โคลด์บรูว์มะพร้าว", en: "Coconut cold brew"}, price: 110}
+  - category: {th: "เครื่องดื่มอื่น", en: "Other drinks"}
+    items:
+      - {name: {th: "ชาไทย", en: "Thai milk tea"}, price: 65}
+      - {name: {th: "มัทฉะลาเต้", en: "Matcha latte"}, price: 95}
+  - category: {th: "ขนมอบ", en: "Bakery"}
+    items:
+      - {name: {th: "ครัวซองต์เนยสด", en: "Butter croissant"}, price: 75}
+      - {name: {th: "บานอฟฟี่พาย", en: "Banoffee pie"}, price: 95}
+      - {name: {th: "เค้กมะพร้าว 1 ปอนด์ (สั่งล่วงหน้า)", en: "Coconut cake, 1 lb (pre-order)"}, price: 450}
+delivery:
+  - {name: "Grab Food", url: "#"}
+  - {name: "ShopeeFood", url: "#"}
+booking:
+  type: pickup
+  times: ["08:00", "10:00", "12:00", "14:00", "16:00"]
+  lead_days: 2
+faq:
+  - q: {th: "สั่งเค้กต้องมัดจำไหม", en: "Do cake orders need a deposit?"}
+    a: {th: "มัดจำ 50% ผ่านพร้อมเพย์", en: "Yes, 50% deposit by PromptPay."}

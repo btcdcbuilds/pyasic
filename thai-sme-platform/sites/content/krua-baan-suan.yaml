@@ -1,0 +1,52 @@
+# SAMPLE — fictional business used to demo the restaurant template.
+slug: krua-baan-suan
+industry: restaurant
+region: nakhon_si_thammarat
+theme: {primary: "#9c3d1f", accent: "#e0a526", surface: "#fbf5ec", ink: "#2b1a12", hero_icon: "🍛"}
+name: {th: "ครัวบ้านสวน", en: "Krua Baan Suan"}
+tagline:
+  th: "อาหารใต้รสจัดจ้าน สูตรบ้านนครศรีฯ"
+  en: "Bold southern Thai cooking from a Nakhon Si Thammarat family kitchen"
+about:
+  th: "ร้านอาหารใต้เล็ก ๆ ในสวน ทำแกงสดทุกเช้า ใช้วัตถุดิบจากตลาดท้องถิ่น เหมาะสำหรับครอบครัวและกลุ่มเพื่อน"
+  en: "A small garden restaurant serving southern Thai curries made fresh every morning with produce from the local market. Great for families and groups."
+contact:
+  phone: "+66 00 000 0001"
+  line_id: "@sample-kruabaansuan"
+  whatsapp: "66000000001"
+  address: {th: "ถนนตัวอย่าง อ.เมือง จ.นครศรีธรรมราช", en: "Sample Road, Mueang, Nakhon Si Thammarat"}
+  map_query: "Mueang Nakhon Si Thammarat"
+hours:
+  - {days: {th: "อังคาร–อาทิตย์", en: "Tue–Sun"}, time: "10:00–21:00"}
+  - {days: {th: "จันทร์", en: "Mon"}, time: {th: "ปิด", en: "Closed"}}
+highlights:
+  - {icon: "🌶️", th: "แกงใต้สูตรดั้งเดิม", en: "Traditional southern curries"}
+  - {icon: "👨‍👩‍👧", th: "โต๊ะกลุ่มใหญ่ได้ถึง 20 คน", en: "Group tables up to 20"}
+  - {icon: "🚗", th: "มีที่จอดรถ", en: "Free parking"}
+menu:
+  - category: {th: "แกง", en: "Curries"}
+    items:
+      - {name: {th: "แกงไตปลา", en: "Gaeng Tai Pla (fish-organ curry)"}, price: 120, tags: [spicy]}
+      - {name: {th: "แกงเหลืองปลากะพง", en: "Yellow sour curry with sea bass"}, price: 220, tags: [spicy]}
+      - {name: {th: "แกงพุงปลา", en: "Southern fish curry with vegetables"}, price: 150, tags: [spicy]}
+  - category: {th: "ผัดและทอด", en: "Stir-fried & fried"}
+    items:
+      - {name: {th: "คั่วกลิ้งหมู", en: "Khua Kling dry pork curry"}, price: 140, tags: [spicy]}
+      - {name: {th: "ผัดสะตอกุ้ง", en: "Stink beans with prawns"}, price: 180}
+      - {name: {th: "ไก่ทอดขมิ้น", en: "Turmeric fried chicken"}, price: 130}
+  - category: {th: "ขนมจีนและผักเหนาะ", en: "Rice noodles & fresh herbs"}
+    items:
+      - {name: {th: "ขนมจีนน้ำยาปักษ์ใต้", en: "Khanom jeen with southern curry sauce"}, price: 60}
+      - {name: {th: "ผักเหนาะรวม", en: "Southern fresh herb platter"}, price: 40, tags: [vegetarian]}
+delivery:
+  - {name: "LINE MAN", url: "#"}
+  - {name: "Grab Food", url: "#"}
+booking:
+  type: table
+  times: ["11:00", "12:00", "13:00", "17:30", "18:30", "19:30"]
+  max_party: 20
+faq:
+  - q: {th: "มีเมนูไม่เผ็ดไหม", en: "Do you have non-spicy dishes?"}
+    a: {th: "มีค่ะ แจ้งพนักงานได้ทุกเมนู", en: "Yes — we can make most dishes mild, just ask."}
+  - q: {th: "รับจัดเลี้ยงไหม", en: "Do you cater events?"}
+    a: {th: "รับจัดเลี้ยงสูงสุด 60 ที่ ติดต่อทาง LINE", en: "Yes, up to 60 guests. Contact us on LINE."}

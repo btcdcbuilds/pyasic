@@ -1,0 +1,8 @@
+# Host name -> site slug. Caddy only gets TLS certificates for hosts listed here
+# (see /internal/tls-check). Replace example.com with the platform domain.
+domains:
+  krua-baan-suan.sites.example.com: krua-baan-suan
+  samui-morning-cafe.sites.example.com: samui-morning-cafe
+  baan-lom-talay.sites.example.com: baan-lom-talay
+  sabai-hands-massage.sites.example.com: sabai-hands-massage
+  khanom-dolphin-trips.sites.example.com: khanom-dolphin-trips

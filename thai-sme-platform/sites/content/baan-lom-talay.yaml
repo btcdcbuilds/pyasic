@@ -1,0 +1,58 @@
+# SAMPLE — fictional business used to demo the resort / guesthouse template.
+slug: baan-lom-talay
+industry: resort
+region: samui
+theme: {primary: "#155e75", accent: "#f2b134", surface: "#f2f8f9", ink: "#0f2830", hero_icon: "🏝️"}
+name: {th: "บ้านลมทะเล บังกะโล", en: "Baan Lom Talay Bungalows"}
+tagline:
+  th: "บังกะโลริมทะเลเงียบสงบ ฝั่งเหนือเกาะสมุย"
+  en: "Quiet beachfront bungalows on Koh Samui's north coast"
+about:
+  th: "บังกะโล 12 หลังท่ามกลางสวนมะพร้าว เดินถึงหาดใน 1 นาที มีร้านอาหารในรีสอร์ต บริการรับส่งสนามบินและท่าเรือ จองตรงกับเราได้ราคาดีกว่า"
+  en: "Twelve bungalows in a coconut grove, one minute's walk to the beach, with an on-site restaurant and airport/pier transfers. Book direct for our best rate."
+contact:
+  phone: "+66 00 000 0003"
+  line_id: "@sample-baanlomtalay"
+  whatsapp: "66000000003"
+  email: "stay@example.com"
+  address: {th: "ถนนตัวอย่าง แม่น้ำ เกาะสมุย จ.สุราษฎร์ธานี", en: "Sample Road, Mae Nam, Koh Samui, Surat Thani"}
+  map_query: "Mae Nam Koh Samui"
+hours:
+  - {days: {th: "เช็คอิน", en: "Check-in"}, time: "14:00"}
+  - {days: {th: "เช็คเอาท์", en: "Check-out"}, time: "12:00"}
+highlights:
+  - {icon: "🏖️", th: "ติดชายหาด", en: "Beachfront"}
+  - {icon: "🚐", th: "รับส่งสนามบิน (มีค่าบริการ)", en: "Airport transfer (extra)"}
+  - {icon: "🍳", th: "รวมอาหารเช้า", en: "Breakfast included"}
+  - {icon: "💳", th: "จองตรง ไม่มีค่าคอมมิชชั่น", en: "Book direct, no booking fees"}
+rooms:
+  - code: garden
+    name: {th: "บังกะโลวิวสวน", en: "Garden Bungalow"}
+    desc: {th: "เตียงคิงไซส์ แอร์ ระเบียงส่วนตัว", en: "King bed, air-con, private terrace"}
+    capacity: 2
+    units: 6
+    rate: 1400
+  - code: sea
+    name: {th: "บังกะโลวิวทะเล", en: "Sea-view Bungalow"}
+    desc: {th: "หน้าหาด เตียงคิงไซส์ อ่างอาบน้ำกลางแจ้ง", en: "Beach-facing, king bed, outdoor bathtub"}
+    capacity: 2
+    units: 4
+    rate: 2600
+  - code: family
+    name: {th: "บ้านครอบครัว 2 ห้องนอน", en: "Two-bedroom Family House"}
+    desc: {th: "2 ห้องนอน ห้องนั่งเล่น ครัวเล็ก", en: "Two bedrooms, living room, kitchenette"}
+    capacity: 5
+    units: 2
+    rate: 3900
+booking:
+  type: room
+  deposit_percent: 30
+  max_nights: 30
+faq:
+  - q: {th: "ยกเลิกได้ไหม", en: "What is the cancellation policy?"}
+    a: {th: "ยกเลิกฟรีก่อนเข้าพัก 7 วัน คืนมัดจำเต็มจำนวน", en: "Free cancellation up to 7 days before arrival; deposit refunded in full."}
+  - q: {th: "รับสัตว์เลี้ยงไหม", en: "Are pets allowed?"}
+    a: {th: "ขออภัย ไม่รับสัตว์เลี้ยง", en: "Sorry, no pets."}
+legal:
+  th: "ใบอนุญาตประกอบธุรกิจโรงแรม เลขที่: (ตัวอย่าง)"
+  en: "Hotel business licence no.: (sample)"

@@ -1,0 +1,9 @@
+starlette==1.6.0
+uvicorn==0.53.0
+jinja2==3.1.6
+pyyaml==6.0.1
+python-multipart
+requests
+# tests
+pytest
+httpx

@@ -1,0 +1,41 @@
+# Testing the sample sites
+
+## Run locally (5 minutes)
+
+```bash
+cd thai-sme-platform
+pip install -r requirements.txt
+ADMIN_KEY=demo uvicorn webapp.app:app --port 8000
+```
+
+Open http://localhost:8000 — the index lists all five sample sites.
+Owner bookings view: `http://localhost:8000/admin/<slug>?key=demo`.
+
+Automated checks: `python -m pytest -q tests` (14 tests).
+
+## Manual checklist (do on a phone and a laptop)
+
+| # | Check | Sites |
+|---|---|---|
+| 1 | Page loads, Thai shows by default on a Thai phone; EN/ไทย button switches everything | All |
+| 2 | Bottom bar (Call / LINE / WhatsApp / Book) visible on phone, hidden on desktop | All |
+| 3 | Menu prices readable, spicy/vegetarian icons sensible | Restaurant, café |
+| 4 | "Choose" on a room jumps to the form with that room selected; total and 30% deposit appear | Resort |
+| 5 | Book the Family House 3 times for the same dates → the 3rd is refused "fully booked" (2 units) | Resort |
+| 6 | Changing trip updates departure times; 11 people on one boat is refused | Tours |
+| 7 | Changing treatment updates durations; 21:00 is not offered (last start 20:30) | Spa |
+| 8 | Cake pre-order for tomorrow is refused (2 days' notice) | Café |
+| 9 | Submitting without ticking privacy consent is blocked | All |
+| 10 | Booking appears in `/admin/<slug>?key=…` | All |
+| 11 | Privacy notice link works and reads correctly in both languages | All |
+| 12 | Thai wording sounds natural to a Thai speaker (please have a Thai speaker review) | All |
+
+## Not built yet (next phase)
+
+| Item | Plan |
+|---|---|
+| Owner notification of new bookings | LINE Messaging API push / WhatsApp template to the owner |
+| Deposit payment | PromptPay link via Opn or Stripe Thailand (test mode first) |
+| Real photos | Owner uploads; placeholders show where they go |
+| Owner login | Replace the shared ADMIN_KEY with per-owner login (LINE Login) |
+| Chinese / Russian | Add languages after Thai/English is approved |
