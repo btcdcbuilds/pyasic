@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" data-ui="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sample sites</title>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/static/site.css">
+<style>:root { --primary: #1f2937; --accent: #f59e0b; --surface: #f8fafc; --ink: #111827; }</style>
+</head>
+<body>
+<main class="block">
+  <h1>Sample sites</h1>
+  <p>Five fictional businesses, one per target industry. Use these to test layout, Thai/English text and the booking flow.</p>
+  <div class="cards">
+  {% for s in sites %}
+    <article class="card" style="--primary: {{ s.theme.primary }}">
+      <div class="card-photo" aria-hidden="true">{{ s.theme.hero_icon }}</div>
+      <h3>{{ s.name.en }}</h3>
+      <p>{{ s.name.th }}</p>
+      <p class="meta">{{ s.industry }} · {{ s.region }} · booking: {{ s.booking.type }}</p>
+      <a class="btn btn-small" href="/s/{{ s.slug }}/">Open</a>
+    </article>
+  {% endfor %}
+  </div>
+</main>
+</body>
+</html>

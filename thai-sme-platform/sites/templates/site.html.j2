@@ -1,0 +1,260 @@
+{%- set b = site.booking -%}
+{%- set c = site.contact -%}
+<!doctype html>
+<html lang="th" data-ui="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ site.name.en }} · {{ site.name.th }}</title>
+<meta name="description" content="{{ site.tagline.en }}">
+<meta name="robots" content="noindex">{# remove once a real business owns the site #}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&family=Noto+Serif+Thai:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/site.css">
+<style>
+  :root { --primary: {{ site.theme.primary }}; --accent: {{ site.theme.accent }};
+          --surface: {{ site.theme.surface }}; --ink: {{ site.theme.ink }}; }
+</style>
+</head>
+<body class="industry-{{ site.industry }}">
+
+<div class="sample-banner">
+  <span lang="th">ตัวอย่างเว็บไซต์ — ธุรกิจสมมติ ข้อมูลไม่ใช่ของจริง</span>
+  <span lang="en">Sample website — fictional business, not real information</span>
+</div>
+
+<header class="topbar">
+  <a class="brand" href="#top">{{ site.name|t }}</a>
+  <nav>
+    {% if site.menu %}<a href="#menu"><span lang="th">เมนู</span><span lang="en">Menu</span></a>{% endif %}
+    {% if site.rooms %}<a href="#rooms"><span lang="th">ห้องพัก</span><span lang="en">Rooms</span></a>{% endif %}
+    {% if site.services %}<a href="#services"><span lang="th">บริการ</span><span lang="en">Services</span></a>{% endif %}
+    {% if site.tours %}<a href="#tours"><span lang="th">ทริป</span><span lang="en">Trips</span></a>{% endif %}
+    <a href="#book" class="nav-book"><span lang="th">จอง</span><span lang="en">Book</span></a>
+  </nav>
+  <button class="lang-toggle" type="button" aria-label="Switch language">EN</button>
+</header>
+
+<section class="hero" id="top">
+  {% if google_photos and not site.photos %}{% set gp = google_photos[0] %}
+  <figure class="hero-photo has-img">
+    <img src="{{ gp.src }}" alt="{{ site.name.en }}" loading="eager">
+    <figcaption class="photo-note">Google Maps{% for a in gp.authors %} · {% if a.uri %}<a href="{{ a.uri }}" target="_blank" rel="noopener">{{ a.name }}</a>{% else %}{{ a.name }}{% endif %}{% endfor %}</figcaption>
+  </figure>
+  {% elif site.photos %}{% set ph = site.photos[0] %}
+  <figure class="hero-photo has-img">
+    <img src="{{ ph.src }}" alt="{{ ph.alt or site.name.en }}" loading="eager">
+    {% if ph.credit %}<figcaption class="photo-note">{{ ph.credit }}</figcaption>{% endif %}
+  </figure>
+  {% else %}
+  <div class="hero-photo" role="img" aria-label="Photo placeholder">
+    <span class="hero-icon">{{ site.theme.hero_icon }}</span>
+    <span class="photo-note"><span lang="th">รูปจากเจ้าของร้าน</span><span lang="en">Owner's photo goes here</span></span>
+  </div>
+  {% endif %}
+  <div class="hero-text">
+    <h1>{{ site.name|t }}</h1>
+    <p class="tagline">{{ site.tagline|t }}</p>
+    <div class="hero-cta">
+      <a class="btn btn-primary" href="#book"><span lang="th">จองเลย</span><span lang="en">Book now</span></a>
+      <a class="btn btn-line" href="https://line.me/R/ti/p/{{ c.line_id|urlq }}" target="_blank" rel="noopener">LINE</a>
+    </div>
+  </div>
+</section>
+
+<section class="about">
+  <p>{{ site.about|t }}</p>
+  <ul class="highlights">
+    {% for h in site.highlights %}<li><span class="hi-icon">{{ h.icon }}</span>{{ h|t }}</li>{% endfor %}
+  </ul>
+</section>
+
+{% if google_photos %}
+<section class="block google-photos" aria-label="Photos from Google Maps">
+  <div class="gp-head">
+    <strong>Google Maps</strong>
+    <span lang="th">รูปจาก Google Maps สำหรับตัวอย่างเท่านั้น — เว็บจริงจะใช้รูปของร้านเอง</span>
+    <span lang="en">Photos from Google Maps for this preview only — the live site uses your own photos</span>
+  </div>
+  <div class="gallery">
+  {% for ph in google_photos[1:] %}
+    <figure><img src="{{ ph.src }}" alt="" loading="lazy">
+      <figcaption>{% for a in ph.authors %}{% if a.uri %}<a href="{{ a.uri }}" target="_blank" rel="noopener">{{ a.name }}</a>{% else %}{{ a.name }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</figcaption>
+    </figure>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if site.photos and site.photos|length > 1 %}
+<section class="block gallery">
+  {% for ph in site.photos[1:9] %}<figure><img src="{{ ph.src }}" alt="{{ ph.alt or site.name.en }}" loading="lazy">{% if ph.credit %}<figcaption>{{ ph.credit }}</figcaption>{% endif %}</figure>{% endfor %}
+</section>
+{% endif %}
+
+{% if site.menu %}
+<section id="menu" class="block">
+  <h2><span lang="th">เมนู</span><span lang="en">Menu</span></h2>
+  {% for cat in site.menu %}
+  <div class="menu-cat">
+    <h3>{{ cat.category|t }}</h3>
+    <ul class="menu-list">
+      {% for it in cat['items'] %}
+      <li>
+        <span class="item-name">{{ it.name|t }}
+          {% for tag in it.tags or [] %}<span class="tag tag-{{ tag }}">{% if tag == 'spicy' %}🌶️{% elif tag == 'vegetarian' %}🌿{% endif %}</span>{% endfor %}
+        </span>
+        <span class="dots"></span>
+        <span class="price">{{ it.price|baht }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+  {% if site.delivery %}
+  <div class="delivery">
+    <span lang="th">สั่งกลับบ้านผ่าน</span><span lang="en">Order delivery on</span>
+    {% for d in site.delivery %}<a class="chip" href="{{ d.url }}">{{ d.name }}</a>{% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if site.rooms %}
+<section id="rooms" class="block">
+  <h2><span lang="th">ห้องพัก</span><span lang="en">Rooms</span></h2>
+  <div class="cards">
+    {% for r in site.rooms %}
+    <article class="card">
+      {% if r.photos %}<figure class="card-photo has-img"><img src="{{ r.photos[0].src }}" alt="{{ r.name.en }}" loading="lazy">{% if r.photos[0].credit %}<figcaption class="photo-note">{{ r.photos[0].credit }}</figcaption>{% endif %}</figure>
+      {% else %}<div class="card-photo" aria-hidden="true">{{ site.theme.hero_icon }}</div>{% endif %}
+      <h3>{{ r.name|t }}{% if r.confirmed is sameas false %} <span class="draft-chip"><span lang="th">ร่าง รอยืนยัน</span><span lang="en">Draft – to confirm</span></span>{% endif %}</h3>
+      <p>{{ r.desc|t }}</p>
+      <p class="meta">👤 {{ r.capacity }} · <strong>{{ r.rate|baht }}</strong> <span lang="th">/ คืน</span><span lang="en">/ night</span></p>
+      <a class="btn btn-small" href="#book" data-pick-room="{{ r.code }}"><span lang="th">เลือกห้องนี้</span><span lang="en">Choose</span></a>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% if site.services %}
+<section id="services" class="block">
+  <h2><span lang="th">บริการและราคา</span><span lang="en">Treatments & prices</span></h2>
+  <ul class="menu-list">
+    {% for s in site.services %}
+      {% for o in s.options %}
+      <li><span class="item-name">{{ s.name|t }} · {{ o.minutes }} <span lang="th">นาที</span><span lang="en">min</span></span><span class="dots"></span><span class="price">{{ o.price|baht }}</span></li>
+      {% endfor %}
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if site.tours %}
+<section id="tours" class="block">
+  <h2><span lang="th">ทริปของเรา</span><span lang="en">Our trips</span></h2>
+  <div class="cards">
+    {% for tr in site.tours %}
+    <article class="card">
+      <div class="card-photo" aria-hidden="true">{{ site.theme.hero_icon }}</div>
+      <h3>{{ tr.name|t }}</h3>
+      <p>{{ tr.desc|t }}</p>
+      <p class="meta">🕘 {{ tr.departures|join(' / ') }} · <span lang="th">ผู้ใหญ่</span><span lang="en">Adult</span> <strong>{{ tr.price_adult|baht }}</strong> · <span lang="th">เด็ก</span><span lang="en">Child</span> {{ tr.price_child|baht }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section id="book" class="block book">
+  <h2>
+    {% if b.type == 'table' %}<span lang="th">จองโต๊ะ</span><span lang="en">Reserve a table</span>
+    {% elif b.type == 'pickup' %}<span lang="th">สั่งล่วงหน้า / รับที่ร้าน</span><span lang="en">Pre-order for pickup</span>
+    {% elif b.type == 'room' %}<span lang="th">จองห้องพักตรง</span><span lang="en">Book direct</span>
+    {% elif b.type == 'slot' %}<span lang="th">จองคิวนวด</span><span lang="en">Book a treatment</span>
+    {% else %}<span lang="th">จองที่นั่ง</span><span lang="en">Book seats</span>{% endif %}
+  </h2>
+  <form id="booking-form" data-api="/api/{{ site.slug }}" novalidate>
+    <div class="grid">
+    {% if b.type == 'room' %}
+      <label><span lang="th">ห้อง</span><span lang="en">Room</span>
+        <select name="room" required>{% for r in site.rooms %}<option value="{{ r.code }}">{{ r.name.en }} — {{ r.rate|baht }}</option>{% endfor %}</select></label>
+      <label><span lang="th">เช็คอิน</span><span lang="en">Check-in</span><input type="date" name="check_in" min="{{ today }}" required></label>
+      <label><span lang="th">เช็คเอาท์</span><span lang="en">Check-out</span><input type="date" name="check_out" min="{{ today }}" required></label>
+      <label><span lang="th">จำนวนผู้เข้าพัก</span><span lang="en">Guests</span><input type="number" name="guests" min="1" max="5" value="2" required></label>
+    {% elif b.type == 'seats' %}
+      <label><span lang="th">ทริป</span><span lang="en">Trip</span>
+        <select name="tour" required>{% for tr in site.tours %}<option value="{{ tr.code }}" data-departures="{{ tr.departures|join(',') }}">{{ tr.name.en }}</option>{% endfor %}</select></label>
+      <label><span lang="th">วันที่</span><span lang="en">Date</span><input type="date" name="date" min="{{ today }}" required></label>
+      <label><span lang="th">รอบเรือ</span><span lang="en">Departure</span><select name="departure" required>{% for d in site.tours[0].departures %}<option>{{ d }}</option>{% endfor %}</select></label>
+      <label><span lang="th">ผู้ใหญ่</span><span lang="en">Adults</span><input type="number" name="adults" min="1" max="10" value="2" required></label>
+      <label><span lang="th">เด็ก</span><span lang="en">Children</span><input type="number" name="children" min="0" max="10" value="0"></label>
+    {% elif b.type == 'slot' %}
+      <label><span lang="th">บริการ</span><span lang="en">Treatment</span>
+        <select name="service" required>{% for s in site.services %}<option value="{{ s.code }}" data-minutes="{{ s.options|map(attribute='minutes')|join(',') }}">{{ s.name.en }}</option>{% endfor %}</select></label>
+      <label><span lang="th">ระยะเวลา (นาที)</span><span lang="en">Minutes</span><select name="minutes" required>{% for o in site.services[0].options %}<option>{{ o.minutes }}</option>{% endfor %}</select></label>
+      <label><span lang="th">วันที่</span><span lang="en">Date</span><input type="date" name="date" min="{{ today }}" required></label>
+      <label><span lang="th">เวลา</span><span lang="en">Time</span><select name="time" required>{% for tm in times %}<option>{{ tm }}</option>{% endfor %}</select></label>
+      <label><span lang="th">จำนวนคน</span><span lang="en">People</span><input type="number" name="people" min="1" max="{{ b.max_people }}" value="1" required></label>
+    {% else %}
+      <label><span lang="th">วันที่</span><span lang="en">Date</span><input type="date" name="date" min="{{ today }}" required></label>
+      <label><span lang="th">เวลา</span><span lang="en">Time</span><select name="time" required>{% for tm in times %}<option>{{ tm }}</option>{% endfor %}</select></label>
+      {% if b.type == 'table' %}
+      <label><span lang="th">จำนวนคน</span><span lang="en">Party size</span><input type="number" name="party" min="1" max="{{ b.max_party }}" value="2" required></label>
+      {% endif %}
+    {% endif %}
+      <label><span lang="th">ชื่อ</span><span lang="en">Name</span><input name="name" autocomplete="name" required></label>
+      <label><span lang="th">เบอร์โทร / LINE ID / อีเมล</span><span lang="en">Phone / LINE ID / email</span><input name="contact" required></label>
+      <label class="wide"><span lang="th">{% if b.type == 'pickup' %}รายการที่ต้องการสั่ง{% else %}หมายเหตุ{% endif %}</span><span lang="en">{% if b.type == 'pickup' %}What would you like to order?{% else %}Notes{% endif %}</span>
+        <textarea name="note" rows="2" {% if b.type == 'pickup' %}required{% endif %}></textarea></label>
+    </div>
+    <label class="consent"><input type="checkbox" name="consent" value="true" required>
+      <span lang="th">ฉันยอมรับ<a href="{{ base }}/privacy" target="_blank">ประกาศความเป็นส่วนตัว</a> และยินยอมให้ใช้ข้อมูลติดต่อเพื่อยืนยันการจอง</span>
+      <span lang="en">I accept the <a href="{{ base }}/privacy" target="_blank">privacy notice</a> and agree my contact details are used to confirm this booking</span>
+    </label>
+    <div class="quote" aria-live="polite"></div>
+    <button class="btn btn-primary btn-block" type="submit"><span lang="th">ส่งคำขอจอง</span><span lang="en">Send booking request</span></button>
+    <div class="result" aria-live="polite"></div>
+  </form>
+</section>
+
+<section class="block info">
+  <div>
+    <h2><span lang="th">เวลาเปิด</span><span lang="en">Opening hours</span></h2>
+    <ul class="hours">{% for h in site.hours %}<li><span>{{ h.days|t }}</span><strong>{{ h.time|t }}</strong></li>{% endfor %}</ul>
+  </div>
+  <div>
+    <h2><span lang="th">ติดต่อและแผนที่</span><span lang="en">Contact & map</span></h2>
+    <p>📍 {{ c.address|t }}</p>
+    <p>📞 <a href="tel:{{ c.phone|replace(' ', '') }}">{{ c.phone }}</a></p>
+    {% if c.email %}<p>✉️ <a href="mailto:{{ c.email }}">{{ c.email }}</a></p>{% endif %}
+    <a class="btn btn-outline" href="https://www.google.com/maps/search/?api=1&query={{ c.map_query|urlq }}" target="_blank" rel="noopener">
+      <span lang="th">เปิดใน Google Maps</span><span lang="en">Open in Google Maps</span></a>
+  </div>
+</section>
+
+{% if site.faq %}
+<section class="block faq">
+  <h2><span lang="th">คำถามที่พบบ่อย</span><span lang="en">FAQ</span></h2>
+  {% for f in site.faq %}<details><summary>{{ f.q|t }}</summary><p>{{ f.a|t }}</p></details>{% endfor %}
+</section>
+{% endif %}
+
+<footer>
+  <p>© {{ site.name|t }}</p>
+  {% if site.legal %}<p class="legal">{{ site.legal|t }}</p>{% endif %}
+  <p><a href="{{ base }}/privacy"><span lang="th">ประกาศความเป็นส่วนตัว</span><span lang="en">Privacy notice</span></a></p>
+</footer>
+
+<nav class="action-bar" aria-label="Quick contact">
+  <a href="tel:{{ c.phone|replace(' ', '') }}">📞<span lang="th">โทร</span><span lang="en">Call</span></a>
+  <a href="https://line.me/R/ti/p/{{ c.line_id|urlq }}" target="_blank" rel="noopener" class="ab-line">💬<span>LINE</span></a>
+  <a href="https://wa.me/{{ c.whatsapp }}" target="_blank" rel="noopener" class="ab-wa">🟢<span>WhatsApp</span></a>
+  <a href="#book" class="ab-book">📅<span lang="th">จอง</span><span lang="en">Book</span></a>
+</nav>
+
+<script src="/static/site.js" defer></script>
+</body>
+</html>

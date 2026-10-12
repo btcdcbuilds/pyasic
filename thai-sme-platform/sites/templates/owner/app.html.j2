@@ -1,0 +1,36 @@
+{% extends "owner/base.html.j2" %}
+{% block title %}{{ site.name.en }} · Owner app{% endblock %}
+{% block body %}
+<header class="bar" style="--brand: {{ site.theme.primary }}">
+  <span class="biz-icon">{{ site.theme.hero_icon }}</span>
+  {% if others|length > 1 %}
+  <select class="switcher" onchange="location.href='/owner/'+this.value" aria-label="Business">
+    {% for o in others %}<option value="{{ o.slug }}" {% if o.slug == site.slug %}selected{% endif %}>{{ o.name.th }} · {{ o.name.en }}</option>{% endfor %}
+  </select>
+  {% else %}<strong class="biz-name">{{ site.name|t }}</strong>{% endif %}
+  <span class="spacer"></span>
+  <a class="btn ghost small" href="/s/{{ site.slug }}/" target="_blank" rel="noopener"><span lang="th">ดูเว็บ</span><span lang="en">View site</span> ↗</a>
+  <button class="lang-toggle" type="button"><span lang="th">EN</span><span lang="en">ไทย</span></button>
+  <form method="post" action="/owner/logout"><button class="btn ghost small" type="submit"><span lang="th">ออก</span><span lang="en">Sign out</span></button></form>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button data-tab="today" class="active">🏠<span lang="th">วันนี้</span><span lang="en">Today</span></button>
+  <button data-tab="bookings">📅<span lang="th">การจอง</span><span lang="en">Bookings</span></button>
+  <button data-tab="website">✏️<span lang="th">เว็บไซต์</span><span lang="en">Website</span></button>
+  <button data-tab="photos">🖼️<span lang="th">รูปภาพ</span><span lang="en">Photos</span></button>
+  {% if site.rooms %}<button data-tab="pricing">💹<span lang="th">ราคาห้อง</span><span lang="en">Prices</span></button>{% endif %}
+  <button data-tab="ai">✨<span lang="th">ถาม AI</span><span lang="en">Ask AI</span></button>
+</nav>
+
+<main class="wrap" id="app" data-slug="{{ site.slug }}">
+  <section class="panel active" data-panel="today"><p class="muted">…</p></section>
+  <section class="panel" data-panel="bookings"></section>
+  <section class="panel" data-panel="website"></section>
+  <section class="panel" data-panel="photos"></section>
+  {% if site.rooms %}<section class="panel" data-panel="pricing"></section>{% endif %}
+  <section class="panel" data-panel="ai"></section>
+</main>
+<div class="toast" role="status" aria-live="polite"></div>
+{% endblock %}
+{% block scripts %}<script src="/static/owner.js" defer></script>{% endblock %}

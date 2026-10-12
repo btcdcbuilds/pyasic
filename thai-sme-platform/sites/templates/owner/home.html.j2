@@ -1,0 +1,28 @@
+{% extends "owner/base.html.j2" %}
+{% block title %}My businesses{% endblock %}
+{% block body %}
+<header class="bar">
+  <strong><span lang="th">ธุรกิจของฉัน</span><span lang="en">My businesses</span></strong>
+  <span class="spacer"></span>
+  <button class="lang-toggle" type="button"><span lang="th">EN</span><span lang="en">ไทย</span></button>
+  <form method="post" action="/owner/logout"><button class="btn ghost" type="submit"><span lang="th">ออก</span><span lang="en">Sign out</span></button></form>
+</header>
+<main class="wrap">
+  <p class="muted"><span lang="th">สวัสดี {{ owner.name }}</span><span lang="en">Hello {{ owner.name }}</span></p>
+  {% if not cards %}<p><span lang="th">ยังไม่มีธุรกิจในบัญชีนี้</span><span lang="en">No businesses linked to this account yet.</span></p>{% endif %}
+  <div class="biz-grid">
+  {% for c in cards %}
+    <a class="biz card" href="/owner/{{ c.site.slug }}" style="--brand: {{ c.site.theme.primary }}">
+      <div class="biz-top"><span class="biz-icon">{{ c.site.theme.hero_icon }}</span>
+        <div><strong>{{ c.site.name|t }}</strong><div class="muted small">{{ c.site.industry }} · {{ c.site.region }}</div></div></div>
+      <div class="kpis">
+        <div><b>{{ c.stats.pending }}</b><span lang="th">รอยืนยัน</span><span lang="en">to confirm</span></div>
+        <div><b>{{ c.stats.next7 }}</b><span lang="th">7 วันข้างหน้า</span><span lang="en">next 7 days</span></div>
+        {% if c.stats.tonight_occupancy is defined %}<div><b>{{ c.stats.tonight_occupancy }}%</b><span lang="th">เข้าพักคืนนี้</span><span lang="en">full tonight</span></div>{% endif %}
+        {% if c.stats.ai_to_approve %}<div><b>{{ c.stats.ai_to_approve }}</b><span lang="th">AI รออนุมัติ</span><span lang="en">AI to approve</span></div>{% endif %}
+      </div>
+    </a>
+  {% endfor %}
+  </div>
+</main>
+{% endblock %}

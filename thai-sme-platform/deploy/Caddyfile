@@ -1,0 +1,26 @@
+# Caddy terminates HTTPS for the platform domain and every customer site.
+# Customer hosts (subdomains or their own domains) get certificates on demand,
+# but only if the app's /internal/tls-check says the host is in sites/domains.yaml.
+{
+	email {$ACME_EMAIL}
+	on_demand_tls {
+		ask http://app:8000/internal/tls-check
+	}
+}
+
+(app) {
+	@internal path /internal/*
+	respond @internal 404
+	reverse_proxy app:8000
+}
+
+{$PLATFORM_DOMAIN} {
+	import app
+}
+
+https:// {
+	tls {
+		on_demand
+	}
+	import app
+}

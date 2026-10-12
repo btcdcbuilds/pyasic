@@ -1,0 +1,49 @@
+# SAMPLE — fictional business used to demo the spa / massage template.
+slug: sabai-hands-massage
+industry: spa
+region: bangkok
+theme: {primary: "#6b3f6e", accent: "#c9a96e", surface: "#faf6f2", ink: "#2a1b2b", hero_icon: "🪷"}
+name: {th: "สบายแฮนด์ นวดไทย", en: "Sabai Hands Thai Massage"}
+tagline:
+  th: "นวดแผนไทยโดยหมอนวดที่ผ่านการอบรม ใกล้ BTS"
+  en: "Traditional Thai massage by trained therapists, near the BTS"
+about:
+  th: "ร้านนวดเล็ก ๆ บรรยากาศสงบ ห้องแยกส่วนตัว ผ้าสะอาดเปลี่ยนทุกลูกค้า จองล่วงหน้าเพื่อเลือกเวลาที่สะดวก"
+  en: "A calm, small massage shop with private rooms and fresh linen for every guest. Book ahead to get the time you want."
+contact:
+  phone: "+66 00 000 0004"
+  line_id: "@sample-sabaihands"
+  whatsapp: "66000000004"
+  address: {th: "ซอยตัวอย่าง เขตวัฒนา กรุงเทพฯ", en: "Sample Soi, Watthana, Bangkok"}
+  map_query: "Watthana Bangkok"
+hours:
+  - {days: {th: "ทุกวัน", en: "Daily"}, time: "10:00–22:00"}
+highlights:
+  - {icon: "🚇", th: "เดิน 3 นาทีจาก BTS", en: "3 min walk from BTS"}
+  - {icon: "🧖", th: "ห้องส่วนตัว + ห้องอาบน้ำ", en: "Private rooms + showers"}
+  - {icon: "🗣️", th: "พูดอังกฤษและจีนได้", en: "English & Chinese spoken"}
+services:
+  - code: thai
+    name: {th: "นวดแผนไทย", en: "Traditional Thai massage"}
+    options: [{minutes: 60, price: 400}, {minutes: 90, price: 550}, {minutes: 120, price: 700}]
+  - code: foot
+    name: {th: "นวดเท้า", en: "Foot reflexology"}
+    options: [{minutes: 45, price: 300}, {minutes: 60, price: 350}]
+  - code: oil
+    name: {th: "นวดน้ำมันอโรมา", en: "Aromatherapy oil massage"}
+    options: [{minutes: 60, price: 700}, {minutes: 90, price: 950}]
+  - code: herbal
+    name: {th: "ประคบสมุนไพร", en: "Herbal compress massage"}
+    options: [{minutes: 90, price: 900}]
+booking:
+  type: slot
+  open: "10:00"
+  last_start: "20:30"
+  step_minutes: 30
+  max_people: 4
+faq:
+  - q: {th: "ต้องจ่ายมัดจำไหม", en: "Do I need to pay a deposit?"}
+    a: {th: "ไม่ต้อง ชำระที่ร้านได้ทั้งเงินสดและพร้อมเพย์", en: "No — pay at the shop by cash or PromptPay."}
+legal:
+  th: "ใบอนุญาตสถานประกอบการเพื่อสุขภาพ เลขที่: (ตัวอย่าง)"
+  en: "Health establishment licence no.: (sample)"

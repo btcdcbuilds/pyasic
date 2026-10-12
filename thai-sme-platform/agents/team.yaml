@@ -1,0 +1,79 @@
+# Agent roster. scripts/bootstrap_qwenpaw.sh reads this to create one QwenPaw
+# workspace per agent (`qwenpaw agents create`). Models are Anthropic API models;
+# claude-*-5-5 ids are not in QwenPaw 2.2.1's bundled list, so add them once via
+# Console -> Settings -> Models -> Anthropic -> Add Model.
+#
+# Model choice follows docs/COSTS.md: Haiku for bulk per-prospect work,
+# Sonnet for building, Opus for orchestration and quality gates.
+
+provider_id: anthropic
+
+agents:
+  # ---------------- Control ----------------
+  - id: chief
+    team: control
+    model: claude-opus-5-5
+    skills: [multi_agent_collaboration, platform_db, budget_guard]
+    role: >
+      Plans the day per region, assigns work to team leads, enforces the
+      pause switch, daily outreach limit and AI budget from platform_settings.
+
+  # ---------------- Research ----------------
+  - id: research-discovery
+    team: research
+    model: claude-haiku-5-5
+    skills: [places_discovery, platform_db]
+    role: Runs Places API discovery per region and writes candidates.
+  - id: research-qualifier
+    team: research
+    model: claude-haiku-5-5
+    skills: [prospect_qualify, platform_db, browser_check]
+    role: >
+      Checks each candidate's own public website / LINE OA / OTA presence
+      (no Google Maps scraping) and records gaps and a priority score.
+
+  # ---------------- Build ----------------
+  - id: build-lead
+    team: build
+    model: claude-opus-5-5
+    skills: [multi_agent_collaboration, platform_db, site_qa]
+    role: Owns template quality; final QA gate before anything is published.
+  - id: build-preview
+    team: build
+    model: claude-haiku-5-5
+    skills: [site_preview, owner_photos, room_catalogue, platform_db]
+    role: >
+      Fills a template with public basics, live Google Maps photos and draft room
+      types to make a pitch preview.
+  - id: build-site
+    team: build
+    model: claude-sonnet-5-5
+    skills: [site_build, booking_payments, owner_photos, room_catalogue, platform_db]
+    role: Builds the full site from owner-supplied content after payment.
+  - id: build-changes
+    team: build
+    model: claude-sonnet-5-5
+    skills: [site_build, owner_requests, platform_db]
+    role: >
+      Handles owner change requests the in-app AI could not finish (queued,
+      needs_human, failed) and proposes them for the owner to approve.
+
+  - id: build-revenue
+    team: build
+    model: claude-haiku-5-5
+    skills: [dynamic_pricing, platform_db]
+    role: >
+      Daily check of each hotel customer's rate calendar; proposes pricing changes
+      to owners in suggest mode and watches guardrails in auto mode.
+
+  # ---------------- Outreach ----------------
+  - id: outreach-writer
+    team: outreach
+    model: claude-sonnet-5-5
+    skills: [pitch_writer, platform_db]
+    role: Drafts Thai/English pitches; drafts go to the approval queue.
+  - id: outreach-closer
+    team: outreach
+    model: claude-sonnet-5-5
+    skills: [reply_handler, booking_payments, platform_db]
+    role: Answers replies, sends payment links, starts onboarding.

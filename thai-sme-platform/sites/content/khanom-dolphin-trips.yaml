@@ -1,0 +1,54 @@
+# SAMPLE — fictional business used to demo the tours & activities template.
+slug: khanom-dolphin-trips
+industry: tour
+region: nakhon_si_thammarat
+theme: {primary: "#1d4e89", accent: "#ef8a62", surface: "#f3f7fb", ink: "#0e2238", hero_icon: "🐬"}
+name: {th: "ขนอม ทริปโลมา", en: "Khanom Dolphin Trips"}
+tagline:
+  th: "ล่องเรือชมโลมาสีชมพูและเกาะสวยของขนอม"
+  en: "Boat trips to see Khanom's pink dolphins and nearby islands"
+about:
+  th: "ทริปเรือหางยาวขนาดเล็ก ไม่เกิน 10 คนต่อลำ ไกด์ท้องถิ่น มีเสื้อชูชีพและประกันอุบัติเหตุ ออกเรือทุกเช้าเมื่อสภาพอากาศเหมาะสม"
+  en: "Small longtail boats, max 10 guests, local guides, life jackets and accident insurance included. Departs every morning, weather permitting."
+contact:
+  phone: "+66 00 000 0005"
+  line_id: "@sample-khanomdolphin"
+  whatsapp: "66000000005"
+  address: {th: "ท่าเรือตัวอย่าง อ.ขนอม จ.นครศรีธรรมราช", en: "Sample Pier, Khanom, Nakhon Si Thammarat"}
+  map_query: "Khanom Nakhon Si Thammarat"
+hours:
+  - {days: {th: "ออกเรือทุกวัน", en: "Daily departures"}, time: "07:00 / 09:30"}
+highlights:
+  - {icon: "🛟", th: "เสื้อชูชีพ + ประกันอุบัติเหตุ", en: "Life jackets + insurance"}
+  - {icon: "👥", th: "กลุ่มเล็ก ไม่เกิน 10 คน", en: "Small groups, max 10"}
+  - {icon: "🏨", th: "รับฟรีจากโรงแรมในขนอม", en: "Free Khanom hotel pickup"}
+tours:
+  - code: dolphin
+    name: {th: "ทริปชมโลมาสีชมพู", en: "Pink dolphin spotting"}
+    desc: {th: "2 ชั่วโมง ชมโลมาและเกาะท่าไร่", en: "2 hours, dolphins and Tha Rai island"}
+    departures: ["07:00", "09:30"]
+    price_adult: 800
+    price_child: 500
+    seats: 10
+  - code: islands
+    name: {th: "ดำน้ำตื้น 3 เกาะ + อาหารกลางวัน", en: "3-island snorkel + lunch"}
+    desc: {th: "6 ชั่วโมง รวมอุปกรณ์ดำน้ำและอาหารกลางวัน", en: "6 hours, snorkel gear and lunch included"}
+    departures: ["09:30"]
+    price_adult: 1500
+    price_child: 900
+    seats: 10
+booking:
+  type: seats
+  deposit_percent: 50
+# 0000000000 is a deliberately unusable sample number - never put a real
+# person's PromptPay ID in a sample site.
+payments:
+  promptpay_id: "0000000000"
+faq:
+  - q: {th: "ถ้าฝนตกล่ะ", en: "What if the weather is bad?"}
+    a: {th: "ถ้ายกเลิกเพราะสภาพอากาศ คืนเงินเต็มจำนวนหรือเลื่อนวันได้", en: "If we cancel for weather you get a full refund or a new date."}
+  - q: {th: "เห็นโลมาแน่นอนไหม", en: "Are dolphins guaranteed?"}
+    a: {th: "ไม่รับประกัน แต่พบบ่อยในช่วงเช้า", en: "Not guaranteed, but sightings are common in the morning."}
+legal:
+  th: "ใบอนุญาตประกอบธุรกิจนำเที่ยว เลขที่: (ตัวอย่าง)"
+  en: "Tourism business licence no.: (sample)"
