@@ -1,0 +1,21 @@
+# Pilot regions and the Places API text queries the discovery agent runs.
+# Thai and English queries are both used because listings are indexed in both.
+regions:
+  bangkok:
+    queries:
+      - "ร้านอาหาร ในกรุงเทพ"
+      - "restaurant in Bangkok"
+      - "cafe in Bangkok"
+      - "guesthouse in Bangkok"
+  samui:
+    queries:
+      - "ร้านอาหาร เกาะสมุย"
+      - "restaurant Koh Samui"
+      - "resort Koh Samui"
+      - "bungalow Koh Samui"
+  nakhon_si_thammarat:
+    queries:
+      - "ร้านอาหาร นครศรีธรรมราช"
+      - "restaurant Nakhon Si Thammarat"
+      - "resort Nakhon Si Thammarat"
+      - "homestay Nakhon Si Thammarat"
