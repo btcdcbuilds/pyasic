@@ -7,7 +7,7 @@ their own business, not a template, without breaking Google's or the OTAs' terms
 
 | Stage | Source | How | Rules |
 |---|---|---|---|
-| **Pitch preview** | Google Maps photos of the business | Site YAML has `google_place_id` + `status: preview`. The server loads up to 6 photos **live** from the Places API on each view (`webapp/google_photos.py`) | Store only the place ID. No downloading, caching or re-hosting of images or photo names. Show "Google Maps" plus author names/links, in a separated block (done in the template) |
+| **Pitch preview** | Google Maps photos of the business | Site YAML has `google_place_id` + `status: preview`. The server loads up to 6 photos **live** from the Places API on each view (`webapp/google_photos.py`): photo 1 is the mockup's main photo, the rest a gallery. Outreach sends the link, not a screenshot | Store only the place ID. No downloading, caching or re-hosting of images or photo names. Show "Google Maps" plus author names/links, in a separated block (done in the template) |
 | **Live site (after sign-up)** | Owner's own photos | Owner sends them via LINE / portal, **or** adds our Google account as Manager on their Business Profile so we can list their own media through the Business Profile API | Customer-uploaded Maps photos belong to the photographer; don't use them without that person's permission |
 
 | Fact | Source |

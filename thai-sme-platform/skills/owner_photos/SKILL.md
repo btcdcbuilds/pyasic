@@ -7,7 +7,9 @@ description: "Get the business's photos legitimately: live Google Maps photos fo
 
 Pitch preview (before sale):
 - Set `google_place_id` and `status: preview` in the site YAML. The server shows up to 6
-  photos live from the Places API with "Google Maps" and author attributions.
+  photos live from the Places API with "Google Maps" and author attributions: the first
+  becomes the mockup's main (hero) photo, the rest a gallery.
+- In outreach, send the mockup LINK, not a screenshot (a screenshot is a stored copy).
 - Never download, store or re-host Google Maps images or photo names - only the place ID
   may be stored. Requires env GOOGLE_MAPS_API_KEY. Cost: Place Photos SKU, 1,000 free/month.
 

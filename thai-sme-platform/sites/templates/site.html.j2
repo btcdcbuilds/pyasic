@@ -37,7 +37,12 @@
 </header>
 
 <section class="hero" id="top">
-  {% if site.photos %}{% set ph = site.photos[0] %}
+  {% if google_photos and not site.photos %}{% set gp = google_photos[0] %}
+  <figure class="hero-photo has-img">
+    <img src="{{ gp.src }}" alt="{{ site.name.en }}" loading="eager">
+    <figcaption class="photo-note">Google Maps{% for a in gp.authors %} · {% if a.uri %}<a href="{{ a.uri }}" target="_blank" rel="noopener">{{ a.name }}</a>{% else %}{{ a.name }}{% endif %}{% endfor %}</figcaption>
+  </figure>
+  {% elif site.photos %}{% set ph = site.photos[0] %}
   <figure class="hero-photo has-img">
     <img src="{{ ph.src }}" alt="{{ ph.alt or site.name.en }}" loading="eager">
     {% if ph.credit %}<figcaption class="photo-note">{{ ph.credit }}</figcaption>{% endif %}
@@ -73,7 +78,7 @@
     <span lang="en">Photos from Google Maps for this preview only — the live site uses your own photos</span>
   </div>
   <div class="gallery">
-  {% for ph in google_photos %}
+  {% for ph in google_photos[1:] %}
     <figure><img src="{{ ph.src }}" alt="" loading="lazy">
       <figcaption>{% for a in ph.authors %}{% if a.uri %}<a href="{{ a.uri }}" target="_blank" rel="noopener">{{ a.name }}</a>{% else %}{{ a.name }}{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}</figcaption>
     </figure>

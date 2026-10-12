@@ -169,3 +169,4 @@ figure { margin: 0; }
 .gp-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 10px; font-size: .9rem; }
 .gallery figcaption a { color: #fff; }
 .draft-chip { font-family: "Noto Sans Thai", sans-serif; font-size: .7rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
+.photo-note a { color: #fff; }

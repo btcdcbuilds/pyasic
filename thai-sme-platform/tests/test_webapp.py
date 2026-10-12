@@ -117,3 +117,18 @@ def test_rates_api(client):
     assert len(r.json()["rooms"]) == 3 and len(r.json()["rooms"][0]["nights"]) == 7
     assert client.get("/api/baan-lom-talay/rates?days=abc").status_code == 400
     assert client.get("/api/krua-baan-suan/rates").status_code == 404
+
+
+def test_preview_mockup_uses_live_google_photos(client, monkeypatch):
+    fake = [{"src": "https://lh3.example/a", "authors": [{"name": "Nok", "uri": "https://maps.example/u"}]},
+            {"src": "https://lh3.example/b", "authors": []}]
+    monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "KEY")
+    monkeypatch.setattr(appmod, "live_photos", lambda place_id, key: fake)
+    site = {**appmod.SITES["krua-baan-suan"], "status": "preview", "google_place_id": "abc"}
+    monkeypatch.setitem(appmod.SITES, "krua-baan-suan", site)
+    html = client.get("/s/krua-baan-suan/").text
+    assert 'src="https://lh3.example/a"' in html and "Google Maps · <a" in html  # hero, credited
+    assert 'src="https://lh3.example/b"' in html                                  # gallery
+    # Live (sold) sites never call Google
+    monkeypatch.setitem(appmod.SITES, "krua-baan-suan", {**site, "status": "live"})
+    assert "lh3.example" not in client.get("/s/krua-baan-suan/").text
