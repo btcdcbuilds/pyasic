@@ -74,3 +74,5 @@ either direction — the pilot must measure them.
 | Deposit collection for bookings | 0% platform fee in pilot; gateway fee passed through | Undercuts OTA commissions (Agoda ~15–20%, Booking.com 10–25% per vendor blogs, grade C) |
 | Auto Pricing add-on (hotels) | ฿290/month up to 15 rooms; ฿790/month larger | See docs/PRICING.md; competitors ~$10–200/month (grade C) |
 | Google Maps photos in previews | Our cost: Place Photos $7 per 1,000 after 1,000 free/month (grade B) | ~6 photo calls per preview view |
+| Ask AI change request | Our cost ≈ $0.15–0.30 per request (estimate: ~5k tokens in + ~6–12k out incl. thinking on Opus 5.5 at $4/$20 per M); suggest 10 free per month, then ฿20 each | Measure real token use in the pilot (`usage` on each response) |
+| LINE booking alerts | 1 push message per booking; counts toward the LINE OA plan quota (Basic: 15,000/month, grade C) | — |

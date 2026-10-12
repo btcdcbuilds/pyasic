@@ -12,7 +12,16 @@
 | LINE Official Account + Messaging API | Customer and owner chat | Needs a QwenPaw channel plugin (we build it) |
 | WhatsApp Business Platform (Meta) | Customer chat | Business-initiated messages need opt-in + templates |
 
-Put keys in `thai-sme-platform/.env` (git-ignored), never in code.
+Put keys in `deploy/.env` (git-ignored), never in code. Environment variables:
+
+| Variable | Needed for | Required? |
+|---|---|---|
+| `SECRET_KEY` | Signing owner login sessions | Yes in production |
+| `ADMIN_KEY` | Platform admin page `/admin/<slug>?key=` | Yes in production |
+| `ANTHROPIC_API_KEY` | Ask AI change requests (Claude Opus 5.5) | Optional (without it requests queue for the team) |
+| `GOOGLE_MAPS_API_KEY` | Live Google Maps photos in pitch previews; discovery | Optional |
+| `LINE_CHANNEL_ACCESS_TOKEN` | Booking alerts to owners on LINE | Optional |
+| `DATA_DIR` / `DB_PATH` | Where the database and uploaded photos live | Defaults to `data/` |
 
 ## Install
 

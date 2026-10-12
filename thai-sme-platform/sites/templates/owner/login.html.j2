@@ -1,0 +1,19 @@
+{% extends "owner/base.html.j2" %}
+{% block title %}Sign in · Owner app{% endblock %}
+{% block body %}
+<main class="login">
+  <button class="lang-toggle" type="button"><span lang="th">EN</span><span lang="en">ไทย</span></button>
+  <h1><span lang="th">จัดการธุรกิจของคุณ</span><span lang="en">Manage your business</span></h1>
+  <p class="muted"><span lang="th">ดูการจอง แก้เมนูและราคา อัปโหลดรูป และขอให้ AI ช่วยปรับเว็บไซต์</span>
+    <span lang="en">See bookings, edit menus and prices, upload photos, and ask AI to improve your website.</span></p>
+  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="/owner/login" class="card">
+    <label><span lang="th">ชื่อผู้ใช้</span><span lang="en">Username</span>
+      <input name="username" autocomplete="username" autocapitalize="none" required></label>
+    <label><span lang="th">รหัสผ่าน</span><span lang="en">Password</span>
+      <input name="password" type="password" autocomplete="current-password" required></label>
+    <button class="btn primary block" type="submit"><span lang="th">เข้าสู่ระบบ</span><span lang="en">Sign in</span></button>
+  </form>
+  <p class="muted small"><span lang="th">ลืมรหัสผ่าน? ติดต่อทีมงานทาง LINE</span><span lang="en">Forgot your password? Contact us on LINE.</span></p>
+</main>
+{% endblock %}

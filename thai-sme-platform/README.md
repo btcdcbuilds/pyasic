@@ -8,6 +8,7 @@ This folder is self-contained and will move to its own repository.
 
 | Doc | Contents |
 |---|---|
+| [docs/OWNER_APP.md](docs/OWNER_APP.md) | The owner app: bookings, editing, photos, pricing, Ask AI, safety rules |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Stack, QwenPaw + Hermes integration, teams, data flow, dashboard |
 | [docs/COSTS.md](docs/COSTS.md) | Sourced prices, conversion benchmarks, unit economics, proposed pricing |
 | [docs/SETUP.md](docs/SETUP.md) | Accounts and keys needed, install steps |
@@ -25,7 +26,7 @@ This folder is self-contained and will move to its own repository.
 | `research/` | Places API discovery, cost model |
 | `sites/content/` | One YAML per customer site (5 fictional samples) |
 | `sites/templates/`, `sites/static/` | Shared bilingual site template, CSS, JS |
-| `webapp/` | Multi-site server, booking engine, SQLite store |
+| `webapp/` | Multi-site server, owner app, booking engine, pricing, PromptPay, LINE alerts, Ask AI, SQLite store |
 | `deploy/` | Dockerfile, docker-compose, Caddyfile for the VPS |
 | `scripts/bootstrap_qwenpaw.sh` | Installs QwenPaw and creates the agents |
 
@@ -34,6 +35,8 @@ Pilot regions: Bangkok, Koh Samui, Nakhon Si Thammarat.
 ```bash
 pip install -r requirements.txt
 python -m pytest -q tests
-ADMIN_KEY=demo uvicorn webapp.app:app --port 8000   # http://localhost:8000
+python -m webapp.manage create-owner demo "Demo Owner" all     # prints a password
+SECRET_KEY=dev ADMIN_KEY=demo uvicorn webapp.app:app --port 8000
+# public sites: http://localhost:8000   owner app: http://localhost:8000/owner
 python -m research.cost_model
 ```

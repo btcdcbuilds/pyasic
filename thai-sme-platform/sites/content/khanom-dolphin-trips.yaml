@@ -40,6 +40,10 @@ tours:
 booking:
   type: seats
   deposit_percent: 50
+# 0000000000 is a deliberately unusable sample number - never put a real
+# person's PromptPay ID in a sample site.
+payments:
+  promptpay_id: "0000000000"
 faq:
   - q: {th: "ถ้าฝนตกล่ะ", en: "What if the weather is bad?"}
     a: {th: "ถ้ายกเลิกเพราะสภาพอากาศ คืนเงินเต็มจำนวนหรือเลื่อนวันได้", en: "If we cancel for weather you get a full refund or a new date."}

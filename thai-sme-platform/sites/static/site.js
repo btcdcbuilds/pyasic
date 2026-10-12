@@ -81,7 +81,9 @@
       if (!res.ok) { resultBox.innerHTML = `<p class="err">${b.error}</p>`; return; }
       const dep = b.deposit ? L(`<br>มัดจำ ${baht(b.deposit)} — เราจะส่งลิงก์ชำระเงินพร้อมเพย์ให้ทาง LINE/โทรศัพท์`,
                                  `<br>Deposit ${baht(b.deposit)} — we will send you a PromptPay payment link`) : "";
-      resultBox.innerHTML = `<div class="ok"><strong>${L("ส่งคำขอจองแล้ว", "Booking request sent")}</strong> · ${L("รหัส", "Ref")} ${b.ref}<br>${b.summary}${dep}<br>${L("ร้านจะติดต่อกลับเพื่อยืนยัน", "The business will contact you to confirm.")}</div>`;
+      const qr = b.promptpay_qr ? `<div class="pp-qr"><img src="${b.promptpay_qr}" alt="PromptPay QR" width="220" height="220"><p>${L(`สแกนจ่ายมัดจำ ${baht(b.deposit)} ด้วยแอปธนาคาร แล้วส่งสลิปทาง LINE`, `Scan with any Thai banking app to pay the ${baht(b.deposit)} deposit, then send the slip on LINE`)}</p></div>` : "";
+      const depText = b.promptpay_qr ? "" : dep;
+      resultBox.innerHTML = `<div class="ok"><strong>${L("ส่งคำขอจองแล้ว", "Booking request sent")}</strong> · ${L("รหัส", "Ref")} ${b.ref}<br>${b.summary}${depText}<br>${L("ร้านจะติดต่อกลับเพื่อยืนยัน", "The business will contact you to confirm.")}${qr}</div>`;
       form.reset();
       quoteBox.textContent = "";
     } catch (err) {

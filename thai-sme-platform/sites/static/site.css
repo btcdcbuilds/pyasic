@@ -170,3 +170,5 @@ figure { margin: 0; }
 .gallery figcaption a { color: #fff; }
 .draft-chip { font-family: "Noto Sans Thai", sans-serif; font-size: .7rem; background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
 .photo-note a { color: #fff; }
+.pp-qr { text-align: center; margin-top: 12px; }
+.pp-qr img { background: #fff; border-radius: 8px; }

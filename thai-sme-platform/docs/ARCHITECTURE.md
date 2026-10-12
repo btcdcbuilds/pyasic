@@ -49,7 +49,11 @@ Places API (IDs) -> research-discovery -> businesses(found)
   -> build-changes <- change_requests from owner portal
 ```
 
-## Owner dashboard (your interface)
+## Business owner app
+
+Built — see docs/OWNER_APP.md (`/owner`).
+
+## Platform dashboard (your interface, not built yet)
 
 | Screen | Reads | Actions |
 |---|---|---|
@@ -61,5 +65,5 @@ Places API (IDs) -> research-discovery -> businesses(found)
 | Settings | `platform_settings` | Limits, budget, approval switch |
 
 QwenPaw's own console (http://127.0.0.1:8088) stays available for inspecting and chatting
-with individual agents. The business-owner portal (LINE login, upload menu/photos, edit
-prices, see bookings) is a separate small web app on the same Supabase project.
+with individual agents. Until this dashboard is built: `python -m webapp.manage list` and
+`/admin/<slug>?key=ADMIN_KEY` per site.

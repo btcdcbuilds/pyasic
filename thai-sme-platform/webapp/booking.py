@@ -11,7 +11,7 @@ import math
 from datetime import date, datetime, timedelta
 from typing import Callable
 
-from webapp.pricing import is_auto, nightly_rate
+from webapp.pricing import published_rate
 
 
 class BookingError(ValueError):
@@ -113,9 +113,8 @@ def quote(site: dict, form: dict, today: date, booked: BookedFn | None = None) -
         for i in range(nights):
             night = ci + timedelta(days=i)
             occ = booked(site["slug"], "room", room["code"], night, night + timedelta(days=1))
-            r = nightly_rate(room, site.get("pricing"), night, today,
-                             100 * occ / room.get("units", 1))
-            price = r["price"] if is_auto(site.get("pricing")) else room["rate"]
+            price = published_rate(room, site.get("pricing"), night, today,
+                                   100 * occ / room.get("units", 1))
             nightly.append({"date": night.isoformat(), "price": price})
         total = sum(n["price"] for n in nightly)
         out.update(room=room["code"], check_in=ci.isoformat(), check_out=co.isoformat(),

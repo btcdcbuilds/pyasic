@@ -3,8 +3,6 @@ from datetime import date, timedelta
 
 import pytest
 
-os.environ.setdefault("ADMIN_KEY", "test-key")
-os.environ["DB_PATH"] = ":memory:"
 
 from starlette.testclient import TestClient  # noqa: E402
 
@@ -35,8 +33,9 @@ def test_all_five_sample_sites_render(client):
 
 def test_room_price_and_deposit():
     site = {**appmod.SITES["baan-lom-talay"], "pricing": {"mode": "suggest"}}  # base rates
+    rate = next(r["rate"] for r in site["rooms"] if r["code"] == "sea")
     q = quote(site, {**BASE, "room": "sea", "check_in": D(10), "check_out": D(13), "guests": 2}, TODAY)
-    assert q["nights"] == 3 and q["total"] == 7800 and q["deposit"] == 2340
+    assert q["nights"] == 3 and q["total"] == 3 * rate and q["deposit"] == -(-3 * rate * 30 // 100)
 
 
 def test_room_rejects_too_many_guests():
@@ -107,8 +106,9 @@ def test_room_auto_pricing_sums_nightly_rates():
     q = quote(site, {**BASE, "room": "sea", "check_in": D(10), "check_out": D(13), "guests": 2}, TODAY)
     assert len(q["nightly"]) == 3
     assert q["total"] == sum(n["price"] for n in q["nightly"])
-    for n in q["nightly"]:  # always within the owner's floor/ceiling
-        assert 2600 * 0.8 <= n["price"] <= 2600 * 1.5
+    rate = next(r["rate"] for r in site["rooms"] if r["code"] == "sea")
+    for n in q["nightly"]:  # always within the owner's floor/ceiling (aggressive preset: 70-180%)
+        assert rate * 0.7 <= n["price"] <= rate * 1.8
 
 
 def test_rates_api(client):

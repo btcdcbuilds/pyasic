@@ -1,77 +1,44 @@
 """Multi-site web server for the pilot VPS.
 
-Serves every site in sites/content/*.yaml:
-  - by path:   https://<platform-domain>/s/<slug>/
-  - by domain: any host listed in sites/domains.yaml (custom or subdomain)
-plus a booking API, an owner bookings page and Caddy's on-demand TLS check.
+Public:
+  - every site by path  https://<platform-domain>/s/<slug>/  or by its own domain
+    (sites/domains.yaml), booking API, PromptPay deposit QR, rates API
+Owner app (webapp/owner.py):  /owner  - manage bookings, content, photos, pricing, Ask AI
+Platform: /admin/<slug>?key=ADMIN_KEY, Caddy on-demand TLS check, /healthz
 
 Run locally:  uvicorn webapp.app:app --reload     (from thai-sme-platform/)
-Env: ADMIN_KEY (owner pages), DB_PATH (default data/bookings.db)
+Env: SECRET_KEY, ADMIN_KEY, DB_PATH/DATA_DIR, GOOGLE_MAPS_API_KEY, ANTHROPIC_API_KEY,
+     LINE_CHANNEL_ACCESS_TOKEN  (all optional for local testing; see docs/SETUP.md)
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import secrets
-from datetime import date, timedelta
-from pathlib import Path
-from urllib.parse import quote_plus
+from datetime import date
 
-import yaml
-from jinja2 import Environment, FileSystemLoader, select_autoescape
-from markupsafe import Markup, escape
 from starlette.applications import Starlette
+from starlette.background import BackgroundTask
+from starlette.middleware import Middleware
+from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
+from starlette.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
+from webapp import notify, owner
 from webapp.booking import BookingError, booking_times, quote
+from webapp.core import DOMAINS, MEDIA_DIR, SITES, SITES_DIR, STORE, env, rate_calendar
 from webapp.google_photos import live_photos
-from webapp.pricing import is_auto, nightly_rate
-from webapp.store import Store
+from webapp.pricing import is_auto
+from webapp.promptpay import qr_svg_data_uri
 
-ROOT = Path(__file__).resolve().parent.parent
-SITES_DIR = ROOT / "sites"
-
-
-def load_sites() -> dict[str, dict]:
-    sites = {}
-    for path in sorted((SITES_DIR / "content").glob("*.yaml")):
-        site = yaml.safe_load(path.read_text(encoding="utf-8"))
-        sites[site["slug"]] = site
-    return sites
-
-
-def load_domains() -> dict[str, str]:
-    path = SITES_DIR / "domains.yaml"
-    if not path.exists():
-        return {}
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return {host.lower(): slug for host, slug in (data.get("domains") or {}).items()}
-
-
-def t(value) -> Markup:
-    """Render a {th, en} dict as two spans; CSS shows the active language."""
-    if isinstance(value, dict):
-        return Markup("".join(
-            f'<span lang="{lang}">{escape(value[lang])}</span>' for lang in ("th", "en") if lang in value))
-    return Markup(escape(value))
-
-
-def baht(n) -> str:
-    return f"฿{int(n):,}"
-
-
-env = Environment(loader=FileSystemLoader(SITES_DIR / "templates"),
-                  autoescape=select_autoescape(["html", "j2"]))
-env.filters.update(t=t, baht=baht, urlq=quote_plus)
-
-SITES = load_sites()
-DOMAINS = load_domains()
-os.makedirs(ROOT / "data", exist_ok=True)
-STORE = Store(os.environ.get("DB_PATH", str(ROOT / "data" / "bookings.db")))
+log = logging.getLogger(__name__)
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
+SECRET_KEY = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+if not os.environ.get("SECRET_KEY"):
+    log.warning("SECRET_KEY not set: owner logins will reset on every restart")
 
 
 def preview_photos(site: dict) -> list[dict]:
@@ -131,6 +98,12 @@ async def api_quote(request: Request) -> Response:
     return JSONResponse(q)
 
 
+def _notify_owners(site: dict, ref: str, booking: dict) -> None:
+    text = notify.booking_message(site, ref, booking)
+    for o in STORE.owners_for_site(site["slug"]):
+        notify.push_line(o.get("line_user_id"), text)
+
+
 async def api_book(request: Request) -> Response:
     site = _site_or_404(request.path_params["slug"])
     if not site:
@@ -139,26 +112,14 @@ async def api_book(request: Request) -> Response:
         q = quote(site, await _form(request), date.today(), STORE.booked)
     except BookingError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
+    # Single process + no await between quote() and add(): the availability check
+    # and the insert can't interleave with another booking.
     ref = STORE.add(site["slug"], q)
-    # TODO: notify owner via LINE Messaging API / WhatsApp; create payment link if deposit > 0.
-    return JSONResponse({"ref": ref, **q}, status_code=201)
-
-
-def rate_calendar(site: dict, days: int = 30) -> list[dict]:
-    """Per room type and night: occupancy, suggested price, and why."""
-    today = date.today()
-    out = []
-    for room in site.get("rooms", []):
-        units = room.get("units", 1)
-        nights = []
-        for i in range(days):
-            night = today + timedelta(days=i)
-            taken = STORE.booked(site["slug"], "room", room["code"], night, night + timedelta(days=1))
-            r = nightly_rate(room, site.get("pricing"), night, today, 100 * taken / units)
-            nights.append({"date": night.isoformat(), "occupancy": round(100 * taken / units),
-                           "booked": taken, "units": units, **r})
-        out.append({"code": room["code"], "name": room["name"], "base": room["rate"], "nights": nights})
-    return out
+    body = {"ref": ref, **q}
+    pp = (site.get("payments") or {}).get("promptpay_id")
+    if pp and q.get("deposit"):
+        body["promptpay_qr"] = qr_svg_data_uri(pp, q["deposit"])
+    return JSONResponse(body, status_code=201, background=BackgroundTask(_notify_owners, site, ref, q))
 
 
 async def api_rates(request: Request) -> Response:
@@ -170,11 +131,20 @@ async def api_rates(request: Request) -> Response:
     except ValueError:
         return JSONResponse({"error": "days must be a number"}, status_code=400)
     cal = rate_calendar(site, days)
-    if not is_auto(site.get("pricing")):  # public sees the published (base) rate only
+    if not is_auto(site.get("pricing")):  # public sees published prices only
         for room in cal:
             for n in room["nights"]:
-                n["price"], n["adjustments"] = room["base"], []
+                if not (n["adjustments"] and n["adjustments"][0][0] == "fixed by owner"):
+                    n["price"], n["adjustments"] = room["base"], []
     return JSONResponse({"mode": (site.get("pricing") or {}).get("mode", "suggest"), "rooms": cal})
+
+
+async def media(request: Request) -> Response:
+    slug, name = request.path_params["slug"], request.path_params["name"]
+    path = (MEDIA_DIR / slug / name).resolve()
+    if not str(path).startswith(str(MEDIA_DIR.resolve())) or not path.is_file():
+        return PlainTextResponse("Not found", status_code=404)
+    return FileResponse(path, headers={"Cache-Control": "public, max-age=86400"})
 
 
 async def admin(request: Request) -> Response:
@@ -194,19 +164,36 @@ async def tls_check(request: Request) -> Response:
     return PlainTextResponse("ok" if domain in DOMAINS else "no", status_code=200 if domain in DOMAINS else 404)
 
 
+async def privacy_for_host(request: Request) -> Response:
+    """Privacy page on a customer's own domain (https://theirname.com/privacy)."""
+    host = request.headers.get("host", "").split(":")[0].lower()
+    if host in DOMAINS and DOMAINS[host] in SITES:
+        return HTMLResponse(env.get_template("privacy.html.j2").render(site=SITES[DOMAINS[host]]))
+    return PlainTextResponse("Not found", status_code=404)
+
+
 async def healthz(request: Request) -> Response:
     return PlainTextResponse("ok")
 
 
-app = Starlette(routes=[
-    Route("/", home),
-    Route("/healthz", healthz),
-    Route("/internal/tls-check", tls_check),
-    Route("/s/{slug}/", site_page),
-    Route("/s/{slug}/privacy", privacy),
-    Route("/api/{slug}/quote", api_quote, methods=["POST"]),
-    Route("/api/{slug}/bookings", api_book, methods=["POST"]),
-    Route("/api/{slug}/rates", api_rates),
-    Route("/admin/{slug}", admin),
-    Mount("/static", StaticFiles(directory=SITES_DIR / "static"), name="static"),
-])
+app = Starlette(
+    routes=[
+        Route("/", home),
+        Route("/healthz", healthz),
+        Route("/internal/tls-check", tls_check),
+        Route("/s/{slug}/", site_page),
+        Route("/s/{slug}/privacy", privacy),
+        Route("/privacy", privacy_for_host),
+        Route("/api/{slug}/quote", api_quote, methods=["POST"]),
+        Route("/api/{slug}/bookings", api_book, methods=["POST"]),
+        Route("/api/{slug}/rates", api_rates),
+        Route("/media/{slug}/{name}", media),
+        Route("/admin/{slug}", admin),
+        *owner.routes,
+        Mount("/static", StaticFiles(directory=SITES_DIR / "static"), name="static"),
+    ],
+    middleware=[Middleware(SessionMiddleware, secret_key=SECRET_KEY, session_cookie="owner_session",
+                           same_site="lax", https_only=os.environ.get("HTTPS_ONLY", "0") == "1",
+                           max_age=14 * 24 * 3600)],
+)
+

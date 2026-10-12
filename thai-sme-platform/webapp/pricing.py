@@ -32,6 +32,37 @@ DEFAULTS = {
     "round_to": 50,
 }
 
+# Owner-facing "aggressiveness" presets. Starting points designed by us (not taken
+# from any vendor); owners can override any single field. Ceilings stay <= 200%
+# because of the Prices of Goods and Services Act s.29 (see docs/PRICING.md).
+PRESETS = {
+    "conservative": {  # protect occupancy, small moves
+        "floor_pct": 85, "ceiling_pct": 125, "weekend_pct": 5,
+        "occupancy": [{"above": 60, "pct": 5}, {"above": 80, "pct": 10}, {"above": 90, "pct": 15}],
+        "last_minute": {"within_days": 2, "below_occupancy": 40, "pct": -10},
+        "early_bird": None,
+    },
+    "balanced": {
+        "floor_pct": 80, "ceiling_pct": 150, "weekend_pct": 10,
+        "occupancy": [{"above": 50, "pct": 10}, {"above": 75, "pct": 20}, {"above": 90, "pct": 30}],
+        "last_minute": {"within_days": 3, "below_occupancy": 50, "pct": -15},
+        "early_bird": {"beyond_days": 90, "pct": -5},
+    },
+    "aggressive": {  # chase revenue when demand is strong, discount harder when empty
+        "floor_pct": 70, "ceiling_pct": 180, "weekend_pct": 15,
+        "occupancy": [{"above": 40, "pct": 10}, {"above": 65, "pct": 25}, {"above": 85, "pct": 40}],
+        "last_minute": {"within_days": 5, "below_occupancy": 60, "pct": -20},
+        "early_bird": {"beyond_days": 90, "pct": -8},
+    },
+}
+
+
+def effective_config(cfg: dict | None) -> dict:
+    """DEFAULTS <- preset (if any) <- owner's own overrides."""
+    cfg = cfg or {}
+    preset = PRESETS.get(cfg.get("preset"), {})
+    return {**DEFAULTS, **preset, **{k: v for k, v in cfg.items() if k != "preset"}}
+
 
 def _in_season(night: date, start: str, end: str) -> bool:
     """start/end are 'MM-DD'; ranges may wrap the new year (e.g. 12-20 to 01-05)."""
@@ -42,8 +73,11 @@ def _in_season(night: date, start: str, end: str) -> bool:
 def nightly_rate(room: dict, cfg: dict | None, night: date, today: date,
                  occupancy_pct: float) -> dict:
     """Return {'price', 'base', 'adjustments': [(label, pct)], 'clamped'}."""
-    cfg = {**DEFAULTS, **(cfg or {})}
+    cfg = effective_config(cfg)
     base = room["rate"]
+    fixed = (cfg.get("fixed") or {}).get(room.get("code"), {}).get(night.isoformat())
+    if fixed:
+        return {"price": int(fixed), "base": base, "adjustments": [("fixed by owner", 0)], "clamped": False}
     adj: list[tuple[str, int]] = []
 
     for s in cfg["seasons"]:
@@ -86,3 +120,11 @@ def nightly_rate(room: dict, cfg: dict | None, night: date, today: date,
 
 def is_auto(cfg: dict | None) -> bool:
     return (cfg or {}).get("mode", DEFAULTS["mode"]) == "auto"
+
+
+def published_rate(room: dict, cfg: dict | None, night: date, today: date, occupancy_pct: float) -> int:
+    """Price the website charges: computed in auto mode, owner-fixed dates always honoured."""
+    r = nightly_rate(room, cfg, night, today, occupancy_pct)
+    if is_auto(cfg) or r["adjustments"] == [("fixed by owner", 0)]:
+        return r["price"]
+    return room["rate"]

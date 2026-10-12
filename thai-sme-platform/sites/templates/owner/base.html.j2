@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="th" data-ui="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{% block title %}Owner app{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/owner.css">
+</head>
+<body>
+{% block body %}{% endblock %}
+<script>
+(function () {
+  var root = document.documentElement, lang;
+  try { lang = localStorage.getItem("owner-lang"); } catch (e) {}
+  if (!lang) lang = (navigator.language || "th").toLowerCase().indexOf("th") === 0 ? "th" : "en";
+  root.dataset.ui = lang; root.lang = lang;
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest(".lang-toggle")) return;
+    var next = root.dataset.ui === "th" ? "en" : "th";
+    root.dataset.ui = next; root.lang = next;
+    try { localStorage.setItem("owner-lang", next); } catch (err) {}
+    document.dispatchEvent(new Event("langchange"));
+  });
+})();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

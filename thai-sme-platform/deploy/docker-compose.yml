@@ -6,6 +6,12 @@ services:
     restart: unless-stopped
     environment:
       ADMIN_KEY: ${ADMIN_KEY:?set ADMIN_KEY in deploy/.env}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in deploy/.env}
+      HTTPS_ONLY: "1"
+      DATA_DIR: /data
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN:-}
     volumes:
       - app-data:/data
       - ../sites:/app/sites:ro   # edit content/domains without rebuilding; restart app to reload

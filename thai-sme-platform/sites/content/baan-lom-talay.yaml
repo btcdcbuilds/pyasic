@@ -68,6 +68,10 @@ booking:
   type: room
   deposit_percent: 30
   max_nights: 30
+# 0000000000 is a deliberately unusable sample number - never put a real
+# person's PromptPay ID in a sample site.
+payments:
+  promptpay_id: "0000000000"
 faq:
   - q: {th: "ยกเลิกได้ไหม", en: "What is the cancellation policy?"}
     a: {th: "ยกเลิกฟรีก่อนเข้าพัก 7 วัน คืนมัดจำเต็มจำนวน", en: "Free cancellation up to 7 days before arrival; deposit refunded in full."}

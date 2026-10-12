@@ -53,8 +53,10 @@ agents:
   - id: build-changes
     team: build
     model: claude-sonnet-5-5
-    skills: [site_build, platform_db]
-    role: Applies owner change requests and reports price/time.
+    skills: [site_build, owner_requests, platform_db]
+    role: >
+      Handles owner change requests the in-app AI could not finish (queued,
+      needs_human, failed) and proposes them for the owner to approve.
 
   - id: build-revenue
     team: build
