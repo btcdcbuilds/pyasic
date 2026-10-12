@@ -11,6 +11,8 @@ import math
 from datetime import date, datetime, timedelta
 from typing import Callable
 
+from webapp.pricing import is_auto, nightly_rate
+
 
 class BookingError(ValueError):
     pass
@@ -107,9 +109,17 @@ def quote(site: dict, form: dict, today: date, booked: BookedFn | None = None) -
         guests = _int(form.get("guests"), "guests", 1, room["capacity"])
         if booked(site["slug"], "room", room["code"], ci, co) >= room.get("units", 1):
             raise BookingError("room: fully booked for those dates")
-        total = nights * room["rate"]
+        nightly = []
+        for i in range(nights):
+            night = ci + timedelta(days=i)
+            occ = booked(site["slug"], "room", room["code"], night, night + timedelta(days=1))
+            r = nightly_rate(room, site.get("pricing"), night, today,
+                             100 * occ / room.get("units", 1))
+            price = r["price"] if is_auto(site.get("pricing")) else room["rate"]
+            nightly.append({"date": night.isoformat(), "price": price})
+        total = sum(n["price"] for n in nightly)
         out.update(room=room["code"], check_in=ci.isoformat(), check_out=co.isoformat(),
-                   nights=nights, guests=guests, total=total,
+                   nights=nights, nightly=nightly, guests=guests, total=total,
                    deposit=_deposit(total, cfg.get("deposit_percent")))
         out["summary"] = f"{room['name']['en']} x {nights} nights from {out['check_in']}"
 

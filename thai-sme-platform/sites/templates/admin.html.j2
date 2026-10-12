@@ -23,6 +23,26 @@
   </table>
   </div>
   {% endif %}
+
+  {% if calendar %}
+  <h2>Room prices — next 30 nights</h2>
+  <p>Pricing mode: <strong>{{ pricing_mode }}</strong>
+    {% if pricing_mode == 'auto' %}(the website charges the suggested price){% else %}(the website charges the base rate; suggestions are shown here for you to accept){% endif %}.
+    Hover a price to see why.</p>
+  {% for room in calendar %}
+  <h3>{{ room.name.en }} — base {{ room.base|baht }}</h3>
+  <div class="table-wrap">
+  <table class="admin rates">
+    <thead><tr><th>Night</th>{% for n in room.nights %}<th>{{ n.date[5:] }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      <tr><th>Booked</th>{% for n in room.nights %}<td>{{ n.booked }}/{{ n.units }}</td>{% endfor %}</tr>
+      <tr><th>Price</th>{% for n in room.nights %}<td title="{% for a in n.adjustments %}{{ a[0] }} {{ '%+d'|format(a[1]) }}%; {% endfor %}{% if n.clamped %}limited by floor/ceiling{% endif %}"
+        class="{{ 'up' if n.price > n.base else ('down' if n.price < n.base else '') }}">{{ n.price|baht }}</td>{% endfor %}</tr>
+    </tbody>
+  </table>
+  </div>
+  {% endfor %}
+  {% endif %}
 </main>
 </body>
 </html>

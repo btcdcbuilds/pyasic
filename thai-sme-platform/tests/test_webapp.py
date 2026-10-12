@@ -86,7 +86,7 @@ def test_booking_flow_rooms_sell_out(client):
     r = client.post("/api/baan-lom-talay/bookings", json=form)
     assert r.status_code == 400 and "fully booked" in r.json()["error"]
     page = client.get("/admin/baan-lom-talay?key=test-key")
-    assert page.status_code == 200 and page.text.count("Two-bedroom Family House") == 2
+    assert page.status_code == 200 and page.text.count("Two-bedroom Family House x 2 nights") == 2
 
 
 def test_admin_requires_key(client):

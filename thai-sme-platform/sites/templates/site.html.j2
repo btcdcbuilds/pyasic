@@ -37,10 +37,17 @@
 </header>
 
 <section class="hero" id="top">
+  {% if site.photos %}{% set ph = site.photos[0] %}
+  <figure class="hero-photo has-img">
+    <img src="{{ ph.src }}" alt="{{ ph.alt or site.name.en }}" loading="eager">
+    {% if ph.credit %}<figcaption class="photo-note">{{ ph.credit }}</figcaption>{% endif %}
+  </figure>
+  {% else %}
   <div class="hero-photo" role="img" aria-label="Photo placeholder">
     <span class="hero-icon">{{ site.theme.hero_icon }}</span>
     <span class="photo-note"><span lang="th">รูปจากเจ้าของร้าน</span><span lang="en">Owner's photo goes here</span></span>
   </div>
+  {% endif %}
   <div class="hero-text">
     <h1>{{ site.name|t }}</h1>
     <p class="tagline">{{ site.tagline|t }}</p>
@@ -57,6 +64,12 @@
     {% for h in site.highlights %}<li><span class="hi-icon">{{ h.icon }}</span>{{ h|t }}</li>{% endfor %}
   </ul>
 </section>
+
+{% if site.photos and site.photos|length > 1 %}
+<section class="block gallery">
+  {% for ph in site.photos[1:9] %}<figure><img src="{{ ph.src }}" alt="{{ ph.alt or site.name.en }}" loading="lazy">{% if ph.credit %}<figcaption>{{ ph.credit }}</figcaption>{% endif %}</figure>{% endfor %}
+</section>
+{% endif %}
 
 {% if site.menu %}
 <section id="menu" class="block">
@@ -92,7 +105,8 @@
   <div class="cards">
     {% for r in site.rooms %}
     <article class="card">
-      <div class="card-photo" aria-hidden="true">{{ site.theme.hero_icon }}</div>
+      {% if r.photos %}<figure class="card-photo has-img"><img src="{{ r.photos[0].src }}" alt="{{ r.name.en }}" loading="lazy">{% if r.photos[0].credit %}<figcaption class="photo-note">{{ r.photos[0].credit }}</figcaption>{% endif %}</figure>
+      {% else %}<div class="card-photo" aria-hidden="true">{{ site.theme.hero_icon }}</div>{% endif %}
       <h3>{{ r.name|t }}</h3>
       <p>{{ r.desc|t }}</p>
       <p class="meta">👤 {{ r.capacity }} · <strong>{{ r.rate|baht }}</strong> <span lang="th">/ คืน</span><span lang="en">/ night</span></p>

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 import secrets
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -27,6 +27,7 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
 from webapp.booking import BookingError, booking_times, quote
+from webapp.pricing import is_auto, nightly_rate
 from webapp.store import Store
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -133,12 +134,48 @@ async def api_book(request: Request) -> Response:
     return JSONResponse({"ref": ref, **q}, status_code=201)
 
 
+def rate_calendar(site: dict, days: int = 30) -> list[dict]:
+    """Per room type and night: occupancy, suggested price, and why."""
+    today = date.today()
+    out = []
+    for room in site.get("rooms", []):
+        units = room.get("units", 1)
+        nights = []
+        for i in range(days):
+            night = today + timedelta(days=i)
+            taken = STORE.booked(site["slug"], "room", room["code"], night, night + timedelta(days=1))
+            r = nightly_rate(room, site.get("pricing"), night, today, 100 * taken / units)
+            nights.append({"date": night.isoformat(), "occupancy": round(100 * taken / units),
+                           "booked": taken, "units": units, **r})
+        out.append({"code": room["code"], "name": room["name"], "base": room["rate"], "nights": nights})
+    return out
+
+
+async def api_rates(request: Request) -> Response:
+    site = _site_or_404(request.path_params["slug"])
+    if not site or not site.get("rooms"):
+        return JSONResponse({"error": "not found"}, status_code=404)
+    try:
+        days = min(max(int(request.query_params.get("days", 14)), 1), 120)
+    except ValueError:
+        return JSONResponse({"error": "days must be a number"}, status_code=400)
+    cal = rate_calendar(site, days)
+    if not is_auto(site.get("pricing")):  # public sees the published (base) rate only
+        for room in cal:
+            for n in room["nights"]:
+                n["price"], n["adjustments"] = room["base"], []
+    return JSONResponse({"mode": (site.get("pricing") or {}).get("mode", "suggest"), "rooms": cal})
+
+
 async def admin(request: Request) -> Response:
     site = _site_or_404(request.path_params["slug"])
     key = request.query_params.get("key", "")
     if not site or not ADMIN_KEY or not secrets.compare_digest(key, ADMIN_KEY):
         return PlainTextResponse("Not found", status_code=404)
-    return HTMLResponse(env.get_template("admin.html.j2").render(site=site, bookings=STORE.list(site["slug"])))
+    return HTMLResponse(env.get_template("admin.html.j2").render(
+        site=site, bookings=STORE.list(site["slug"]),
+        calendar=rate_calendar(site, 30) if site.get("rooms") else [],
+        pricing_mode=(site.get("pricing") or {}).get("mode", "suggest")))
 
 
 async def tls_check(request: Request) -> Response:
@@ -159,6 +196,7 @@ app = Starlette(routes=[
     Route("/s/{slug}/privacy", privacy),
     Route("/api/{slug}/quote", api_quote, methods=["POST"]),
     Route("/api/{slug}/bookings", api_book, methods=["POST"]),
+    Route("/api/{slug}/rates", api_rates),
     Route("/admin/{slug}", admin),
     Mount("/static", StaticFiles(directory=SITES_DIR / "static"), name="static"),
 ])
