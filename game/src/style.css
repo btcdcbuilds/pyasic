@@ -159,3 +159,17 @@ body[data-theme="bitcoin"] .title-top { color: #f7931a; text-shadow: 0 6px 0 #6a
 body[data-theme="bitcoin"] .title-bot { color: #ffffff; -webkit-text-stroke-color: #f7931a; text-shadow: 0 6px 0 #6a3a05; }
 body[data-theme="gridiron"] .menu-bg { background: radial-gradient(circle at 50% 20%, rgba(255,255,255,.18), transparent 55%), linear-gradient(160deg, #0f3a1a 0%, #0b2412 60%, #1a1030 100%); }
 body[data-theme="footy"] .menu-bg { background: radial-gradient(circle at 50% 20%, rgba(255,255,255,.18), transparent 55%), linear-gradient(160deg, #164a1e 0%, #0c2a12 60%, #102050 100%); }
+
+/* your own photo behind the menus (stored only on the device) */
+#photo-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: #0d1530; }
+#photo-bg .blur { position: absolute; inset: -40px; background: var(--photo) center / cover no-repeat; filter: blur(18px) brightness(.55); }
+#photo-bg .sharp { position: absolute; inset: 0; background: var(--photo) center var(--photo-y, 50%) / 100% auto no-repeat; }
+#photo-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(0,0,0,.25), rgba(0,0,0,.15) 40%, rgba(0,0,0,.45)); }
+body.has-photo .screen:not(.modal) { background: transparent; z-index: 1; }
+body.has-photo .menu-bg { display: none; }
+body.has-photo .card { background: rgba(13,21,48,.82); }
+.set-sub { display: block; font-size: 11px; color: #aab4d4; font-family: Roboto, sans-serif; }
+.set-btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.set-btns .btn.small { min-width: 0; }
+body:not(.in-menu) #photo-bg { display: none; }
+body.in-menu #overlay { visibility: hidden; }

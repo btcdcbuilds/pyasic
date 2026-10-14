@@ -88,6 +88,7 @@ function show(name) {
   screen = name;
   dangerEl.style.opacity = 0;
   for (const s of screens) $('#scr-' + s).classList.toggle('hidden', s !== name);
+  document.body.classList.toggle('in-menu', !!name && name !== 'pause' && name !== 'result');
   $('#hud').classList.toggle('hidden', !!name && name !== 'pause' && name !== 'result');
   if (name !== 'pause') menuMusic();
   if (name === 'menu') renderMenu();
@@ -101,6 +102,7 @@ function show(name) {
 }
 function hideAll() {
   screen = 'game';
+  document.body.classList.remove('in-menu');
   for (const s of screens) $('#scr-' + s).classList.add('hidden');
   $('#hud').classList.remove('hidden');
 }
@@ -289,6 +291,59 @@ function renderUpgrades() {
     list.appendChild(card);
   }
 }
+
+// ------------------------------------------------------------------ background photo
+// The player's own photo behind the menus. It is shrunk and kept only in this device's storage
+// (never uploaded, not part of the save backup).
+const PHOTO_KEY = 'armyrush.photo';
+const PHOTO_POS_KEY = 'armyrush.photo.pos';
+const PHOTO_POS = { top: '12%', middle: '50%', bottom: '88%' };
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); return true; } catch { return false; } };
+function applyPhoto() {
+  const url = lsGet(PHOTO_KEY);
+  const pos = PHOTO_POS[lsGet(PHOTO_POS_KEY)] ? lsGet(PHOTO_POS_KEY) : 'bottom';
+  const bg = $('#photo-bg');
+  document.body.classList.toggle('has-photo', !!url);
+  bg.classList.toggle('hidden', !url);
+  if (url) {
+    bg.style.setProperty('--photo', `url("${url}")`);
+    bg.style.setProperty('--photo-y', PHOTO_POS[pos]);
+  }
+  $('#set-photo').textContent = url ? 'Change' : 'Choose';
+  $('#set-photo-off').classList.toggle('hidden', !url);
+  $('#set-photo-pos').classList.toggle('hidden', !url);
+  $('#set-photo-pos').textContent = pos[0].toUpperCase() + pos.slice(1);
+}
+function loadPhoto(file) {
+  const img = new Image();
+  const src = URL.createObjectURL(file);
+  img.onload = () => {
+    const scale = Math.min(1, 1280 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * scale);
+    c.height = Math.round(img.naturalHeight * scale);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(src);
+    let ok = false;
+    for (const q of [0.82, 0.7, 0.55]) if ((ok = lsSet(PHOTO_KEY, c.toDataURL('image/jpeg', q)))) break;
+    toast(ok ? 'Background photo set' : 'Could not save that photo (not enough space)');
+    applyPhoto();
+  };
+  img.onerror = () => { URL.revokeObjectURL(src); toast('Could not open that image'); };
+  img.src = src;
+}
+$('#set-photo').onclick = () => $('#photo-input').click();
+$('#photo-input').onchange = (ev) => { const f = ev.target.files && ev.target.files[0]; if (f) loadPhoto(f); ev.target.value = ''; };
+$('#set-photo-off').onclick = () => { lsSet(PHOTO_KEY, null); applyPhoto(); sfx.click(); };
+$('#set-photo-pos').onclick = () => {
+  const order = ['top', 'middle', 'bottom'];
+  const cur = lsGet(PHOTO_POS_KEY) || 'bottom';
+  lsSet(PHOTO_POS_KEY, order[(order.indexOf(cur) + 1) % 3]);
+  applyPhoto();
+  sfx.click();
+};
+applyPhoto();
 
 function renderSettings() {
   $('#app-version').textContent = typeof __APP_VERSION__ === 'string' ? `v${__APP_VERSION__}` : '';

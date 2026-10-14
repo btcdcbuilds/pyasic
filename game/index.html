@@ -10,6 +10,7 @@
   </head>
   <body>
     <canvas id="game"></canvas>
+    <div id="photo-bg" class="hidden"><div class="blur"></div><div class="sharp"></div></div>
     <div id="danger"></div>
     <div id="overlay"></div>
     <div id="toast" role="status"></div>
@@ -101,6 +102,8 @@
         <div class="card row"><span>Music</span><button id="set-music" class="btn small"></button></div>
         <div class="card row"><span>Vibration</span><button id="set-vibe" class="btn small"></button></div>
         <div class="card row"><span>Graphics</span><button id="set-quality" class="btn small"></button></div>
+        <div class="card row"><span>Background photo<small class="set-sub">Stays on this phone</small></span><span class="set-btns"><button id="set-photo" class="btn small">Choose</button><button id="set-photo-pos" class="btn small hidden"></button><button id="set-photo-off" class="btn small hidden">Remove</button></span></div>
+        <input id="photo-input" type="file" accept="image/*" hidden />
         <div class="card row"><span>Reset all progress</span><button id="set-reset" class="btn small danger">Reset</button></div>
         <p class="note">No ads. No purchases. Everything is earned by playing.<br />Army Rush: Worlds at War <span id="app-version"></span> · Plays offline · Collects no personal data.<br />Font: Lilita One (SIL Open Font License 1.1)</p>
       </div>
