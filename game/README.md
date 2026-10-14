@@ -4,7 +4,7 @@ A 3D army runner / gate shooter for Android, built with Three.js and packaged as
 
 ## Install on Android
 
-1. Open this repository's **Releases** page on your phone (`https://github.com/btcdcbuilds/pyasic/releases`).
+1. Scan `store/download-qr.png` with your phone, or open `https://github.com/btcdcbuilds/pyasic/releases/latest/download/ArmyRush.apk` (always the newest build). You can also open the **Releases** page (`https://github.com/btcdcbuilds/pyasic/releases`).
 2. Open the newest **Army Rush v1.0.N** release and tap the `.apk` file under **Assets**.
 3. When Android asks, allow your browser to "Install unknown apps", then tap **Install**.
 

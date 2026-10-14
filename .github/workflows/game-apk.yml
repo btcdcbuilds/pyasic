@@ -66,6 +66,8 @@ jobs:
             ./gradlew assembleRelease --no-daemon
           fi
           cp app/build/outputs/apk/release/app-release.apk ../out/ArmyRush-v1.0.${{ github.run_number }}.apk
+          # fixed name too, so .../releases/latest/download/ArmyRush.apk (the QR code) is always the newest
+          cp app/build/outputs/apk/release/app-release.apk ../out/ArmyRush.apk
 
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
