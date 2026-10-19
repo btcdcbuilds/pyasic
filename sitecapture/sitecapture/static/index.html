@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SiteCapture</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <strong>SiteCapture</strong>
+  <select id="projectSelect"><option value="">Select project…</option></select>
+  <button id="newProject">New project</button>
+</header>
+
+<main>
+  <aside id="sidebar">
+    <section>
+      <h3>Drawings</h3>
+      <select id="drawingSelect"></select>
+      <label class="file">Upload PDF drawing<input type="file" id="pdfInput" accept="application/pdf"></label>
+    </section>
+
+    <section>
+      <h3>Upload site walk</h3>
+      <form id="captureForm">
+        <input type="file" name="files" multiple accept="video/mp4,video/quicktime,image/jpeg,image/png" required>
+        <label>Captured <input type="datetime-local" name="captured_at"></label>
+        <input type="text" name="notes" placeholder="Notes (optional)">
+        <button type="submit">Upload</button>
+      </form>
+      <p class="hint">Insta360: export as 360 (equirectangular) MP4/JPG in Insta360 Studio first. Raw .insv files are rejected.</p>
+    </section>
+
+    <section>
+      <h3>Captures</h3>
+      <ul id="captureList"></ul>
+    </section>
+
+    <section>
+      <h3>BIM (IFC)</h3>
+      <label class="file">Upload IFC<input type="file" id="ifcInput" accept=".ifc"></label>
+      <ul id="bimList"></ul>
+    </section>
+  </aside>
+
+  <section id="workspace">
+    <div id="modeBar">
+      <label><input type="radio" name="mode" value="view" checked> View walk</label>
+      <label><input type="radio" name="mode" value="place"> Place frames</label>
+      <label><input type="radio" name="mode" value="recall"> Recall a spot</label>
+      <span id="status"></span>
+    </div>
+
+    <div id="placeBar" hidden>
+      Frame <input type="range" id="frameSlider" min="0" value="0"> <span id="frameLabel"></span>
+      — click the plan where this frame was taken.
+      <button id="saveCps">Save control points</button>
+      <button id="clearCps">Clear</button>
+    </div>
+
+    <div id="split">
+      <div id="planWrap"><div id="plan"><img id="planImg" alt=""><svg id="overlay"></svg></div></div>
+      <div id="viewerCol">
+        <div id="pano"></div>
+        <div id="recallPanel" hidden>
+          <h4>History at this spot</h4>
+          <ul id="recallList"></ul>
+          <button id="makeTimelapse">Make time-lapse</button>
+          <video id="timelapseVideo" controls hidden></video>
+        </div>
+        <div id="reportPanel" hidden><h4>Report</h4><pre id="reportText"></pre></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

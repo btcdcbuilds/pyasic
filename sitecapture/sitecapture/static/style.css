@@ -1,0 +1,49 @@
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #5b6475;
+  --border: #d9dde5; --accent: #1f6feb; --point: #1f6feb; --cp: #d1242f; --recall: #1a7f37;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11151c; --panel: #1a1f29; --text: #e6e9ef; --muted: #9aa3b2;
+    --border: #2c3442; --accent: #4c8dff; --point: #4c8dff; --cp: #ff6b6b; --recall: #3fb950;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11151c; --panel: #1a1f29; --text: #e6e9ef; --muted: #9aa3b2;
+  --border: #2c3442; --accent: #4c8dff; --point: #4c8dff; --cp: #ff6b6b; --recall: #3fb950;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; font: 14px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+header { display: flex; gap: 8px; align-items: center; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+main { display: flex; min-height: calc(100vh - 50px); }
+#sidebar { width: 300px; flex: none; padding: 8px 16px; border-right: 1px solid var(--border); background: var(--panel); overflow-y: auto; }
+#sidebar h3 { margin: 12px 0 6px; font-size: 13px; text-transform: uppercase; color: var(--muted); }
+#sidebar form, #sidebar section { display: flex; flex-direction: column; gap: 6px; }
+.hint { color: var(--muted); font-size: 12px; margin: 0; }
+.file input { display: block; margin-top: 4px; }
+#captureList, #bimList, #recallList { list-style: none; padding: 0; margin: 0; }
+#captureList li { padding: 6px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; cursor: pointer; }
+#captureList li.active { border-color: var(--accent); }
+#captureList .meta { color: var(--muted); font-size: 12px; }
+#captureList button { font-size: 12px; margin-top: 4px; }
+#workspace { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#modeBar, #placeBar { display: flex; gap: 12px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+#status { color: var(--muted); margin-left: auto; }
+#split { flex: 1; display: flex; min-height: 0; }
+#planWrap { flex: 1; overflow: auto; background: var(--bg); }
+#plan { position: relative; display: inline-block; }
+#planImg { display: block; max-width: none; width: 100%; }
+#overlay { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+#viewerCol { width: 45%; display: flex; flex-direction: column; border-left: 1px solid var(--border); }
+#pano { height: 50vh; background: #000; }
+#recallPanel, #reportPanel { padding: 8px 16px; overflow-y: auto; }
+#recallList li { padding: 4px 0; cursor: pointer; color: var(--accent); }
+#timelapseVideo { width: 100%; margin-top: 8px; }
+#reportText { white-space: pre-wrap; font: 13px/1.5 system-ui, sans-serif; }
+button { cursor: pointer; }
+@media (max-width: 800px) {
+  main, #split { flex-direction: column; }
+  #sidebar, #viewerCol { width: 100%; }
+  #sidebar { padding: 8px 16px; }
+}
