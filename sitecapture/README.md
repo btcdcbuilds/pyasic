@@ -11,31 +11,38 @@ date, and generate AI progress reports, time-lapses and 3D models.
 
 | Feature | State | Notes |
 |---|---|---|
+| Email + password logins, admin-managed users | Working, tested | Passwords hashed with scrypt; sessions expire after 14 days; failed logins throttled; cross-site requests refused |
 | Projects, PDF drawing upload (one drawing per page) | Working, tested | PyMuPDF renders pages at 150 dpi (capped at 12,000 px) |
-| 360 upload (Insta360 exported MP4/JPG) | Working, tested | Rejects files that aren't 2:1 equirectangular and raw `.insv`/`.insp` files |
+| 360 upload (Insta360 exported MP4/JPG) | Working, tested | Uploaded in 8 MB chunks with automatic retry; resumes after a dropped connection or page reload. Rejects non-360 and raw `.insv`/`.insp` files. 20 GB per file by default |
 | Frame extraction from video | Working, tested | 1 frame/s by default (`SITECAPTURE_FRAME_INTERVAL_S`) |
 | Placing frames on the plan from control points | Working, tested | Tap 2+ frames on the plan; the rest are interpolated |
 | Following the real path from structure-from-motion | Alignment code tested; OpenSfM run **not tested here** | OpenSfM isn't installed in this environment. Needs a real walk to validate |
 | Auto GPU rental after upload (Vast.ai, Lambda) | Adapters tested against mocked APIs only | See "GPU providers" below; check field names against live docs before use |
-| GPU always released (on success, failure, 6 h timeout) | Tested with a fake provider | `reap_stale_jobs` must be run on a schedule (e.g. cron) |
+| GPU always released (on success, failure, 6 h timeout) | Tested with a fake provider | The server checks for stuck jobs every 10 minutes |
 | 3D model per capture (dense point cloud `.ply`) | Wired up, not run for real | Comes from OpenSfM `compute_depthmaps` |
 | Recall a spot across dates | Working, tested | Click the plan in "Recall a spot" mode |
 | Time-lapse video of a spot | Working, tested | ffmpeg `v360` reprojects to a normal camera view in the direction you're facing |
 | AI progress report (Claude Opus 5.5) | Request building tested with a mocked client | Needs `ANTHROPIC_API_KEY`; not run against the live API here |
+| Report PDF download | Working, tested | A4 PDF with tables |
 | IFC import (storeys, element counts) | Working, tested | `pip install .[bim]` for ifcopenshell |
 | Autodesk ACC/Revit, Procore | **Interface only, not implemented** | Needs your OAuth app credentials; see `sitecapture/bim/connectors.py` |
 | Blender add-on (latest + historical models) | Written, **not tested in Blender** | `blender_addon/sitecapture_blender` |
-| User accounts / login | **Not implemented** | Run behind a VPN or SSO proxy until added |
-| Cloud storage (S3/R2) | Not implemented | Local disk via `storage.LocalStorage` |
+| VPS deployment (Docker Compose: app + Postgres + Caddy HTTPS) | Files written; **image build not run here** | The sandbox couldn't download Debian packages. The test suite does pass against PostgreSQL 16 |
+| Per-project access (only some users see a project) | Not implemented | Every user sees every project; only admins manage users |
+| Cloud storage (S3/R2) | Not implemented | Files are kept on the VPS disk (Docker volume) |
+| Database migrations | Not implemented | New tables are created automatically; changes to existing tables will need a migration tool (Alembic) later |
 
 ## Quick start
 
 ```bash
 cd sitecapture
 pip install -e ".[bim,dev]"          # needs ffmpeg/ffprobe on PATH
-uvicorn sitecapture.api.app:app --port 8000
+SITECAPTURE_ADMIN_EMAIL=you@example.com SITECAPTURE_ADMIN_PASSWORD='10+ characters' \
+  uvicorn sitecapture.api.app:app --port 8000   # creates the first admin
 # open http://localhost:8000
-python -m pytest                     # 22 tests
+python -m pytest                     # 34 tests
+# against Postgres:
+SITECAPTURE_TEST_DATABASE_URL=postgresql+psycopg://user@host/db python -m pytest
 ```
 
 Workflow in the UI:
@@ -49,11 +56,43 @@ Workflow in the UI:
 | 5 | **Recall a spot**: click the plan to list every date with a photo there; **Make time-lapse** renders the view you're facing |
 | 6 | **AI report** on a capture compares it with the previous capture of the same drawing |
 
+## Deploying to a VPS
+
+Vercel isn't a good fit: its functions run for at most 900 seconds per
+request and have no permanent disk, while SiteCapture stores multi-GB videos
+and runs ffmpeg for minutes at a time. A VPS runs everything in one place.
+
+| Requirement | Suggested |
+|---|---|
+| OS | Ubuntu 22.04 or 24.04 |
+| CPU / RAM | 4 vCPU / 8 GB (frame extraction and time-lapses use ffmpeg on the server) |
+| Disk | 200 GB+; a 10-minute 5.7K walk can be several GB, plus extracted frames |
+| Network | Ports 80 and 443 open; a domain (A record) pointing at the server |
+
+```bash
+git clone -b ccr-cb49ce77-ftao8c https://github.com/btcdcbuilds/pyasic.git
+cd pyasic/sitecapture/deploy
+sudo ./install.sh        # installs Docker if needed, asks for domain + admin login, starts everything
+```
+
+| Task | Command (from `sitecapture/deploy`) |
+|---|---|
+| Add API keys / GPU settings | `sudo nano .env`, then `sudo docker compose --env-file .env up -d` |
+| Update to new code | `git pull && sudo ./install.sh` |
+| Logs | `sudo docker compose logs -f app` |
+| Back up database + files | `sudo ./backup.sh`, then copy `backups/` to another machine |
+
+The first login is the admin email/password you entered during install.
+Add other users from **Users** in the top bar.
+
 ## Configuration
 
 | Variable | Default | Purpose |
 |---|---|---|
 | `SITECAPTURE_DATA_DIR` | `./data` | Uploads, frames, models, SQLite DB |
+| `SITECAPTURE_ADMIN_EMAIL`, `SITECAPTURE_ADMIN_PASSWORD` | – | First admin, created only when there are no users |
+| `SITECAPTURE_MAX_UPLOAD_GB` | `20` | Largest single uploaded file |
+| `SITECAPTURE_REAPER_INTERVAL_MIN` | `10` | How often to check for stuck GPU jobs (0 = off) |
 | `SITECAPTURE_DATABASE_URL` | SQLite in data dir | Any SQLAlchemy URL (e.g. Postgres) |
 | `SITECAPTURE_PUBLIC_URL` | `http://localhost:8000` | URL rented GPUs use to call back; must be reachable from the internet |
 | `SITECAPTURE_GPU_PROVIDER` | `local` | `local`, `vastai` or `lambda` |
@@ -81,8 +120,8 @@ upload ──► check 2:1 equirect ──► extract frames (API server, CPU)
 ```
 
 The API terminates the instance as soon as the worker reports success or
-failure. Jobs still running after 6 hours are failed and terminated by
-`orchestrator.reap_stale_jobs`, which you need to call on a schedule.
+failure. Jobs still running after 6 hours are failed and their instance
+terminated by a check the server runs every 10 minutes.
 
 ## GPU providers
 
@@ -123,3 +162,5 @@ Sources: [Vast.ai REST API](https://www.vast.ai/developers/api),
 | `sitecapture/static/` | Web UI (Pannellum 2.5.6 360 viewer from jsDelivr; falls back to a flat image offline) |
 | `blender_addon/` | Blender add-on |
 | `docker/worker.Dockerfile` | GPU worker image (OpenSfM built from source; pin `OPENSFM_REF`) |
+| `docker/app.Dockerfile`, `deploy/` | Server image, Docker Compose, Caddy, install and backup scripts |
+| `sitecapture/auth.py` | Password hashing, sessions, login throttling |

@@ -1,8 +1,16 @@
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent))
 import subprocess
 from pathlib import Path
 
 import pymupdf as fitz
 import pytest
+from fastapi.testclient import TestClient
+
+from sitecapture.config import Settings
 
 
 @pytest.fixture(scope="session")
@@ -65,3 +73,45 @@ def plan_pdf(media_dir) -> Path:
         page.insert_text((60, 80), label)
     doc.save(path)
     return path
+
+
+ADMIN = ("admin@example.com", "correct horse battery")  # also in test_api
+
+
+@pytest.fixture
+def settings(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENSFM_BIN", raising=False)
+    # Set SITECAPTURE_TEST_DATABASE_URL to run against Postgres; tables are
+    # dropped before each test.
+    db_url = os.environ.get("SITECAPTURE_TEST_DATABASE_URL", "")
+    if db_url:
+        from sqlalchemy import create_engine
+
+        from sitecapture.db import Base
+
+        engine = create_engine(db_url)
+        Base.metadata.drop_all(engine)
+        engine.dispose()
+    return Settings(
+        data_dir=tmp_path / "data",
+        database_url=db_url,
+        gpu_provider="local",
+        admin_email=ADMIN[0],
+        admin_password=ADMIN[1],
+        reaper_interval_min=0,
+    )
+
+
+@pytest.fixture
+def anon(settings):
+    from sitecapture.api.app import create_app
+
+    with TestClient(create_app(settings)) as c:
+        yield c
+
+
+@pytest.fixture
+def client(anon):
+    r = anon.post("/api/auth/login", json={"email": ADMIN[0], "password": ADMIN[1]})
+    assert r.status_code == 200, r.text
+    return anon

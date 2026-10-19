@@ -9,11 +9,40 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="loginScreen" hidden>
+  <form id="loginForm">
+    <h2>SiteCapture</h2>
+    <label>Email <input type="email" name="email" autocomplete="username" required></label>
+    <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
+    <button type="submit">Log in</button>
+    <p id="loginError" class="error"></p>
+  </form>
+</div>
+
 <header>
   <strong>SiteCapture</strong>
   <select id="projectSelect"><option value="">Select project…</option></select>
   <button id="newProject">New project</button>
+  <span class="spacer"></span>
+  <span id="whoami"></span>
+  <button id="usersBtn" hidden>Users</button>
+  <button id="passwordBtn">Change password</button>
+  <button id="logoutBtn">Log out</button>
 </header>
+
+<dialog id="usersDialog">
+  <h3>Users</h3>
+  <table id="usersTable"><thead><tr><th>Email</th><th>Name</th><th>Admin</th><th>Active</th><th></th></tr></thead><tbody></tbody></table>
+  <h4>Add user</h4>
+  <form id="addUserForm">
+    <input type="email" name="email" placeholder="Email" required>
+    <input type="text" name="name" placeholder="Name">
+    <input type="password" name="password" placeholder="Temporary password (10+ chars)" minlength="10" required>
+    <label><input type="checkbox" name="is_admin"> Admin</label>
+    <button type="submit">Add</button>
+  </form>
+  <form method="dialog"><button>Close</button></form>
+</dialog>
 
 <main>
   <aside id="sidebar">
@@ -30,6 +59,8 @@
         <label>Captured <input type="datetime-local" name="captured_at"></label>
         <input type="text" name="notes" placeholder="Notes (optional)">
         <button type="submit">Upload</button>
+        <progress id="uploadProgress" max="1" value="0" hidden></progress>
+        <span id="uploadLabel" class="hint"></span>
       </form>
       <p class="hint">Insta360: export as 360 (equirectangular) MP4/JPG in Insta360 Studio first. Raw .insv files are rejected.</p>
     </section>
@@ -71,7 +102,7 @@
           <button id="makeTimelapse">Make time-lapse</button>
           <video id="timelapseVideo" controls hidden></video>
         </div>
-        <div id="reportPanel" hidden><h4>Report</h4><pre id="reportText"></pre></div>
+        <div id="reportPanel" hidden><h4>Report <a id="reportPdf" href="#" target="_blank">Download PDF</a></h4><pre id="reportText"></pre></div>
       </div>
     </div>
   </section>

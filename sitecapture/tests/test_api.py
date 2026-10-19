@@ -1,9 +1,7 @@
 import json
 
 import pytest
-from fastapi.testclient import TestClient
 
-from sitecapture.config import Settings
 from sitecapture.gpu import orchestrator
 from sitecapture.gpu.base import GpuProvider, Launched
 
@@ -25,18 +23,7 @@ class FakeProvider(GpuProvider):
         self.terminated.append(instance_id)
 
 
-@pytest.fixture
-def settings(tmp_path, monkeypatch):
-    monkeypatch.delenv("OPENSFM_BIN", raising=False)
-    return Settings(data_dir=tmp_path / "data", gpu_provider="local")
-
-
-@pytest.fixture
-def client(settings):
-    from sitecapture.api.app import create_app
-
-    with TestClient(create_app(settings)) as c:
-        yield c
+ADMIN = ("admin@example.com", "correct horse battery")
 
 
 def _setup(client, plan_pdf, equirect_video, when="2026-09-01T08:00:00Z"):

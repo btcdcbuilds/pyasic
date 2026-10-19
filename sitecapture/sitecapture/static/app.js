@@ -2,19 +2,121 @@
 const $ = (sel) => document.querySelector(sel);
 const state = { project: null, drawingId: null, capture: null, mode: "view", cps: [], recall: null, viewer: null };
 
+class ApiError extends Error {
+  constructor(status, detail) {
+    super(typeof detail === "string" ? detail : (detail?.message || JSON.stringify(detail)));
+    this.status = status; this.detail = detail;
+  }
+}
 async function api(path, opts = {}) {
-  const res = await fetch(path, opts);
+  const res = await fetch(path, { credentials: "same-origin", ...opts });
   if (!res.ok) {
-    let msg = res.statusText;
-    try { msg = (await res.json()).detail || msg; } catch {}
-    throw new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail; } catch {}
+    if (res.status === 401 && !path.startsWith("/api/auth/login")) showLogin();
+    throw new ApiError(res.status, detail);
   }
   const type = res.headers.get("content-type") || "";
   return type.includes("json") ? res.json() : res.blob();
 }
 const json = (method, body) => ({ method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 const setStatus = (t) => { $("#status").textContent = t; };
-const fail = (e) => { setStatus(""); alert(e.message); };
+const fail = (e) => { setStatus(""); if (e.status !== 401) alert(e.message); };
+
+// ---- accounts -------------------------------------------------------------
+function showLogin() { $("#loginScreen").hidden = false; }
+async function startSession() {
+  let me;
+  try { me = await api("/api/auth/me"); } catch { return; }
+  $("#loginScreen").hidden = true;
+  $("#whoami").textContent = me.name ? `${me.name} (${me.email})` : me.email;
+  $("#usersBtn").hidden = !me.is_admin;
+  await loadProjects();
+}
+$("#loginForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  $("#loginError").textContent = "";
+  try {
+    await api("/api/auth/login", json("POST", { email: fd.get("email"), password: fd.get("password") }));
+    e.target.reset();
+    await startSession();
+  } catch (err) { $("#loginError").textContent = err.message; }
+};
+$("#logoutBtn").onclick = async () => { await api("/api/auth/logout", { method: "POST" }).catch(() => {}); location.reload(); };
+$("#passwordBtn").onclick = async () => {
+  const current = prompt("Current password"); if (!current) return;
+  const next = prompt("New password (at least 10 characters)"); if (!next) return;
+  try { await api("/api/auth/password", json("POST", { current_password: current, new_password: next })); alert("Password changed. Other devices have been logged out."); }
+  catch (err) { fail(err); }
+};
+async function loadUsers() {
+  const users = await api("/api/users");
+  $("#usersTable tbody").innerHTML = users.map((u) => `<tr data-id="${u.id}">
+    <td>${escapeHtml(u.email)}</td><td>${escapeHtml(u.name)}</td>
+    <td><input type="checkbox" data-field="is_admin" ${u.is_admin ? "checked" : ""}></td>
+    <td><input type="checkbox" data-field="is_active" ${u.is_active ? "checked" : ""}></td>
+    <td><button data-reset>Reset password</button></td></tr>`).join("");
+}
+$("#usersBtn").onclick = () => { $("#usersDialog").showModal(); loadUsers().catch(fail); };
+$("#usersTable").onchange = async (e) => {
+  const field = e.target.dataset.field, id = e.target.closest("tr")?.dataset.id;
+  if (!field || !id) return;
+  try { await api(`/api/users/${id}`, json("PATCH", { [field]: e.target.checked })); } catch (err) { fail(err); }
+  loadUsers().catch(fail);
+};
+$("#usersTable").onclick = async (e) => {
+  if (!("reset" in e.target.dataset)) return;
+  const id = e.target.closest("tr").dataset.id;
+  const pw = prompt("New temporary password (10+ characters)"); if (!pw) return;
+  try { await api(`/api/users/${id}`, json("PATCH", { password: pw })); alert("Password reset; tell the user their new password."); } catch (err) { fail(err); }
+};
+$("#addUserForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    await api("/api/users", json("POST", { email: fd.get("email"), name: fd.get("name"), password: fd.get("password"), is_admin: fd.get("is_admin") === "on" }));
+    e.target.reset(); loadUsers();
+  } catch (err) { fail(err); }
+};
+
+// ---- resumable chunked upload ---------------------------------------------
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function uploadKey(file) { return `sc-upload:${state.project.id}:${file.name}:${file.size}:${file.lastModified}`; }
+function storageGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function storageSet(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} }
+
+async function uploadFile(file, onProgress) {
+  // Resume an earlier attempt of the same file if the server still has it.
+  let up = null;
+  const saved = storageGet(uploadKey(file));
+  if (saved) { try { up = await api(`/api/uploads/${saved}`); } catch { up = null; } }
+  if (!up) {
+    up = await api(`/api/projects/${state.project.id}/uploads`, json("POST", { filename: file.name, size: file.size }));
+    storageSet(uploadKey(file), up.id);
+  }
+  let offset = up.received;
+  onProgress(offset);
+  while (offset < file.size) {
+    const chunk = file.slice(offset, offset + up.chunk_size);
+    let attempt = 0;
+    for (;;) {
+      try {
+        const r = await api(`/api/uploads/${up.id}?offset=${offset}`, { method: "PUT", body: chunk, headers: { "Content-Type": "application/octet-stream" } });
+        offset = r.received; break;
+      } catch (err) {
+        if (err.status === 409 && err.detail?.received != null) { offset = err.detail.received; break; }
+        if (err.status && err.status < 500 && err.status !== 408 && err.status !== 429) { storageSet(uploadKey(file), null); throw err; }
+        if (++attempt > 8) throw new Error(`${file.name}: upload kept failing; select the file again to resume`);
+        setStatus(`Connection problem, retrying (${attempt}/8)…`);
+        await sleep(Math.min(30000, 1000 * 2 ** attempt));
+      }
+    }
+    onProgress(offset);
+  }
+  storageSet(uploadKey(file), null);
+  return up.id;
+}
 
 // ---- projects -------------------------------------------------------------
 async function loadProjects(selectId) {
@@ -96,15 +198,30 @@ $("#captureForm").onsubmit = async (e) => {
   e.preventDefault();
   if (!state.project || !state.drawingId) return alert("Create a project and upload a drawing first.");
   const fd = new FormData(e.target);
-  if (!fd.get("captured_at")) fd.delete("captured_at");
-  else fd.set("captured_at", new Date(fd.get("captured_at")).toISOString());
-  fd.append("drawing_id", state.drawingId);
-  setStatus("Uploading…");
+  const files = [...e.target.querySelector("input[name=files]").files];
+  const total = files.reduce((n, f) => n + f.size, 0);
+  const bar = $("#uploadProgress"), label = $("#uploadLabel");
+  const button = e.target.querySelector("button[type=submit]");
+  bar.hidden = false; button.disabled = true;
+  let done = 0;
   try {
-    const c = await api(`/api/projects/${state.project.id}/captures`, { method: "POST", body: fd });
-    e.target.reset(); setStatus("Processing — extracting frames…");
+    const ids = [];
+    for (const file of files) {
+      ids.push(await uploadFile(file, (sent) => {
+        bar.value = (done + sent) / total;
+        label.textContent = `${file.name}: ${(sent / 1e6).toFixed(0)} / ${(file.size / 1e6).toFixed(0)} MB`;
+      }));
+      done += file.size;
+    }
+    const capturedAt = fd.get("captured_at");
+    const c = await api(`/api/projects/${state.project.id}/captures/from-uploads`, json("POST", {
+      upload_ids: ids, drawing_id: state.drawingId, notes: fd.get("notes") || "",
+      captured_at: capturedAt ? new Date(capturedAt).toISOString() : null,
+    }));
+    e.target.reset(); label.textContent = ""; setStatus("Processing — extracting frames…");
     pollCapture(c.id);
   } catch (err) { fail(err); }
+  finally { bar.hidden = true; button.disabled = false; }
 };
 async function pollCapture(id) {
   const c = await api(`/api/captures/${id}`);
@@ -122,6 +239,7 @@ async function makeReport(id) {
   try {
     const r = await api(`/api/captures/${id}/report`, { method: "POST" });
     $("#reportPanel").hidden = false; $("#reportText").textContent = r.markdown; setStatus("");
+    $("#reportPdf").href = `/api/reports/${r.id}.pdf`;
   } catch (err) { fail(err); }
 }
 
@@ -223,4 +341,4 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-loadProjects().catch(fail);
+startSession();

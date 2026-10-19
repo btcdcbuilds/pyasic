@@ -47,3 +47,15 @@ button { cursor: pointer; }
   #sidebar, #viewerCol { width: 100%; }
   #sidebar { padding: 8px 16px; }
 }
+.spacer { flex: 1; }
+#whoami { color: var(--muted); }
+.error { color: var(--cp); min-height: 1.2em; }
+#loginScreen { position: fixed; inset: 0; z-index: 10; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 16px; }
+#loginForm { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 24px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; }
+#loginForm label { display: flex; flex-direction: column; gap: 4px; }
+#loginForm input { padding: 6px; }
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 8px; max-width: min(720px, calc(100vw - 32px)); }
+#usersTable { border-collapse: collapse; width: 100%; }
+#usersTable td, #usersTable th { border-bottom: 1px solid var(--border); padding: 4px 6px; text-align: left; }
+#addUserForm { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+#uploadProgress { width: 100%; }

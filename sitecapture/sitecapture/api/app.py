@@ -1,7 +1,8 @@
 """HTTP API and the bundled web UI.
 
-Run with ``uvicorn sitecapture.api.app:app``. There is no user login yet: put
-it behind your own auth (VPN, reverse-proxy SSO) before exposing it.
+Run with ``uvicorn sitecapture.api.app:app``. Every ``/api`` route except
+login and the GPU worker callbacks (which use a per-job token) needs a
+logged-in user.
 """
 
 from __future__ import annotations
@@ -9,13 +10,18 @@ from __future__ import annotations
 import datetime as dt
 import hmac
 import json
+import logging
 import shutil
 import subprocess
 import tempfile
+import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Iterator
+from urllib.parse import urlparse
 
 from fastapi import (
+    APIRouter,
     BackgroundTasks,
     Depends,
     FastAPI,
@@ -23,6 +29,8 @@ from fastapi import (
     Form,
     Header,
     HTTPException,
+    Request,
+    Response,
     UploadFile,
 )
 from fastapi.responses import FileResponse, RedirectResponse
@@ -31,6 +39,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from sitecapture import auth
 from sitecapture.config import Settings, get_settings
 from sitecapture.db import (
     BimModel,
@@ -40,15 +49,19 @@ from sitecapture.db import (
     Job,
     Project,
     Report,
+    Upload,
+    User,
     make_sessionmaker,
 )
 from sitecapture.gpu import orchestrator
 from sitecapture.pipeline import drawings as drawings_mod
 from sitecapture.pipeline import frames as frames_mod
 from sitecapture.pipeline import timeline
-from sitecapture.storage import LocalStorage
+from sitecapture.storage import LocalStorage, safe_name
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+CHUNK_SIZE = 8 * 1024 * 1024  # 8 MB upload chunks
+log = logging.getLogger("sitecapture")
 
 
 # ---- request bodies -------------------------------------------------------
@@ -78,7 +91,64 @@ class FailIn(BaseModel):
     reason: str = ""
 
 
+class LoginIn(BaseModel):
+    email: str = Field(max_length=320)
+    password: str = Field(max_length=1024)
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str = Field(max_length=1024)
+    new_password: str = Field(max_length=1024)
+
+
+class UserCreateIn(BaseModel):
+    email: str = Field(max_length=320)
+    name: str = Field(default="", max_length=200)
+    password: str = Field(max_length=1024)
+    is_admin: bool = False
+
+
+class UserUpdateIn(BaseModel):
+    name: str | None = Field(default=None, max_length=200)
+    password: str | None = Field(default=None, max_length=1024)
+    is_admin: bool | None = None
+    is_active: bool | None = None
+
+
+class UploadStartIn(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    size: int = Field(gt=0)
+
+
+class CaptureFromUploadsIn(BaseModel):
+    upload_ids: list[int] = Field(min_length=1, max_length=50)
+    drawing_id: int | None = None
+    captured_at: dt.datetime | None = None
+    notes: str = Field(default="", max_length=5000)
+
+
 # ---- serialisers ----------------------------------------------------------
+
+
+def user_out(u: User) -> dict:
+    return {
+        "id": u.id,
+        "email": u.email,
+        "name": u.name,
+        "is_admin": u.is_admin,
+        "is_active": u.is_active,
+    }
+
+
+def upload_out(u: Upload) -> dict:
+    return {
+        "id": u.id,
+        "filename": u.filename,
+        "size": u.size,
+        "received": u.received,
+        "chunk_size": CHUNK_SIZE,
+        "complete": u.received == u.size,
+    }
 
 
 def project_out(p: Project) -> dict:
@@ -147,8 +217,45 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     storage = LocalStorage(settings.data_dir)
     SessionLocal = make_sessionmaker(settings.database_url)
+    throttle = auth.LoginThrottle()
+    stop_reaper = threading.Event()
 
-    app = FastAPI(title="SiteCapture", version="0.1.0")
+    def bootstrap_admin() -> None:
+        if not (settings.admin_email and settings.admin_password):
+            return
+        with SessionLocal() as session:
+            if auth.user_count(session) == 0:
+                auth.create_user(
+                    session,
+                    settings.admin_email,
+                    settings.admin_password,
+                    name="Admin",
+                    is_admin=True,
+                )
+                log.info("created admin account %s", settings.admin_email)
+
+    def reaper_loop() -> None:
+        interval = settings.reaper_interval_min * 60
+        while not stop_reaper.wait(interval):
+            try:
+                with SessionLocal() as session:
+                    n = orchestrator.reap_stale_jobs(session, settings)
+                if n:
+                    log.warning("terminated %d stuck GPU job(s)", n)
+            except Exception:  # noqa: BLE001 - keep the loop alive
+                log.exception("stale job check failed")
+
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        bootstrap_admin()
+        thread = None
+        if settings.reaper_interval_min > 0:
+            thread = threading.Thread(target=reaper_loop, daemon=True)
+            thread.start()
+        yield
+        stop_reaper.set()
+
+    app = FastAPI(title="SiteCapture", version="0.2.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.sessionmaker = SessionLocal
 
@@ -158,6 +265,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             yield session
         finally:
             session.close()
+
+    public_host = urlparse(settings.public_url).netloc
+
+    def require_user(request: Request, session: Session = Depends(db)) -> User:
+        user = auth.user_for_token(session, request.cookies.get(auth.COOKIE_NAME))
+        if user is None:
+            raise HTTPException(401, "log in first")
+        # Refuse state-changing requests sent from other sites (CSRF).
+        if request.method not in ("GET", "HEAD", "OPTIONS"):
+            origin = request.headers.get("origin")
+            allowed = {request.headers.get("host"), public_host}
+            if origin and urlparse(origin).netloc not in allowed:
+                raise HTTPException(403, "cross-site request refused")
+        return user
+
+    def require_admin(user: User = Depends(require_user)) -> User:
+        if not user.is_admin:
+            raise HTTPException(403, "admins only")
+        return user
+
+    api = APIRouter(dependencies=[Depends(require_user)])
 
     def get_or_404(session: Session, model, obj_id: int):
         obj = session.get(model, obj_id)
@@ -190,21 +318,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- projects --
 
-    @app.post("/api/projects", status_code=201)
+    @api.post("/api/projects", status_code=201)
     def create_project(body: ProjectIn, session: Session = Depends(db)):
         project = Project(name=body.name)
         session.add(project)
         session.commit()
         return project_out(project)
 
-    @app.get("/api/projects")
+    @api.get("/api/projects")
     def list_projects(session: Session = Depends(db)):
         return [
             project_out(p)
             for p in session.scalars(select(Project).order_by(Project.id))
         ]
 
-    @app.get("/api/projects/{project_id}")
+    @api.get("/api/projects/{project_id}")
     def get_project(project_id: int, session: Session = Depends(db)):
         p = get_or_404(session, Project, project_id)
         return {
@@ -221,7 +349,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- drawings --
 
-    @app.post("/api/projects/{project_id}/drawings", status_code=201)
+    @api.post("/api/projects/{project_id}/drawings", status_code=201)
     def upload_drawing(
         project_id: int, file: UploadFile = File(...), session: Session = Depends(db)
     ):
@@ -254,13 +382,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session.commit()
         return [drawing_out(d) for d in created]
 
-    @app.get("/api/drawings/{drawing_id}/image")
+    @api.get("/api/drawings/{drawing_id}/image")
     def drawing_image(drawing_id: int, session: Session = Depends(db)):
         return file_or_404(get_or_404(session, Drawing, drawing_id).image_path)
 
     # -- captures --
 
-    @app.post("/api/projects/{project_id}/captures", status_code=201)
+    @api.post("/api/projects/{project_id}/captures", status_code=201)
     def upload_capture(
         project_id: int,
         background: BackgroundTasks,
@@ -302,7 +430,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         background.add_task(process_capture, capture.id)
         return capture_out(capture)
 
-    @app.get("/api/captures/{capture_id}")
+    @api.get("/api/captures/{capture_id}")
     def get_capture(capture_id: int, session: Session = Depends(db)):
         capture = get_or_404(session, Capture, capture_id)
         jobs = session.scalars(
@@ -313,7 +441,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "jobs": [job_out(j) for j in jobs],
         }
 
-    @app.put("/api/captures/{capture_id}/control-points")
+    @api.put("/api/captures/{capture_id}/control-points")
     def set_control_points(
         capture_id: int, points: list[ControlPointIn], session: Session = Depends(db)
     ):
@@ -333,18 +461,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         out["alignment_rms"] = transform.rms_error if transform else None
         return out
 
-    @app.post("/api/captures/{capture_id}/reconstruct", status_code=202)
+    @api.post("/api/captures/{capture_id}/reconstruct", status_code=202)
     def reconstruct(capture_id: int, session: Session = Depends(db)):
         capture = get_or_404(session, Capture, capture_id)
         if not capture.frames:
             raise HTTPException(409, "frames have not been extracted yet")
         return job_out(orchestrator.start_reconstruction(session, settings, capture))
 
-    @app.get("/api/frames/{frame_id}/image")
+    @api.get("/api/frames/{frame_id}/image")
     def frame_image(frame_id: int, session: Session = Depends(db)):
         return file_or_404(get_or_404(session, Frame, frame_id).image_path)
 
-    @app.get("/api/jobs/{job_id}")
+    @api.get("/api/jobs/{job_id}")
     def get_job(job_id: int, session: Session = Depends(db)):
         return job_out(get_or_404(session, Job, job_id))
 
@@ -359,7 +487,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
         ).all()
 
-    @app.get("/api/projects/{project_id}/timeline")
+    @api.get("/api/projects/{project_id}/timeline")
     def get_timeline(
         project_id: int,
         drawing_id: int,
@@ -382,7 +510,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             for e in entries
         ]
 
-    @app.post("/api/projects/{project_id}/timelapse")
+    @api.post("/api/projects/{project_id}/timelapse")
     def create_timelapse(
         project_id: int, body: TimelapseIn, session: Session = Depends(db)
     ):
@@ -408,7 +536,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
         return FileResponse(out, media_type="video/mp4", filename=out.name)
 
-    @app.get("/api/projects/{project_id}/models")
+    @api.get("/api/projects/{project_id}/models")
     def list_models(project_id: int, session: Session = Depends(db)):
         """Every capture's 3D model, oldest first (used by the Blender add-on)."""
         get_or_404(session, Project, project_id)
@@ -427,13 +555,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             for c in captures
         ]
 
-    @app.get("/api/captures/{capture_id}/model")
+    @api.get("/api/captures/{capture_id}/model")
     def capture_model(capture_id: int, session: Session = Depends(db)):
         return file_or_404(get_or_404(session, Capture, capture_id).model_path)
 
     # -- AI reports --
 
-    @app.post("/api/captures/{capture_id}/report", status_code=201)
+    @api.post("/api/captures/{capture_id}/report", status_code=201)
     def create_report(capture_id: int, session: Session = Depends(db)):
         from sitecapture.ai import reports
 
@@ -468,7 +596,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "previous_capture_id": report.previous_capture_id,
         }
 
-    @app.get("/api/projects/{project_id}/reports")
+    @api.get("/api/projects/{project_id}/reports")
     def list_reports(project_id: int, session: Session = Depends(db)):
         rows = session.scalars(
             select(Report)
@@ -487,7 +615,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- BIM --
 
-    @app.post("/api/projects/{project_id}/bim", status_code=201)
+    @api.post("/api/projects/{project_id}/bim", status_code=201)
     def upload_ifc(
         project_id: int, file: UploadFile = File(...), session: Session = Depends(db)
     ):
@@ -520,6 +648,253 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session.add(model)
         session.commit()
         return {"id": model.id, "name": model.name, "summary": summary}
+
+    # -- chunked uploads (large walk videos) --
+
+    max_upload = int(settings.max_upload_gb * 1024**3)
+    allowed_exts = frames_mod.VIDEO_EXTS | frames_mod.IMAGE_EXTS
+
+    def own_upload(session: Session, upload_id: int, user: User) -> Upload:
+        upload = get_or_404(session, Upload, upload_id)
+        if upload.user_id != user.id:
+            raise HTTPException(404, f"Upload {upload_id} not found")
+        return upload
+
+    @api.post("/api/projects/{project_id}/uploads", status_code=201)
+    def start_upload(
+        project_id: int,
+        body: UploadStartIn,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        get_or_404(session, Project, project_id)
+        ext = Path(body.filename).suffix.lower()
+        if ext in frames_mod.RAW_INSTA360_EXTS:
+            raise HTTPException(
+                400,
+                f"{body.filename}: raw Insta360 file. Export it as a 360 MP4/JPG "
+                "from Insta360 Studio first.",
+            )
+        if ext not in allowed_exts:
+            raise HTTPException(400, f"{body.filename}: unsupported file type {ext}")
+        if body.size > max_upload:
+            raise HTTPException(
+                413, f"file is larger than the {settings.max_upload_gb:g} GB limit"
+            )
+        upload = Upload(
+            user_id=user.id,
+            project_id=project_id,
+            filename=body.filename,
+            size=body.size,
+            path="",
+        )
+        session.add(upload)
+        session.flush()
+        directory = storage.project_dir(project_id, "uploads")
+        path = directory / f"{upload.id}_{safe_name(body.filename)}"
+        path.touch()
+        upload.path = str(path)
+        session.commit()
+        return upload_out(upload)
+
+    @api.get("/api/uploads/{upload_id}")
+    def get_upload(
+        upload_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        return upload_out(own_upload(session, upload_id, user))
+
+    @api.put("/api/uploads/{upload_id}")
+    async def put_chunk(
+        upload_id: int,
+        offset: int,
+        request: Request,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        upload = own_upload(session, upload_id, user)
+        if upload.capture_id is not None:
+            raise HTTPException(409, "upload is already attached to a capture")
+        if offset != upload.received:
+            # Client is out of step (e.g. a retried chunk); tell it where to resume.
+            raise HTTPException(
+                409, {"message": "wrong offset", "received": upload.received}
+            )
+        data = await request.body()
+        if len(data) > CHUNK_SIZE or offset + len(data) > upload.size:
+            raise HTTPException(400, "chunk too large")
+        with open(upload.path, "r+b") as f:
+            f.seek(offset)
+            f.write(data)
+        upload.received = offset + len(data)
+        if upload.received == upload.size:
+            try:
+                frames_mod.check_media(Path(upload.path))
+            except (frames_mod.MediaError, subprocess.CalledProcessError) as exc:
+                Path(upload.path).unlink(missing_ok=True)
+                session.delete(upload)
+                session.commit()
+                raise HTTPException(400, str(getattr(exc, "args", [exc])[0])) from exc
+        session.commit()
+        return upload_out(upload)
+
+    @api.post("/api/projects/{project_id}/captures/from-uploads", status_code=201)
+    def capture_from_uploads(
+        project_id: int,
+        body: CaptureFromUploadsIn,
+        background: BackgroundTasks,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        get_or_404(session, Project, project_id)
+        if body.drawing_id is not None:
+            drawing = get_or_404(session, Drawing, body.drawing_id)
+            if drawing.project_id != project_id:
+                raise HTTPException(400, "drawing belongs to another project")
+        uploads = [own_upload(session, uid, user) for uid in body.upload_ids]
+        for u in uploads:
+            if u.project_id != project_id:
+                raise HTTPException(400, f"upload {u.id} belongs to another project")
+            if u.received != u.size:
+                raise HTTPException(409, f"{u.filename} has not finished uploading")
+            if u.capture_id is not None:
+                raise HTTPException(409, f"{u.filename} is already in a capture")
+        capture = Capture(
+            project_id=project_id,
+            drawing_id=body.drawing_id,
+            captured_at=body.captured_at or dt.datetime.now(dt.timezone.utc),
+            notes=body.notes,
+            source_paths=[],
+        )
+        session.add(capture)
+        session.flush()
+        directory = storage.project_dir(
+            project_id, "captures", str(capture.id), "source"
+        )
+        paths = []
+        for u in uploads:
+            target = directory / f"{len(paths):02d}_{safe_name(u.filename)}"
+            shutil.move(u.path, target)
+            u.path = str(target)
+            u.capture_id = capture.id
+            paths.append(str(target))
+        capture.source_paths = paths
+        session.commit()
+        background.add_task(process_capture, capture.id)
+        return capture_out(capture)
+
+    @api.get("/api/reports/{report_id}.pdf")
+    def report_pdf(report_id: int, session: Session = Depends(db)):
+        from sitecapture.ai import pdf
+
+        report = get_or_404(session, Report, report_id)
+        project = session.get(Project, report.project_id)
+        capture = session.get(Capture, report.capture_id)
+        title = f"{project.name} – progress report {capture.captured_at:%Y-%m-%d}"
+        out = storage.project_dir(project.id, "reports") / f"report_{report.id}.pdf"
+        pdf.markdown_to_pdf(report.markdown, out, title=title)
+        return FileResponse(out, media_type="application/pdf", filename=out.name)
+
+    # -- accounts --
+
+    def set_session_cookie(response: Response, token: str) -> None:
+        response.set_cookie(
+            auth.COOKIE_NAME,
+            token,
+            max_age=auth.SESSION_DAYS * 86400,
+            httponly=True,
+            secure=settings.cookie_secure,
+            samesite="lax",
+            path="/",
+        )
+
+    @app.post("/api/auth/login")
+    def login(body: LoginIn, response: Response, session: Session = Depends(db)):
+        try:
+            user = auth.authenticate(session, throttle, body.email, body.password)
+        except auth.AuthError as exc:
+            status = 429 if "too many" in str(exc) else 401
+            raise HTTPException(status, str(exc)) from exc
+        set_session_cookie(response, auth.start_session(session, user))
+        return user_out(user)
+
+    @app.post("/api/auth/logout")
+    def logout(request: Request, response: Response, session: Session = Depends(db)):
+        auth.end_session(session, request.cookies.get(auth.COOKIE_NAME))
+        response.delete_cookie(auth.COOKIE_NAME, path="/")
+        return {"ok": True}
+
+    @api.get("/api/auth/me")
+    def me(user: User = Depends(require_user)):
+        return user_out(user)
+
+    @api.post("/api/auth/password")
+    def change_password(
+        body: PasswordChangeIn,
+        response: Response,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        if not auth.verify_password(body.current_password, user.password_hash):
+            raise HTTPException(400, "current password is incorrect")
+        try:
+            auth.check_password_rules(body.new_password)
+        except auth.AuthError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        user = session.merge(user)
+        user.password_hash = auth.hash_password(body.new_password)
+        session.commit()
+        auth.end_all_sessions(session, user.id)  # log out other devices
+        set_session_cookie(response, auth.start_session(session, user))
+        return {"ok": True}
+
+    @api.get("/api/users")
+    def list_users(_: User = Depends(require_admin), session: Session = Depends(db)):
+        return [user_out(u) for u in session.scalars(select(User).order_by(User.id))]
+
+    @api.post("/api/users", status_code=201)
+    def add_user(
+        body: UserCreateIn,
+        _: User = Depends(require_admin),
+        session: Session = Depends(db),
+    ):
+        try:
+            user = auth.create_user(
+                session, body.email, body.password, body.name, body.is_admin
+            )
+        except auth.AuthError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        return user_out(user)
+
+    @api.patch("/api/users/{user_id}")
+    def update_user(
+        user_id: int,
+        body: UserUpdateIn,
+        admin: User = Depends(require_admin),
+        session: Session = Depends(db),
+    ):
+        user = get_or_404(session, User, user_id)
+        if user.id == admin.id and (body.is_admin is False or body.is_active is False):
+            raise HTTPException(400, "you can't remove your own admin access")
+        if body.name is not None:
+            user.name = body.name.strip()
+        if body.is_admin is not None:
+            user.is_admin = body.is_admin
+        if body.is_active is not None:
+            user.is_active = body.is_active
+        if body.password is not None:
+            try:
+                auth.check_password_rules(body.password)
+            except auth.AuthError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            user.password_hash = auth.hash_password(body.password)
+        session.commit()
+        if body.password is not None or body.is_active is False:
+            auth.end_all_sessions(session, user.id)
+        return user_out(user)
+
+    app.include_router(api)
 
     # -- GPU worker callbacks --
 
@@ -601,6 +976,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.get("/", include_in_schema=False)
     def index():
         return RedirectResponse("/ui/index.html")
+
+    @app.get("/healthz", include_in_schema=False)
+    def healthz():
+        return {"ok": True}
 
     app.mount("/ui", StaticFiles(directory=STATIC_DIR), name="ui")
     return app

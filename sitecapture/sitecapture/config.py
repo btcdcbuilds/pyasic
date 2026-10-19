@@ -25,6 +25,24 @@ class Settings:
         default_factory=lambda: _env("SITECAPTURE_PUBLIC_URL", "http://localhost:8000")
     )
 
+    # First admin account, created at startup if there are no users yet.
+    admin_email: str = field(default_factory=lambda: _env("SITECAPTURE_ADMIN_EMAIL"))
+    admin_password: str = field(
+        default_factory=lambda: _env("SITECAPTURE_ADMIN_PASSWORD")
+    )
+    # Largest single uploaded file, in GB.
+    max_upload_gb: float = field(
+        default_factory=lambda: float(_env("SITECAPTURE_MAX_UPLOAD_GB", "20"))
+    )
+    # Run the stuck-GPU check in the API process every N minutes (0 = off).
+    reaper_interval_min: float = field(
+        default_factory=lambda: float(_env("SITECAPTURE_REAPER_INTERVAL_MIN", "10"))
+    )
+
+    @property
+    def cookie_secure(self) -> bool:
+        return self.public_url.startswith("https://")
+
     # GPU provider: "local" (run on this machine), "vastai" or "lambda".
     gpu_provider: str = field(
         default_factory=lambda: _env("SITECAPTURE_GPU_PROVIDER", "local")

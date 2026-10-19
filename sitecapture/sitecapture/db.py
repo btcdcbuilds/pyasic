@@ -12,6 +12,7 @@ import secrets
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     DateTime,
     Float,
     ForeignKey,
@@ -33,8 +34,63 @@ def _now() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
 
 
+def as_utc(value: dt.datetime) -> dt.datetime:
+    """SQLite returns naive datetimes; treat them as UTC."""
+    return value if value.tzinfo else value.replace(tzinfo=dt.timezone.utc)
+
+
 class Base(DeclarativeBase):
     pass
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(200), default="")
+    password_hash: Mapped[str] = mapped_column(String(255))
+    is_admin: Mapped[bool] = mapped_column(default=False)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+
+
+class UserSession(Base):
+    """Login session; the browser holds only the random token in a cookie."""
+
+    __tablename__ = "user_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    # SHA-256 of the cookie token, so a leaked database can't be replayed.
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    expires_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+
+    user: Mapped[User] = relationship()
+
+
+class Upload(Base):
+    """A file being uploaded in chunks, so multi-GB walks survive bad site Wi-Fi."""
+
+    __tablename__ = "uploads"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
+    filename: Mapped[str] = mapped_column(String(255))
+    size: Mapped[int] = mapped_column(BigInteger)
+    received: Mapped[int] = mapped_column(BigInteger, default=0)
+    path: Mapped[str] = mapped_column(Text)
+    # Set once the file is attached to a capture.
+    capture_id: Mapped[int | None] = mapped_column(ForeignKey("captures.id"))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
 
 
 class Project(Base):

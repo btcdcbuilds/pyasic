@@ -1,0 +1,50 @@
+# SiteCapture on a single VPS: app + Postgres + Caddy (automatic HTTPS).
+# Run from this folder:  docker compose --env-file .env up -d --build
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: docker/app.Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SITECAPTURE_DATABASE_URL: postgresql+psycopg://sitecapture:${POSTGRES_PASSWORD}@db:5432/sitecapture
+      SITECAPTURE_PUBLIC_URL: https://${SITECAPTURE_DOMAIN}
+    volumes:
+      - sitecapture-data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sitecapture
+      POSTGRES_DB: sitecapture
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sitecapture"]
+      interval: 5s
+      retries: 10
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITECAPTURE_DOMAIN: ${SITECAPTURE_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - app
+
+volumes:
+  sitecapture-data:
+  postgres-data:
+  caddy-data:
