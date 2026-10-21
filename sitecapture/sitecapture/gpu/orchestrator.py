@@ -85,9 +85,13 @@ def prepare_capture(
     out_dir = storage.project_dir(
         capture.project_id, "captures", str(capture.id), "frames"
     )
-    extracted = frames_mod.extract_frames(
-        [Path(p) for p in capture.source_paths], out_dir, settings.frame_interval_s
-    )
+    sources = [Path(p) for p in capture.source_paths]
+    for src in sources:
+        if not storage.ensure(src):
+            raise FileNotFoundError(f"uploaded file {src.name} is missing")
+    extracted = frames_mod.extract_frames(sources, out_dir, settings.frame_interval_s)
+    for f in extracted:
+        storage.persist(f.path)
     for old in list(capture.frames):
         session.delete(old)
     session.flush()

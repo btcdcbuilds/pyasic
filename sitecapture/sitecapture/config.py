@@ -39,6 +39,22 @@ class Settings:
         default_factory=lambda: float(_env("SITECAPTURE_REAPER_INTERVAL_MIN", "10"))
     )
 
+    # Where files live long-term: "local" (data_dir on disk) or "db" (in the
+    # database; for serverless hosts like Vercel whose disk is temporary).
+    file_store: str = field(
+        default_factory=lambda: _env("SITECAPTURE_FILE_STORE", "local")
+    )
+    # Process uploads inside the request instead of in the background
+    # (serverless hosts may stop work after the response is sent).
+    inline_processing: bool = field(
+        default_factory=lambda: _env("SITECAPTURE_INLINE_PROCESSING", "0") == "1"
+    )
+    # Upload chunk size in MB (0 = default 8 MB); keep it under the host's
+    # request body limit.
+    chunk_mb: float = field(
+        default_factory=lambda: float(_env("SITECAPTURE_CHUNK_MB", "0"))
+    )
+
     @property
     def cookie_secure(self) -> bool:
         return self.public_url.startswith("https://")

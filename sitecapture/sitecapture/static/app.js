@@ -152,10 +152,12 @@ $("#drawingSelect").onchange = (e) => { state.drawingId = +e.target.value; state
 
 $("#pdfInput").onchange = async (e) => {
   if (!state.project || !e.target.files[0]) return;
-  const fd = new FormData(); fd.append("file", e.target.files[0]);
-  setStatus("Rendering drawing…");
+  const file = e.target.files[0];
   try {
-    const pages = await api(`/api/projects/${state.project.id}/drawings`, { method: "POST", body: fd });
+    // Chunked like site walks, so large drawing sets get past request size limits.
+    const uploadId = await uploadFile(file, (sent) => setStatus(`Uploading drawing… ${Math.round(100 * sent / file.size)}%`));
+    setStatus("Rendering drawing…");
+    const pages = await api(`/api/projects/${state.project.id}/drawings/from-upload`, json("POST", { upload_id: uploadId }));
     state.drawingId = pages[0].id; setStatus(""); await openProject(state.project.id);
   } catch (err) { fail(err); }
   e.target.value = "";

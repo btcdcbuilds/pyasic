@@ -1,0 +1,7 @@
+tests/
+blender_addon/
+docker/
+deploy/
+data/
+**/__pycache__/
+*.egg-info/

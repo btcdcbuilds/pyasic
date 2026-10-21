@@ -8,6 +8,7 @@ PDF at any resolution.
 from __future__ import annotations
 
 import datetime as dt
+import os
 import secrets
 
 from sqlalchemy import (
@@ -17,6 +18,8 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
+    MetaData,
     String,
     Text,
     create_engine,
@@ -40,7 +43,26 @@ def as_utc(value: dt.datetime) -> dt.datetime:
 
 
 class Base(DeclarativeBase):
-    pass
+    # Optional Postgres schema, so the tables can live alongside another app's
+    # in a shared database (e.g. a Supabase project) without touching them.
+    metadata = MetaData(schema=os.environ.get("SITECAPTURE_DB_SCHEMA") or None)
+
+
+class StoredFile(Base):
+    """File contents kept in the database (``SITECAPTURE_FILE_STORE=db``).
+
+    Used on hosts with no permanent disk. Fine for small test files; large
+    footage belongs on a server with real storage.
+    """
+
+    __tablename__ = "stored_files"
+
+    key: Mapped[str] = mapped_column(String(1024), primary_key=True)
+    data: Mapped[bytes] = mapped_column(LargeBinary)
+    size: Mapped[int] = mapped_column(BigInteger)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
 
 
 class User(Base):
@@ -235,6 +257,9 @@ def make_sessionmaker(database_url: str) -> sessionmaker:
     connect_args = (
         {"check_same_thread": False} if database_url.startswith("sqlite") else {}
     )
-    engine = create_engine(database_url, connect_args=connect_args)
+    if "pooler.supabase.com:6543" in database_url:
+        # Supabase transaction pooler can't keep prepared statements.
+        connect_args["prepare_threshold"] = None
+    engine = create_engine(database_url, connect_args=connect_args, pool_pre_ping=True)
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine, expire_on_commit=False)

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import anthropic
 
+from sitecapture import media_tools
 from sitecapture.db import Capture, Frame
 
 SYSTEM_PROMPT = """You are a construction progress analyst. You are shown \
@@ -72,7 +73,7 @@ def _encode(image: Path, width: int = 2048) -> str:
         out = Path(tmp) / "img.jpg"
         subprocess.run(
             [
-                "ffmpeg",
+                media_tools.ffmpeg(),
                 "-v",
                 "error",
                 "-y",

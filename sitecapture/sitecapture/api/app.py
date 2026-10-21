@@ -57,7 +57,7 @@ from sitecapture.gpu import orchestrator
 from sitecapture.pipeline import drawings as drawings_mod
 from sitecapture.pipeline import frames as frames_mod
 from sitecapture.pipeline import timeline
-from sitecapture.storage import LocalStorage, safe_name
+from sitecapture.storage import DbBackedStorage, LocalStorage, safe_name
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 CHUNK_SIZE = 8 * 1024 * 1024  # 8 MB upload chunks
@@ -120,6 +120,10 @@ class UploadStartIn(BaseModel):
     size: int = Field(gt=0)
 
 
+class DrawingFromUploadIn(BaseModel):
+    upload_id: int
+
+
 class CaptureFromUploadsIn(BaseModel):
     upload_ids: list[int] = Field(min_length=1, max_length=50)
     drawing_id: int | None = None
@@ -140,13 +144,13 @@ def user_out(u: User) -> dict:
     }
 
 
-def upload_out(u: Upload) -> dict:
+def upload_out(u: Upload, chunk_size: int | None = None) -> dict:
     return {
         "id": u.id,
         "filename": u.filename,
         "size": u.size,
         "received": u.received,
-        "chunk_size": CHUNK_SIZE,
+        "chunk_size": chunk_size or CHUNK_SIZE,
         "complete": u.received == u.size,
     }
 
@@ -215,8 +219,12 @@ def job_out(j: Job) -> dict:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
-    storage = LocalStorage(settings.data_dir)
+    Path(settings.data_dir).mkdir(parents=True, exist_ok=True)
     SessionLocal = make_sessionmaker(settings.database_url)
+    if settings.file_store == "db":
+        storage: LocalStorage = DbBackedStorage(settings.data_dir, SessionLocal)
+    else:
+        storage = LocalStorage(settings.data_dir)
     throttle = auth.LoginThrottle()
     stop_reaper = threading.Event()
 
@@ -245,9 +253,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             except Exception:  # noqa: BLE001 - keep the loop alive
                 log.exception("stale job check failed")
 
+    # Run at app creation rather than in lifespan: serverless hosts may not
+    # send ASGI lifespan events.
+    bootstrap_admin()
+
+    def chunk_size() -> int:
+        return int(settings.chunk_mb * 1024 * 1024) if settings.chunk_mb else CHUNK_SIZE
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
-        bootstrap_admin()
         thread = None
         if settings.reaper_interval_min > 0:
             thread = threading.Thread(target=reaper_loop, daemon=True)
@@ -294,9 +308,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return obj
 
     def file_or_404(path: str | None) -> FileResponse:
-        if not path or not storage.contains(Path(path)) or not Path(path).exists():
+        if (
+            not path
+            or not storage.contains(Path(path))
+            or not storage.ensure(Path(path))
+        ):
             raise HTTPException(404, "file not found")
         return FileResponse(path)
+
+    def schedule(background: BackgroundTasks, capture_id: int) -> None:
+        if settings.inline_processing:
+            process_capture(capture_id)
+        else:
+            background.add_task(process_capture, capture_id)
 
     def process_capture(capture_id: int) -> None:
         """Background: extract frames, then start reconstruction."""
@@ -358,16 +382,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(400, "drawings must be PDF files")
         directory = storage.project_dir(project_id, "drawings")
         pdf_path = storage.save(directory, file.filename, file.file)
+        return create_drawings(session, project_id, pdf_path, Path(file.filename).stem)
+
+    def create_drawings(
+        session: Session, project_id: int, pdf_path: Path, title: str
+    ) -> list[dict]:
+        """One Drawing per page of an uploaded PDF."""
+        directory = pdf_path.parent
         try:
             pages = drawings_mod.render_pages(pdf_path, directory / "pages")
+            for page in pages:
+                storage.persist(page.image_path)
         except Exception as exc:  # noqa: BLE001 - corrupt or encrypted PDF
             pdf_path.unlink(missing_ok=True)
             raise HTTPException(400, f"could not read PDF: {exc}") from exc
         created = []
         for page in pages:
-            name = Path(file.filename).stem + (
-                f" (p{page.page_index + 1})" if len(pages) > 1 else ""
-            )
+            name = title + (f" (p{page.page_index + 1})" if len(pages) > 1 else "")
             d = Drawing(
                 project_id=project_id,
                 name=name,
@@ -381,6 +412,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             created.append(d)
         session.commit()
         return [drawing_out(d) for d in created]
+
+    @api.post("/api/projects/{project_id}/drawings/from-upload", status_code=201)
+    def drawing_from_upload(
+        project_id: int,
+        body: DrawingFromUploadIn,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        """Turn a finished chunked PDF upload into drawings (for large sheets)."""
+        get_or_404(session, Project, project_id)
+        upload = own_upload(session, body.upload_id, user)
+        if upload.project_id != project_id or not upload.filename.lower().endswith(
+            ".pdf"
+        ):
+            raise HTTPException(400, "upload is not a PDF for this project")
+        if upload.received != upload.size:
+            raise HTTPException(409, f"{upload.filename} has not finished uploading")
+        if upload.capture_id is not None:
+            raise HTTPException(409, f"{upload.filename} has already been used")
+        target = storage.project_dir(project_id, "drawings") / safe_name(
+            upload.filename
+        )
+        storage.move(Path(upload.path), target)
+        session.delete(upload)
+        session.commit()
+        return create_drawings(session, project_id, target, Path(upload.filename).stem)
 
     @api.get("/api/drawings/{drawing_id}/image")
     def drawing_image(drawing_id: int, session: Session = Depends(db)):
@@ -411,7 +468,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             source_paths=[],
         )
         session.add(capture)
-        session.flush()
+        # Commit before writing files: storage uses its own DB connection.
+        session.commit()
         directory = storage.project_dir(
             project_id, "captures", str(capture.id), "source"
         )
@@ -421,13 +479,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             try:
                 frames_mod.check_media(path)
             except (frames_mod.MediaError, subprocess.CalledProcessError) as exc:
-                session.rollback()
+                for done in saved + [str(path)]:
+                    storage.remove(Path(done))
+                session.delete(capture)
+                session.commit()
                 shutil.rmtree(directory.parent, ignore_errors=True)
                 raise HTTPException(400, str(exc)) from exc
             saved.append(str(path))
         capture.source_paths = saved
         session.commit()
-        background.add_task(process_capture, capture.id)
+        schedule(background, capture.id)
         return capture_out(capture)
 
     @api.get("/api/captures/{capture_id}")
@@ -527,6 +588,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         out = storage.project_dir(project_id, "timelapses") / (
             f"d{body.drawing_id}_{body.x:.3f}_{body.y:.3f}_{dt.datetime.now():%Y%m%d%H%M%S}.mp4"
         )
+        for e in entries:
+            storage.ensure(Path(e.frame.image_path))
         timeline.make_timelapse(
             [Path(e.frame.image_path) for e in entries],
             out,
@@ -575,6 +638,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
             .order_by(Capture.captured_at.desc())
         ).first()
+        for c in (capture, earlier):
+            for f in c.frames if c else []:
+                if f.x is not None:
+                    storage.ensure(Path(f.image_path))
         try:
             markdown = reports.generate_report(
                 capture.project.name, capture, earlier, model=settings.ai_model
@@ -675,7 +742,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 f"{body.filename}: raw Insta360 file. Export it as a 360 MP4/JPG "
                 "from Insta360 Studio first.",
             )
-        if ext not in allowed_exts:
+        if ext not in allowed_exts and ext != ".pdf":
             raise HTTPException(400, f"{body.filename}: unsupported file type {ext}")
         if body.size > max_upload:
             raise HTTPException(
@@ -692,10 +759,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session.flush()
         directory = storage.project_dir(project_id, "uploads")
         path = directory / f"{upload.id}_{safe_name(body.filename)}"
-        path.touch()
+        if not isinstance(storage, DbBackedStorage):
+            path.touch()
         upload.path = str(path)
         session.commit()
-        return upload_out(upload)
+        return upload_out(upload, chunk_size())
 
     @api.get("/api/uploads/{upload_id}")
     def get_upload(
@@ -703,7 +771,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         user: User = Depends(require_user),
         session: Session = Depends(db),
     ):
-        return upload_out(own_upload(session, upload_id, user))
+        return upload_out(own_upload(session, upload_id, user), chunk_size())
 
     @api.put("/api/uploads/{upload_id}")
     async def put_chunk(
@@ -722,22 +790,40 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 409, {"message": "wrong offset", "received": upload.received}
             )
         data = await request.body()
-        if len(data) > CHUNK_SIZE or offset + len(data) > upload.size:
+        if len(data) > chunk_size() or offset + len(data) > upload.size:
             raise HTTPException(400, "chunk too large")
-        with open(upload.path, "r+b") as f:
-            f.seek(offset)
-            f.write(data)
+        if isinstance(storage, DbBackedStorage):
+            # Each chunk may reach a different machine: keep chunks in the
+            # database and join them once the last one arrives.
+            storage.put_part(f"upload{upload.id}/{offset:015d}", data)
+        else:
+            with open(upload.path, "r+b") as f:
+                f.seek(offset)
+                f.write(data)
         upload.received = offset + len(data)
         if upload.received == upload.size:
+            if isinstance(storage, DbBackedStorage):
+                Path(upload.path).parent.mkdir(parents=True, exist_ok=True)
+                Path(upload.path).write_bytes(
+                    b"".join(storage.pop_parts(f"upload{upload.id}"))
+                )
             try:
-                frames_mod.check_media(Path(upload.path))
+                if Path(upload.path).suffix.lower() == ".pdf":
+                    with open(upload.path, "rb") as f:
+                        if f.read(5) != b"%PDF-":
+                            raise frames_mod.MediaError(
+                                f"{upload.filename} is not a PDF"
+                            )
+                else:
+                    frames_mod.check_media(Path(upload.path))
             except (frames_mod.MediaError, subprocess.CalledProcessError) as exc:
                 Path(upload.path).unlink(missing_ok=True)
                 session.delete(upload)
                 session.commit()
                 raise HTTPException(400, str(getattr(exc, "args", [exc])[0])) from exc
+            storage.persist(Path(upload.path))
         session.commit()
-        return upload_out(upload)
+        return upload_out(upload, chunk_size())
 
     @api.post("/api/projects/{project_id}/captures/from-uploads", status_code=201)
     def capture_from_uploads(
@@ -760,6 +846,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(409, f"{u.filename} has not finished uploading")
             if u.capture_id is not None:
                 raise HTTPException(409, f"{u.filename} is already in a capture")
+            if u.filename.lower().endswith(".pdf"):
+                raise HTTPException(400, f"{u.filename} is a PDF; add it as a drawing")
         capture = Capture(
             project_id=project_id,
             drawing_id=body.drawing_id,
@@ -768,20 +856,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             source_paths=[],
         )
         session.add(capture)
-        session.flush()
+        # Commit before writing files: storage uses its own DB connection.
+        session.commit()
         directory = storage.project_dir(
             project_id, "captures", str(capture.id), "source"
         )
         paths = []
         for u in uploads:
             target = directory / f"{len(paths):02d}_{safe_name(u.filename)}"
-            shutil.move(u.path, target)
+            storage.move(Path(u.path), target)
             u.path = str(target)
             u.capture_id = capture.id
             paths.append(str(target))
         capture.source_paths = paths
         session.commit()
-        background.add_task(process_capture, capture.id)
+        schedule(background, capture.id)
         return capture_out(capture)
 
     @api.get("/api/reports/{report_id}.pdf")
@@ -956,6 +1045,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             tmp = Path(tempfile.mkdtemp(dir=settings.data_dir))
             model_path = storage.save(tmp, model.filename or "model.ply", model.file)
         orchestrator.finish_job(session, settings, job, traj, model_path)
+        capture = session.get(Capture, job.capture_id)
+        if capture.model_path:
+            storage.persist(Path(capture.model_path))
         if model_path:
             shutil.rmtree(model_path.parent, ignore_errors=True)
         return job_out(job)

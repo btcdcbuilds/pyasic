@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
 WORKDIR /app
 COPY pyproject.toml ./
 COPY sitecapture ./sitecapture
-RUN pip install --no-cache-dir ".[bim,postgres]"
+RUN pip install --no-cache-dir ".[bim]"
 
 ENV SITECAPTURE_DATA_DIR=/data
 VOLUME /data

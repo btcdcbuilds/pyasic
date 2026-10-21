@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from sitecapture import media_tools
 from sitecapture.db import Capture, Frame
 
 
@@ -76,7 +77,7 @@ def make_timelapse(
     )
     subprocess.run(
         [
-            "ffmpeg",
+            media_tools.ffmpeg(),
             "-v",
             "error",
             "-y",
@@ -107,7 +108,7 @@ def flat_view(
     v_fov = 2 * math.degrees(math.atan(math.tan(math.radians(fov_deg) / 2) * h / w))
     subprocess.run(
         [
-            "ffmpeg",
+            media_tools.ffmpeg(),
             "-v",
             "error",
             "-y",

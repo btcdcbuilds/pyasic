@@ -8,11 +8,12 @@ have. Equirectangular media is recognised by its 2:1 aspect ratio.
 
 from __future__ import annotations
 
-import json
 import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+
+from sitecapture import media_tools
 
 VIDEO_EXTS = {".mp4", ".mov", ".m4v"}
 IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
@@ -31,27 +32,10 @@ class ExtractedFrame:
 
 
 def probe_size(path: Path) -> tuple[int, int]:
-    out = subprocess.run(
-        [
-            "ffprobe",
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "stream=width,height",
-            "-of",
-            "json",
-            str(path),
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-    streams = json.loads(out).get("streams") or []
-    if not streams:
-        raise MediaError(f"{path.name}: no video/image stream found")
-    return int(streams[0]["width"]), int(streams[0]["height"])
+    try:
+        return media_tools.probe_size(path)
+    except media_tools.MediaProbeError as exc:
+        raise MediaError(str(exc)) from exc
 
 
 def is_equirectangular(width: int, height: int, tolerance: float = 0.02) -> bool:
@@ -97,7 +81,7 @@ def extract_frames(
         tmp.mkdir(exist_ok=True)
         subprocess.run(
             [
-                "ffmpeg",
+                media_tools.ffmpeg(),
                 "-v",
                 "error",
                 "-i",
