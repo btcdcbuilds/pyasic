@@ -3,7 +3,7 @@
 import { WORLDS, DIFFICULTIES, WEAPONS, weaponById, LEVELS_PER_WORLD } from './data.js';
 
 export const HW = 6;
-export const SPEED = 10;
+export const SPEED = 12.5;
 export const HERO_POWER = 12; // a hero shoots like this many soldiers
 export const HERO_HP = 10; // soldiers a hero is worth when the army is wiped
 export const MAX_ARMY = 9999;
@@ -239,7 +239,9 @@ export function generateLevel(wi, li, diffId, seedExtra = 0, opts = {}) {
   BONUS_MULTS.forEach((mult, k) => add({ type: 'bonus', d: bonusStart + k * 11, x0: -HW, x1: HW, mult, step: k, cost: Math.round(bonusBase * [1, 1.6, 2.5, 4, 6][k]) }));
   dd = bonusStart + BONUS_MULTS.length * 11 + 6;
   ents.sort((a, b) => a.d - b.d);
-  return { wi, li, L, world, diff, entities: ents, dividers, bosses, boss: bosses[bosses.length - 1], length: dd, hpScale, enemyHp, nextId: id, seed: seedExtra };
+  // a steady trickle of small groups between the big squads, so there is always an enemy to keep back
+  const streamBase = Math.max(3, Math.round(squadSize(0) * 0.35));
+  return { wi, li, L, world, diff, entities: ents, dividers, bosses, boss: bosses[bosses.length - 1], length: dd, hpScale, enemyHp, nextId: id, seed: seedExtra, streamBase };
 }
 
 // ---------------------------------------------------------------- simulation
@@ -357,6 +359,7 @@ export class Sim {
     // the army halts at a standoff distance and trades fire with the boss
     if (b.alive) this.d = Math.min(this.d, b.d - BOSS_STAND);
 
+    this.updateStream(dt);
     this.fire(dt);
     this.updateProjectiles(dt);
     this.updateEntities(dt);
@@ -516,8 +519,9 @@ export class Sim {
         const dmg = p.d - p.d0 > p.range ? p.dmg * 0.5 : p.dmg;
         this.damage(best, dmg, p.kills);
         this.emit('hit', { x: p.x, d: Math.max(prev, bestD), w: p.w.id, ent: best.type });
-        if (p.w.splash) this.splash(p.x, bestD, p.w.splash, p.dmg * 0.6, best);
-        if (p.w.chain) this.chain(p.x, bestD, p.w.chain, p.dmg * 0.7, best);
+        // no blasts or arcs off gates: they only count hits, and the flash hid their numbers
+        if (p.w.splash && best.type !== 'gate') this.splash(p.x, bestD, p.w.splash, p.dmg * 0.6, best);
+        if (p.w.chain && best.type !== 'gate') this.chain(p.x, bestD, p.w.chain, p.dmg * 0.7, best);
         if (p.pierce > 0) {
           p.pierce--;
           (p.hit ||= new Set()).add(best.id);
@@ -670,6 +674,20 @@ export class Sim {
 
   geyserOn(e) {
     return ((this.t + e.phase) % e.period) < e.on;
+  }
+
+  // Enemy stream: small groups keep walking in from beyond aiming range every couple of seconds
+  // (not during the boss stand-off or the bonus run, and not in the first few seconds).
+  updateStream(dt) {
+    const b = this.boss;
+    if (this.bonus || this.t < 4 || !this.level.streamBase || (b.alive && b.d - this.d < BOSS_WAKE)) return;
+    this.streamT = (this.streamT ?? 2) - dt;
+    if (this.streamT > 0) return;
+    this.streamT = 1.6 + Math.random() * 1.6;
+    const m = Math.max(3, Math.round(this.level.streamBase * (0.6 + Math.random() * 0.8) + this.n * 0.015));
+    const x = (Math.random() * 2 - 1) * (HW - 1.2);
+    const e = this.spawnSquad(this.d + 95, x, m);
+    if (e) e.scaled = true; // already sized for the army
   }
 
   spawnSquad(d, x, m) {

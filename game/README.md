@@ -36,7 +36,7 @@ Then go to repo **Settings → Secrets and variables → Actions** and add these
 
 | Action | Effect |
 |---|---|
-| Drag left/right | Steer your army (arrow keys or A/D on desktop) |
+| Drag left/right | Steer your army (arrow keys or A/D on desktop). Menu → **How to play** explains every sign, crate and danger |
 | Your army fires automatically | Bullets stream out continuously. About 70% of shots aim at the nearest enemy (squads within 65 m, bosses within 110 m) and fly over banners and gates to reach it; the rest fly straight and hit whatever is in your lane, which is how gates grow |
 | Shoot a blue `+` gate | Raises its number. There is no cap, but each extra point takes a few more hits than the last |
 | Shoot a red `-` gate | Lowers the penalty until it flips to a `+` gate |
@@ -46,7 +46,7 @@ Then go to repo **Settings → Secrets and variables → Actions** and add these
 | Run into a board/wall that still has HP | You lose soldiers in proportion to how much of your army hits it |
 | `+1` / `+N` bonus strips | Blocks lined up in one lane. Run through as many as you can |
 | Walled 3-lane sections | Once inside you can't switch lanes, but the enemy horde jumps the low walls to reach you. One lane has a `+1` strip, one has the horde with a better weapon at the end, and one has big `+N` bonuses behind a hero board or wall |
-| Enemy squad | A big crowd of weak soldiers. It charges at you from 75 m, cuts across lanes toward your army and shoots back (red tracers) once within 20 m. Each bullet drops one enemy (piercing, explosive and chain weapons drop a few), so a crowd melts one by one. On contact, every 3 enemies take 2 of your soldiers with them |
+| Enemy squad | A big crowd of weak soldiers, plus a steady stream of small groups between them (except in boss fights). It charges at you from 75 m, cuts across lanes toward your army and shoots back (red tracers) once within 20 m. Each bullet drops one enemy (piercing, explosive and chain weapons drop a few), so a crowd melts one by one. On contact, every 3 enemies take 2 of your soldiers with them |
 | Stages and bosses | Each level has 2 stages (3 from level 4 of a world). A stage ends with a boss. You can shoot it from 110 m away as you march in (FIGHT!), and your army stops at a distance to trade fire. The boss marks red zones on the ground before each slam, sweep or rock fall: steer out of them (DODGED!). Below 60% health it gets ANGRY, below 30% ENRAGED (faster attacks, double slams), and it keeps sending squads at you. Beating a mid-boss gives you reinforcements and the run continues; the final boss ends the level |
 
 ## Worlds (8 worlds × 5 levels = 40 levels)
@@ -96,10 +96,10 @@ On top of that, every level scales up. Obstacle HP grows +30% per level, enemy t
 
 | Difficulty | Bot wins (of 120) | Average level length | Average final-boss fight (wins, from the first hit at ~110 m) |
 |---|---|---|---|
-| Recruit | 120 | 149 s | 18.3 s |
-| Soldier | 120 | 156 s | 22.9 s |
-| Veteran | 118 | 164 s | 28.4 s |
-| Nightmare | 89 | 176 s | 40.2 s |
+| Recruit | 120 | 125 s | 17.8 s |
+| Soldier | 119 | 130 s | 21.8 s |
+| Veteran | 115 | 135 s | 26.5 s |
+| Nightmare | 93 | 140 s | 33.9 s |
 
 This bot dodges every boss attack perfectly, so these numbers are a best case.
 
@@ -107,9 +107,9 @@ This bot dodges every boss attack perfectly, so these numbers are a best case.
 
 | Difficulty | Levels cleared | Attempts needed |
 |---|---|---|
-| Soldier | 40/40 | 41 |
+| Soldier | 40/40 | 40 |
 | Veteran | 40/40 | 51 |
-| Nightmare | 40/40 | 99 |
+| Nightmare | 40/40 in 3 of 4 runs (92, 103, 108 attempts); 1 run got stuck at 24/40 (15 failed tries on one level) | |
 
 ## Automated playtesting
 

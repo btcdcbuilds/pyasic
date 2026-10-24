@@ -10,7 +10,7 @@ export function buildEnvironment(r, world, len, theme = { env: 'world' }, bossDs
     addAmbient(r, world);
     return;
   }
-  const root = r.root;
+  const root = r.envRoot;
   const lam = (hex, extra = {}) => new THREE.MeshLambertMaterial({ color: hex, ...extra });
   const trackW = HW * 2 + 1.2;
   const track = new THREE.Mesh(new THREE.BoxGeometry(trackW, 0.6, len + 60), lam(world.track));
@@ -51,7 +51,7 @@ export function buildEnvironment(r, world, len, theme = { env: 'world' }, bossDs
 // candlestick charts, mining rigs, coin billboards, spinning coins in the sky and a giant coin
 // behind every bear boss.
 function addBitcoinProps(r, len, bossDs) {
-  const root = r.root;
+  const root = r.envRoot;
   const G = THREE;
   const coinTex = r.cachedTex('btc', 128, 128, drawBtc);
   const rnd = mulberry((len | 0) + 21);
@@ -151,7 +151,7 @@ function addBitcoinProps(r, len, bossDs) {
       c.scale.setScalar(4.5);
       c.position.set(s * (HW + 9), 7, -(bd + 4));
       c.rotation.y = -s * 0.5;
-      root.add(c);
+      r.root.add(c); // tied to the boss, so it lives in the world, not the slow-scrolling scenery
     }
   }
 }
@@ -160,7 +160,7 @@ function addBitcoinProps(r, len, bossDs) {
 // boards, stands full of fans, floodlights and goal posts behind every boss. The world still sets
 // the sky, light, fog and weather (snow, embers, sand...).
 function buildStadium(r, world, len, theme, bossDs) {
-  const root = r.root;
+  const root = r.envRoot;
   const G = THREE;
   const lam = (hex, extra = {}) => new G.MeshLambertMaterial({ color: hex, ...extra });
   const merged = (geos, mat) => { if (geos.length) root.add(new G.Mesh(mergeGeometries(geos), mat)); };
@@ -283,12 +283,13 @@ function buildStadium(r, world, len, theme, bossDs) {
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, -0.65, -len / 2);
   root.add(ground);
-  // goal posts just behind each boss
+  // goal posts just behind each boss (in the world, not the slow-scrolling scenery)
   const yellow = lam(0xffd21a), whiteM = lam(0xffffff), pad = lam(theme.army);
+  const world3d = (geos, mat) => r.root.add(new G.Mesh(mergeGeometries(geos), mat));
   for (const bd of bossDs) {
     const z = -(bd + 9);
     if (theme.env === 'gridiron') {
-      merged([
+      world3d([
         new G.CylinderGeometry(0.22, 0.22, 3.2, 8).translate(0, 1.6, z + 1.2),
         new G.BoxGeometry(0.3, 0.3, 1.4).translate(0, 3.2, z + 0.55),
         new G.CylinderGeometry(0.16, 0.16, 7.4, 8).rotateZ(Math.PI / 2).translate(0, 3.3, z),
@@ -298,15 +299,15 @@ function buildStadium(r, world, len, theme, bossDs) {
       const ez = new G.Mesh(new G.PlaneGeometry(trackW + 6, 9), new G.MeshBasicMaterial({ color: theme.army, transparent: true, opacity: 0.45, depthWrite: false }));
       ez.rotation.x = -Math.PI / 2;
       ez.position.set(0, 0.008, z + 4.5);
-      root.add(ez);
+      r.root.add(ez);
     } else {
       const posts = [], pads = [];
       for (const [x, h] of [[-2.2, 11], [2.2, 11], [-6.6, 7], [6.6, 7]]) {
         posts.push(new G.CylinderGeometry(0.16, 0.2, h, 8).translate(x, h / 2, z));
         pads.push(new G.CylinderGeometry(0.32, 0.32, 1.8, 10).translate(x, 0.9, z));
       }
-      merged(posts, whiteM);
-      merged(pads, pad);
+      world3d(posts, whiteM);
+      world3d(pads, pad);
     }
   }
   if (world.props === 'lunar') {
@@ -318,7 +319,7 @@ function buildStadium(r, world, len, theme, bossDs) {
 }
 
 function addProps(r, world, len) {
-  const root = r.root;
+  const root = r.envRoot;
   const lam = (hex, extra = {}) => new THREE.MeshLambertMaterial({ color: hex, ...extra });
   const basic = (hex) => new THREE.MeshBasicMaterial({ color: hex });
   const merged = (geos, mat) => { if (geos.length) root.add(new THREE.Mesh(mergeGeometries(geos), mat)); };

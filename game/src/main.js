@@ -82,7 +82,7 @@ function toast(msg, ms = 2600) {
 }
 
 // ------------------------------------------------------------------ screens
-const screens = ['menu', 'worlds', 'armory', 'upgrades', 'stats', 'themes', 'settings', 'pause', 'result', 'daily'];
+const screens = ['menu', 'worlds', 'armory', 'upgrades', 'stats', 'themes', 'guide', 'settings', 'pause', 'result', 'daily'];
 let screen = 'menu';
 function show(name) {
   screen = name;
@@ -98,6 +98,7 @@ function show(name) {
   if (name === 'settings') renderSettings();
   if (name === 'stats') renderStats();
   if (name === 'themes') renderThemes();
+  if (name === 'guide') renderGuide();
   $$('.coins-total').forEach((el) => (el.textContent = fmt(save.coins)));
 }
 function hideAll() {
@@ -110,7 +111,7 @@ document.addEventListener('click', (ev) => {
   sfx.unlock();
   if (screen !== 'game') menuMusic();
   const go = ev.target.closest('[data-go]');
-  if (go) { sfx.click(); show(go.dataset.go); }
+  if (go) { sfx.click(); if (go.dataset.go === 'guide') guideReturn = 'menu'; show(go.dataset.go); }
 });
 
 function diffButtons(el) {
@@ -547,6 +548,18 @@ function resultNote(won, challenge, wi, li, L) {
   return '';
 }
 
+// How to play: opened from the menu or the pause screen, and goes back to where it came from.
+let guideReturn = 'menu';
+function renderGuide() {
+  const cv = $('#guide-gun');
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  drawWeaponIcon(ctx, weaponById.rifle, 4, 2, 112, 50);
+  $('#scr-guide .list').scrollTop = 0;
+}
+$('#guide-back').onclick = () => { sfx.click(); show(guideReturn); };
+$('#pause-guide').onclick = () => { guideReturn = 'pause'; show('guide'); };
+
 // Theme picker: changes the look of the whole game (players, enemies, bosses, stadiums, names).
 function renderThemes() {
   const list = $('#theme-list');
@@ -670,6 +683,7 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) pause
 function handleBack() {
   if (screen === 'game') return pauseGame();
   if (screen === 'pause') return $('#btn-resume').click();
+  if (screen === 'guide') return $('#guide-back').click();
   if (screen === 'menu') {
     try { App.exitApp(); } catch { /* not on Android */ }
     return;

@@ -173,3 +173,27 @@ body.has-photo .card { background: rgba(13,21,48,.82); }
 .set-btns .btn.small { min-width: 0; }
 body:not(.in-menu) #photo-bg { display: none; }
 body.in-menu #overlay { visibility: hidden; }
+
+/* how to play */
+.guide h3 { margin: 0 0 4px; }
+.guide p { margin: 0; font-family: Roboto, sans-serif; font-size: 14px; line-height: 1.4; color: #dfe6ff; }
+.guide p b { color: #fff; }
+.g-head { margin: 10px 4px 0 !important; color: var(--gold); font-size: 17px; }
+.g-row { display: flex; align-items: center; gap: 12px; }
+.sign { flex-shrink: 0; width: 82px; min-height: 52px; border-radius: 12px; border: 3px solid #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 24px; color: #fff; -webkit-text-stroke: 1px #1a1a1a; paint-order: stroke fill; line-height: 1; padding: 4px 2px; text-align: center; }
+.sign small { font-size: 11px; -webkit-text-stroke: 0; margin-top: 2px; }
+.sign.small { font-size: 18px; min-height: 36px; }
+.sign.blue { background: linear-gradient(#50aaff, #195feb); }
+.sign.red { background: linear-gradient(#ff5a5a, #c8141e); }
+.sign.gold { background: linear-gradient(#ffd63c, #eb960a); font-size: 20px; }
+.sign.board { background: #f2f2f2; color: #1a1a1a; -webkit-text-stroke: 0; font-size: 16px; }
+.sign.board canvas { width: 66px; height: 30px; }
+.sign.board small { color: #c01a1a; font-size: 14px; }
+.sign.cage { background: #8a6a3a; font-size: 14px; }
+.sign.stone { background: #8a7a68; }
+.sign.barrel { background: #d82a1a; border-radius: 22px; font-size: 18px; }
+.sign.coinic { background: transparent; border-color: transparent; }
+.sign.coinic .coin-ic { width: 34px; height: 34px; }
+.sign.danger { background: #333; color: #ffcc00; }
+.sign.walls { background: #5a5242; font-size: 18px; }
+.enemy-pill { flex-shrink: 0; width: 82px; text-align: center; background: var(--red); border: 3px solid #fff; border-radius: 999px; padding: 4px 0; font-size: 20px; }

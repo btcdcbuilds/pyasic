@@ -3,6 +3,14 @@
 Write your notes from playing on your phone here, newest first. The playtest agent reads this file
 before every playtest and checks each point in the game.
 
+## 2026-10-24 (v1.0.20)
+
+- Pretty cool overall.
+- At some stages the guns were so powerful I couldn't see the signs: I couldn't see the gate numbers going up.
+- Need an information part that explains the different things: e.g. a red gate (the count changes faster when you shoot it), what a red ÷2 does, etc.
+- The game is a little slow to play.
+- In our game it feels like we're driving through the level. In the other games everything comes to you: hundreds of enemies that are always there and you have to keep at bay, and the same for weapons and people.
+
 ## 2026-10-11 (v1.0.17)
 
 - The Bitcoin theme isn't really a Bitcoin theme: it's mostly orange. Put the Bitcoin logo and more Bitcoin things in it.

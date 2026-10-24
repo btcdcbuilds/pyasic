@@ -15,6 +15,9 @@ const QUALITY = {
 };
 const MAX_PROJ = 500;
 const MAX_GHOSTS = 260;
+// The road and scenery scroll at this fraction of the army's speed, so the army looks like it is
+// holding its ground while gates, crates and enemies stream towards it (like the ads).
+const SCENERY_SCROLL = 0.35;
 const tmpM = new THREE.Matrix4();
 const tmpQ = new THREE.Quaternion();
 const tmpE = new THREE.Euler();
@@ -301,7 +304,9 @@ export class Renderer {
     scene.add(this.root);
     this.followers = null;
     this.spinners = null;
-    buildEnvironment(this, world, sim.level.length + 120, this.theme, sim.bosses.map((b) => b.d));
+    this.envRoot = new THREE.Group();
+    this.root.add(this.envRoot);
+    buildEnvironment(this, world, sim.level.length * SCENERY_SCROLL + 320, this.theme, sim.bosses.map((b) => b.d));
     this.buildDividers(sim);
 
     this.maxArmy = q.army;
@@ -738,6 +743,7 @@ export class Renderer {
         }
         case 'hit': {
           const w = weaponById[ev.w];
+          if (ev.ent === 'gate') { if (Math.random() < 0.08) this.spark(ev.x, 0.5, -ev.d + 0.3, 0xffffff, 1, 3, 0.2); break; } // keep gate numbers readable
           if (Math.random() < 0.5 || w.rate < 3) this.spark(ev.x, 0.9 + Math.random() * 0.6, -ev.d, w.color, w.rate < 3 ? 4 : 2, 5, 0.3 + w.size * 0.12);
           break;
         }
@@ -1240,7 +1246,9 @@ export class Renderer {
       }
       pos.needsUpdate = true;
     }
-    if (this.followers) for (const f of this.followers) f.position.z = armyZ - 260;
+    const envZ = -sim.d * (1 - SCENERY_SCROLL);
+    this.envRoot.position.z = envZ;
+    if (this.followers) for (const f of this.followers) f.position.z = armyZ - 260 - envZ;
     if (this.spinners) for (const c of this.spinners) c.rotation.y += dt * 1.6;
 
     this.placeLabel(this.armyLabel, sim.x, 1.5 + R * 0.35, armyZ, fmt(sim.n) + (sim.heroes ? ` <small>+${sim.heroes}★</small>` : ''));

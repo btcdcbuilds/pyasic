@@ -45,6 +45,7 @@
         <button class="btn" data-go="upgrades">Upgrades</button>
         <button class="btn" data-go="stats">Stats</button>
         <button class="btn" data-go="themes">Themes</button>
+        <button class="btn" data-go="guide">How to play</button>
         <button class="btn" data-go="settings">Settings</button>
       </div>
       <div class="diff-row" id="menu-diff"></div>
@@ -84,6 +85,43 @@
       <div class="list" id="theme-list"></div>
     </section>
 
+    <!-- How to play -->
+    <section id="scr-guide" class="screen hidden">
+      <header><button class="icon-btn" id="guide-back">&lsaquo;</button><h2>How to play</h2><div></div></header>
+      <div class="list guide">
+        <div class="card"><h3>Controls</h3><p>Drag left and right to steer. Your army shoots on its own. The bigger your army, the more bullets fly.</p></div>
+
+        <h3 class="g-head">Gates: run through one</h3>
+        <div class="card g-row"><span class="sign blue">+12</span><p><b>Adds soldiers.</b> Shoot it before you reach it and the number goes up. Each extra point takes a few more hits than the last.</p></div>
+        <div class="card g-row"><span class="sign red">-8</span><p><b>Takes soldiers away.</b> Shoot it: every 2 hits knock 1 off, and at 0 it flips to a blue <b>+</b> gate. A flipped gate grows back to its old size quickly (2 hits a point), so red gates are worth shooting!</p></div>
+        <div class="card g-row"><span class="sign blue">x2</span><p><b>Doubles your army.</b> Shooting doesn't change it.</p></div>
+        <div class="card g-row"><span class="sign red">÷2</span><p><b>Halves your army.</b> Shooting doesn't change it. Steer around it!</p></div>
+        <div class="card g-row"><span class="sign gold">+15%<small>DAMAGE</small></span><p><b>Every soldier hits harder</b> (or shoots faster with <b>FIRE RATE</b>) for the rest of the level. Shooting doesn't change it.</p></div>
+
+        <h3 class="g-head">Things to shoot open</h3>
+        <div class="card g-row"><span class="sign board"><canvas id="guide-gun" width="120" height="54"></canvas><small>40</small></span><p><b>Weapon crate.</b> Get in its lane and shoot the number to 0. It turns gold (RUN IN!) and runs to you: your whole army gets that gun. The same gun again gives +15% damage.</p></div>
+        <div class="card g-row"><span class="sign board">HERO<small>60</small></span><p><b>Hero crate.</b> Same, but a minigun hero joins and fights beside your army.</p></div>
+        <div class="card g-row"><span class="sign cage">FREE +12<small>30</small></span><p><b>Prison cage.</b> Shoot it to 0 and the prisoners join you.</p></div>
+        <div class="card g-row"><span class="sign stone">45</span><p><b>Wall.</b> Shoot it down or go around. Running into a crate, cage or wall that still has a number costs you soldiers.</p></div>
+        <div class="card g-row"><span class="sign barrel">TNT</span><p><b>Red barrel.</b> Shoot it to blow up enemies and walls nearby. Running into it costs 6 soldiers.</p></div>
+
+        <h3 class="g-head">Pick up</h3>
+        <div class="card g-row"><span class="sign blue small">+1</span><p><b>Soldier blocks.</b> Run through them to collect. Big yellow ones give more.</p></div>
+        <div class="card g-row"><span class="sign coinic"><span class="coin-ic"></span></span><p><b>Coins.</b> Run through them. Spend coins on weapons and upgrades.</p></div>
+
+        <h3 class="g-head">Enemies and dangers</h3>
+        <div class="card g-row"><span class="enemy-pill">27</span><p><b>Enemy squad.</b> The number is how many are left. They charge at you and shoot back, so mow them down before they reach you. Each enemy that reaches you takes some of your soldiers with it.</p></div>
+        <div class="card g-row"><span class="sign danger">!</span><p><b>Saw blades, rolling boulders and lava geysers</b> cost soldiers every time they hit. Watch their timing and steer around.</p></div>
+        <div class="card g-row"><span class="sign walls">| | |</span><p><b>Walled lanes.</b> Once inside you can't switch lanes, but enemies jump the low walls. Pick your lane before you go in.</p></div>
+
+        <h3 class="g-head">Bosses</h3>
+        <div class="card"><p>Each level has 2 or 3 stages and every stage ends with a boss. Start shooting it from far away. When it attacks, a <b style="color:#ff6a6a">red zone</b> appears on the ground: steer out before it lands. After an attack its chest glows: hit the <b>weak spot</b> for double damage. Beating a mid-boss sends reinforcements.</p></div>
+
+        <h3 class="g-head">Bonus run and stars</h3>
+        <div class="card"><p>After the final boss, march up the bonus steps. Each step costs soldiers and raises your coin multiplier (up to <b>x5</b>). Stars depend on how many soldiers you finish with.</p></div>
+      </div>
+    </section>
+
     <!-- Daily reward -->
     <section id="scr-daily" class="screen modal hidden">
       <div class="panel">
@@ -116,6 +154,7 @@
         <button id="btn-resume" class="btn primary">Resume</button>
         <button id="btn-restart" class="btn">Restart</button>
         <button id="btn-quit" class="btn">Quit to menu</button>
+        <button id="pause-guide" class="btn">How to play</button>
         <div class="pause-toggles">
           <button id="pause-sound" class="btn small">Sound: On</button>
           <button id="pause-music" class="btn small">Music: On</button>
