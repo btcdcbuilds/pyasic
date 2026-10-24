@@ -1,0 +1,8 @@
+{
+  "appId": "com.btcdcbuilds.armyrush",
+  "appName": "Army Rush",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#0d1530"
+  }
+}

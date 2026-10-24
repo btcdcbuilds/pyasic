@@ -1,0 +1,90 @@
+name: Army Rush APK
+
+on:
+  push:
+    paths:
+      - 'game/**'
+      - '.github/workflows/game-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: game
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: game/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install
+        run: npm ci
+
+      - name: Test (save data, all 160 level/difficulty combos, boss regression)
+        run: npm test
+
+      - name: Build web game
+        run: npm run build
+
+      - name: Sync into Android project
+        run: npx cap sync android
+
+      - name: Build signed APK
+        working-directory: game/android
+        env:
+          KEYSTORE_B64: ${{ secrets.ARMYRUSH_KEYSTORE_BASE64 }}
+          ARMYRUSH_KEYSTORE_PASSWORD: ${{ secrets.ARMYRUSH_KEYSTORE_PASSWORD }}
+          ARMYRUSH_KEY_ALIAS: ${{ secrets.ARMYRUSH_KEY_ALIAS }}
+          ARMYRUSH_KEY_PASSWORD: ${{ secrets.ARMYRUSH_KEY_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/armyrush.jks"
+            export ARMYRUSH_KEYSTORE="$RUNNER_TEMP/armyrush.jks"
+          else
+            echo "::warning::No ARMYRUSH_KEYSTORE_BASE64 secret set; signing with a throwaway debug key (uninstall before installing a new build)."
+          fi
+          chmod +x gradlew
+          mkdir -p ../out
+          if [ -n "$KEYSTORE_B64" ]; then
+            # signed with your key: an APK for sideloading and an AAB for the Play Store
+            ./gradlew assembleRelease bundleRelease --no-daemon
+            cp app/build/outputs/bundle/release/app-release.aab ../out/ArmyRush-v1.0.${{ github.run_number }}.aab
+          else
+            ./gradlew assembleRelease --no-daemon
+          fi
+          cp app/build/outputs/apk/release/app-release.apk ../out/ArmyRush-v1.0.${{ github.run_number }}.apk
+          # fixed name too, so .../releases/latest/download/ArmyRush.apk (the QR code) is always the newest
+          cp app/build/outputs/apk/release/app-release.apk ../out/ArmyRush.apk
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ArmyRush-apk
+          path: game/out/*
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: army-rush-v1.0.${{ github.run_number }}
+          name: Army Rush v1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: game/out/*
+          body: |
+            Android APK for Army Rush, built from branch `${{ github.ref_name }}` (commit ${{ github.sha }}).
+
+            Install: open this page on your Android phone, tap the .apk file under Assets, then allow "Install unknown apps" for your browser when asked.
+            The .aab file (only present when the signing-key secrets are set) is for uploading to Google Play.
