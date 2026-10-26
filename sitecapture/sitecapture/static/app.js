@@ -94,14 +94,17 @@ async function startSession() {
   showView(storageGet("ycb-view") || "sites");
 }
 
-// ---- top-level views: Sites / Design requests -----------------------------
+// ---- top-level views: Sites / As-built / Design requests --------------------
 function showView(view) {
+  if (!["sites", "asbuilt", "design"].includes(view)) view = "sites";
   document.querySelectorAll(".nav-tab").forEach((t) => t.classList.toggle("active", t.dataset.view === view));
   $("#sitesView").hidden = view !== "sites";
+  $("#asbuiltView").hidden = view !== "asbuilt";
   $("#designView").hidden = view !== "design";
   document.body.classList.toggle("view-design", view === "design");
   storageSet("ycb-view", view);
   if (view === "design" && window.Design) window.Design.open();
+  if (view === "asbuilt" && window.AsBuilt) window.AsBuilt.open();
 }
 document.querySelectorAll(".nav-tab").forEach((t) => t.onclick = () => showView(t.dataset.view));
 $("#loginForm").onsubmit = async (e) => {
@@ -267,6 +270,7 @@ async function openProject(id) {
   loadAnnotations().catch(fail);
   renderEmpty();
   draw();
+  if (window.AsBuilt) window.AsBuilt.projectChanged();
 }
 function renderEmpty() {
   const el = $("#emptyState");
@@ -702,13 +706,14 @@ async function loadAnnotations() {
         ${a.visible_to_client && isStaff() ? '<span class="shared-pill">SHARED</span>' : ""}
         ${a.status === "resolved" ? `<span class="badge ok">${icon("check", "ic sm")}Resolved</span>` : ""}</div>
       <div class="ann-title">${escapeHtml(a.title)}</div>
-      <div class="ann-meta">${capDate[a.capture_id] ? fmtDate(capDate[a.capture_id]) : ""}${a.ai_assisted ? ` · ${icon("spark", "ic sm")} Opus` : ""}</div>
+      <div class="ann-meta">${a.check_id ? `${icon("cube", "ic sm")} As-built check` : capDate[a.capture_id] ? fmtDate(capDate[a.capture_id]) : ""}${a.ai_assisted ? ` · ${icon("spark", "ic sm")} Opus` : ""}</div>
     </li>`).join("") || `<li class="empty-li">${isStaff() ? "No annotations. Open a 360 view and press Annotate." : "No notes shared yet."}</li>`;
 }
 $("#annotationFilter").onchange = () => loadAnnotations().catch(fail);
 $("#annotationList").onclick = async (e) => {
   const li = e.target.closest("li[data-id]"); if (!li) return;
   const a = state.annotations.find((x) => x.id === +li.dataset.id); if (!a) return;
+  if (a.check_id) { showView("asbuilt"); window.AsBuilt?.openIssue(a); return; }
   try {
     if (state.capture?.id !== a.capture_id) await selectCapture(a.capture_id);
     const f = state.capture.frames.find((x) => x.id === a.frame_id);

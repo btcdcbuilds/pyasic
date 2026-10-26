@@ -21,6 +21,8 @@ requires-python = ">=3.12"
 
 [project.optional-dependencies]
 bim = ["ifcopenshell>=0.8"]
+# E57 and LAZ point clouds (PLY, LAS, PTS/XYZ need nothing extra).
+scan = ["pye57>=0.4", "laspy[lazrs]>=2.5"]
 dev = ["pytest>=8"]
 
 [build-system]

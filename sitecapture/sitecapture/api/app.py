@@ -17,6 +17,7 @@ import tempfile
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Iterator
 from urllib.parse import urlparse
 
@@ -64,6 +65,7 @@ from sitecapture.gpu import orchestrator
 from sitecapture.pipeline import drawings as drawings_mod
 from sitecapture.pipeline import frames as frames_mod
 from sitecapture.pipeline import timeline
+from sitecapture.scan.pointcloud import SCAN_EXTS
 from sitecapture.storage import DbBackedStorage, LocalStorage, safe_name
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -911,7 +913,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # -- chunked uploads (large walk videos) --
 
     max_upload = int(settings.max_upload_gb * 1024**3)
-    allowed_exts = frames_mod.VIDEO_EXTS | frames_mod.IMAGE_EXTS
+    allowed_exts = frames_mod.VIDEO_EXTS | frames_mod.IMAGE_EXTS | SCAN_EXTS
 
     def own_upload(session: Session, upload_id: int, user: User) -> Upload:
         upload = get_or_404(session, Upload, upload_id)
@@ -945,7 +947,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         upload = Upload(
             user_id=user.id,
             project_id=project_id,
-            purpose="drawing" if ext == ".pdf" else "media",
+            purpose=(
+                "drawing" if ext == ".pdf" else "scan" if ext in SCAN_EXTS else "media"
+            ),
             filename=body.filename,
             size=body.size,
             path="",
@@ -1047,6 +1051,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 raise HTTPException(409, f"{u.filename} is already in a capture")
             if u.filename.lower().endswith(".pdf"):
                 raise HTTPException(400, f"{u.filename} is a PDF; add it as a drawing")
+            if u.purpose == "scan":
+                raise HTTPException(
+                    400, f"{u.filename} is a point cloud; add it under As-built scans"
+                )
         capture = Capture(
             project_id=project_id,
             drawing_id=body.drawing_id,
@@ -1203,6 +1211,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "frame_id": a.frame_id,
             "yaw": a.yaw,
             "pitch": a.pitch,
+            "check_id": a.check_id,
+            "element_guid": a.element_guid,
+            "position": a.position,
             "category": a.category,
             "title": a.title,
             "body": a.body,
@@ -1634,6 +1645,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session.commit()
         return design_out(req, user, full=True)
 
+    from sitecapture.api import scans as scans_routes
+
+    scans_routes.register(
+        api,
+        SimpleNamespace(
+            storage=storage,
+            settings=settings,
+            SessionLocal=SessionLocal,
+            db=db,
+            require_user=require_user,
+            staff_only=staff_only,
+            see_project=see_project,
+            get_or_404=get_or_404,
+            file_or_404=file_or_404,
+            annotation_out=annotation_out,
+            check_category=check_category,
+            Project=Project,
+        ),
+    )
     app.include_router(api)
 
     # -- GPU worker callbacks --

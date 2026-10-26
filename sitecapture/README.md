@@ -30,7 +30,15 @@ date, and generate AI progress reports, time-lapses and 3D models.
 | Autodesk ACC/Revit, Procore | **Interface only, not implemented** | Needs your OAuth app credentials; see `sitecapture/bim/connectors.py` |
 | Blender add-on (latest + historical models) | Written, **not tested in Blender** | `blender_addon/sitecapture_blender` |
 | VPS deployment (Docker Compose: app + Postgres + Caddy HTTPS) | Files written; **image build not run here** | The sandbox couldn't download Debian packages. The test suite does pass against PostgreSQL 16 |
-| Per-project access (only some users see a project) | Not implemented | Every user sees every project; only admins manage users |
+| Client logins (invite only, read-only, member projects only) | Working, tested | Staff add clients to projects under **Client access** |
+| Annotations on 360 photos (Defect / Progress / Safety / Note) | Working, tested | "Suggest with Opus" drafts the text; mocked in tests |
+| Design requests (block, plans, sketches → brief, concept DXF/PDF) | Working, tested | Opus calls mocked in tests |
+| **As-built check**: point cloud vs IFC design model | Working, tested on synthetic scans | See "As-built checks" below. Not yet run on a real site scan |
+| Point cloud import: PLY, LAS, PTS/XYZ/CSV | Working, tested | Built in |
+| Point cloud import: E57, LAZ | Working, tested | `pip install .[scan]` (pye57, laspy + lazrs) |
+| Point cloud from a 360 walk | Wired up, not run for real | Uses the OpenSfM dense cloud; has no true scale (see below) |
+| Scan to BIM (auto-model walls/floors as IFC) | Not implemented yet | Planned next |
+| SimReady export (USD/GLB with collision for Isaac Sim) | Not implemented yet | Planned after Scan to BIM |
 | Cloud storage (S3/R2) | Not implemented | Files are kept on the VPS disk (Docker volume) |
 | Database migrations | Not implemented | New tables are created automatically; changes to existing tables will need a migration tool (Alembic) later |
 
@@ -38,14 +46,36 @@ date, and generate AI progress reports, time-lapses and 3D models.
 
 ```bash
 cd sitecapture
-pip install -e ".[bim,dev]"          # needs ffmpeg/ffprobe on PATH
+pip install -e ".[bim,scan,dev]"     # needs ffmpeg/ffprobe on PATH
 SITECAPTURE_ADMIN_EMAIL=you@example.com SITECAPTURE_ADMIN_PASSWORD='10+ characters' \
   uvicorn sitecapture.api.app:app --port 8000   # creates the first admin
 # open http://localhost:8000
-python -m pytest                     # 34 tests
+python -m pytest                     # 51 tests
 # against Postgres:
 SITECAPTURE_TEST_DATABASE_URL=postgresql+psycopg://user@host/db python -m pytest
 ```
+
+## As-built checks
+
+Compare what was built (a scan) with what was designed (an IFC model).
+
+| Step | What happens |
+|---|---|
+| 1. Add a scan | **As-built** tab → **Add point cloud** (E57, LAS/LAZ, PLY, PTS, XYZ), or **Use walk** for a processed 360 walk. The scan is thinned to one point per 1 cm (coarser if it would exceed 4 million points) for analysis and 1.5 million points for the browser |
+| 2. Align | Pick 3+ matching points (scan corner, then the same corner on the model), or choose **Same coordinates** when both are in the site survey grid. Then robust point-to-plane ICP refines the fit |
+| 3. Measure | Every scan point gets its distance to the nearest design surface (exact, within a 6 × tolerance cutoff; minimum 100 mm). Every element gets: % of points within tolerance, median, 95th percentile, signed median (+ = built outside the design surface), coverage |
+| 4. Status | OK (≥ 80% within tolerance), Check (50–80%), Deviates (< 50%), Not seen (in the scanned area but < 20% of its best-scanned side has scan points on it), Outside scan |
+| 5. Act | Raise issues pinned in 3D (they appear in the project's annotation list; share with clients per issue). **Write QA report with Opus**: the tables are computed; Opus only writes commentary and actions, and is given only the measured figures |
+
+Limits, measured on the synthetic tests in `tests/test_scan.py`:
+
+| Case | Result |
+|---|---|
+| LiDAR-like scan (3 mm noise), picked points off by ~3 cm | Alignment error < 3 mm; a wall built 60 mm out measured 59.1 mm median; a missing wall flagged Not seen |
+| Photo-derived cloud (unknown scale), correctly built room | Scale and alignment recovered to < 3 mm |
+| Photo-derived cloud with defects | A small uniform scale error can explain a displaced wall as well as the displacement does, so the UI warns that tolerance checks need LiDAR or phone LiDAR scans |
+
+Processing runs in the web server process (background task, or inline on Vercel), in plain numpy. Large scans (tens of millions of points) belong on the VPS.
 
 Workflow in the UI:
 

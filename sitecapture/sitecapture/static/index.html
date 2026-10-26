@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css">
 <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+<script type="importmap">{"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -73,6 +74,7 @@
   </div>
   <nav class="nav-tabs" aria-label="Sections">
     <button class="nav-tab active" data-view="sites"><svg class="ic"><use href="#i-pin"/></svg><span>Sites</span></button>
+    <button class="nav-tab" data-view="asbuilt"><svg class="ic"><use href="#i-cube"/></svg><span>As-built</span></button>
     <button class="nav-tab" data-view="design"><svg class="ic"><use href="#i-home"/></svg><span>Design requests</span></button>
   </nav>
   <div class="project-picker" data-sites-only>
@@ -222,6 +224,93 @@
   </section>
 </main>
 
+<main id="asbuiltView" class="asb-layout" hidden>
+  <aside class="asb-side">
+    <section class="card">
+      <div class="card-head"><svg class="ic"><use href="#i-cube"/></svg><h3>Scans</h3></div>
+      <label class="dropzone compact staff-only" data-drop>
+        <input type="file" id="scanInput" accept=".e57,.las,.laz,.ply,.pts,.xyz,.txt,.csv">
+        <svg class="ic"><use href="#i-upload"/></svg>
+        <span><strong>Add point cloud</strong><small>E57, LAS/LAZ, PLY, PTS, XYZ · LiDAR or phone scan</small></span>
+      </label>
+      <div class="progress" id="scanProgress" hidden><span class="hint"></span><progress max="100" value="0"></progress></div>
+      <div class="row-inline staff-only" id="walkScanRow">
+        <select id="walkScanSelect" aria-label="360 walk"></select>
+        <button id="walkScanBtn" class="btn btn-secondary btn-sm">Use walk</button>
+      </div>
+      <ul id="scanList" class="scan-list"></ul>
+    </section>
+
+    <section class="card staff-only" id="newCheckCard" hidden>
+      <div class="card-head"><svg class="ic"><use href="#i-check"/></svg><h3>Check against design</h3></div>
+      <label class="field">Design model (IFC)<select id="checkModel"></select></label>
+      <label class="field">Tolerance (mm)<input type="number" id="checkTolerance" value="25" min="1" max="500" step="1"></label>
+      <div class="segmented small" role="radiogroup" aria-label="Alignment">
+        <label><input type="radio" name="alignMode" value="pick" checked><span>Pick matching points</span></label>
+        <label><input type="radio" name="alignMode" value="shared"><span>Same coordinates</span></label>
+      </div>
+      <div id="pickBox">
+        <p class="hint">Click a clear corner on the scan, then the same corner on the model. Pick 3 or more spread-out pairs; the fit is then refined automatically.</p>
+        <ol id="pairList" class="pair-list"></ol>
+        <div class="row-inline">
+          <button id="pickBtn" class="btn btn-secondary btn-sm"><svg class="ic"><use href="#i-pin"/></svg><span>Start picking</span></button>
+          <button id="clearPairs" class="btn btn-ghost btn-sm">Clear</button>
+        </div>
+      </div>
+      <p class="hint" id="sharedHint" hidden>Use when the scan and the IFC are both in the site's survey coordinates.</p>
+      <button id="runCheck" class="btn btn-primary btn-block">Run check</button>
+    </section>
+
+    <section class="card" id="checksCard" hidden>
+      <div class="card-head"><svg class="ic"><use href="#i-history"/></svg><h3>Checks</h3></div>
+      <ul id="checkList" class="scan-list"></ul>
+    </section>
+  </aside>
+
+  <section class="asb-main">
+    <div class="toolbar">
+      <div class="segmented" role="radiogroup" aria-label="Colour">
+        <label><input type="radio" name="colorMode" value="rgb" checked><span>Scan colour</span></label>
+        <label><input type="radio" name="colorMode" value="deviation" disabled><span>Deviation</span></label>
+      </div>
+      <label class="check"><input type="checkbox" id="showModel" checked> Design model</label>
+      <label class="check range">Opacity <input type="range" id="modelOpacity" min="0.05" max="1" step="0.05" value="0.35"></label>
+      <label class="check range">Point size <input type="range" id="pointSize" min="0.5" max="6" step="0.5" value="2"></label>
+      <span class="spacer"></span>
+      <span id="asbStatus" class="status-pill" aria-live="polite"></span>
+    </div>
+    <div class="asb-stage">
+      <div id="asbCanvas"></div>
+      <div id="asbEmpty" class="empty"><div class="empty-inner"><svg class="ic lg"><use href="#i-cube"/></svg><h3>As-built check</h3>
+        <p>Add a LiDAR or phone scan (or use a processed 360 walk), then check it against your IFC design model. Every element gets a measured deviation and a status.</p></div></div>
+      <div id="pickHint" class="annotate-hint asb-hint" hidden></div>
+      <div id="asbLegend" class="asb-legend" hidden></div>
+    </div>
+    <div id="checkPanel" class="asb-panel" hidden></div>
+  </section>
+</main>
+
+<dialog id="issueDialog">
+  <form id="issueForm" method="dialog">
+    <div class="dialog-head"><h3>Raise issue</h3><button value="cancel" class="icon-btn" formnovalidate aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    <p id="issueWhere" class="hint"></p>
+    <div class="cat-picker" role="radiogroup" aria-label="Category">
+      <label><input type="radio" name="category" value="defect" checked><span class="cat cat-defect">Defect</span></label>
+      <label><input type="radio" name="category" value="progress"><span class="cat cat-progress">Progress</span></label>
+      <label><input type="radio" name="category" value="safety"><span class="cat cat-safety">Safety</span></label>
+      <label><input type="radio" name="category" value="note"><span class="cat cat-note">Note / question</span></label>
+    </div>
+    <label class="field">Title <input type="text" name="title" maxlength="200" required></label>
+    <label class="field">Details <textarea name="body" rows="4"></textarea></label>
+    <label class="check"><input type="checkbox" name="visible_to_client"> Show to client</label>
+    <p id="issueError" class="error"></p>
+    <div class="dialog-actions">
+      <button value="cancel" class="btn btn-ghost" formnovalidate>Cancel</button>
+      <button value="ok" class="btn btn-primary">Save issue</button>
+    </div>
+  </form>
+</dialog>
+
 <main id="designView" class="design-layout" hidden>
   <aside class="design-list-col">
     <div class="design-list-head">
@@ -303,5 +392,6 @@
 <div id="toasts" class="toasts" aria-live="polite"></div>
 <script src="app.js"></script>
 <script src="design.js"></script>
+<script type="module" src="asbuilt.js"></script>
 </body>
 </html>

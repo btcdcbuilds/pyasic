@@ -271,6 +271,10 @@ class BimModel(Base):
     source: Mapped[str] = mapped_column(String(32))  # "ifc", "acc", "procore"
     path: Mapped[str | None] = mapped_column(Text)
     summary: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Tessellated geometry for as-built checks, made on first use.
+    mesh_path: Mapped[str | None] = mapped_column(Text)
+    mesh_viewer_path: Mapped[str | None] = mapped_column(Text)
+    mesh_meta: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), default=_now
     )
@@ -278,21 +282,97 @@ class BimModel(Base):
     project: Mapped[Project] = relationship(back_populates="bim_models")
 
 
+class Scan(Base):
+    """A point cloud of the site: a LiDAR/phone scan file, or built from a 360 walk."""
+
+    __tablename__ = "scans"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    # "file" (uploaded scan) or "capture" (dense cloud from a 360 walk)
+    source: Mapped[str] = mapped_column(String(16))
+    capture_id: Mapped[int | None] = mapped_column(ForeignKey("captures.id"))
+    source_path: Mapped[str] = mapped_column(Text)
+    captured_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True))
+    # False for photo-derived clouds: alignment then solves for scale too.
+    metric: Mapped[bool] = mapped_column(default=True)
+    # uploaded -> processing -> ready | failed
+    status: Mapped[str] = mapped_column(String(16), default="uploaded")
+    error: Mapped[str] = mapped_column(Text, default="")
+    raw_points: Mapped[int | None] = mapped_column(BigInteger)
+    points: Mapped[int | None] = mapped_column(Integer)
+    voxel_m: Mapped[float | None] = mapped_column(Float)
+    viewer_points: Mapped[int | None] = mapped_column(Integer)
+    has_color: Mapped[bool] = mapped_column(default=False)
+    origin: Mapped[list | None] = mapped_column(JSON)
+    bounds: Mapped[dict | None] = mapped_column(JSON)
+    cloud_path: Mapped[str | None] = mapped_column(Text)
+    viewer_path: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+
+    checks: Mapped[list["ScanCheck"]] = relationship(
+        back_populates="scan", order_by="ScanCheck.id"
+    )
+
+
+class ScanCheck(Base):
+    """A scan aligned to a design model, with deviation results."""
+
+    __tablename__ = "scan_checks"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
+    scan_id: Mapped[int] = mapped_column(ForeignKey("scans.id"), index=True)
+    bim_model_id: Mapped[int] = mapped_column(ForeignKey("bim_models.id"))
+    # queued -> running -> ready | failed
+    status: Mapped[str] = mapped_column(String(16), default="queued")
+    error: Mapped[str] = mapped_column(Text, default="")
+    # [[scan xyz], [model xyz]] pairs picked by the user (local coordinates).
+    pairs: Mapped[list] = mapped_column(JSON, default=list)
+    # 4x4 row-major, scan local -> model local.
+    transform: Mapped[list | None] = mapped_column(JSON)
+    alignment: Mapped[dict | None] = mapped_column(JSON)
+    tolerance_m: Mapped[float] = mapped_column(Float, default=0.025)
+    summary: Mapped[dict | None] = mapped_column(JSON)
+    elements: Mapped[list | None] = mapped_column(JSON)
+    deviation_path: Mapped[str | None] = mapped_column(Text)
+    report_markdown: Mapped[str | None] = mapped_column(Text)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+
+    scan: Mapped[Scan] = relationship(back_populates="checks")
+    bim_model: Mapped[BimModel] = relationship()
+
+
 ANNOTATION_CATEGORIES = ("defect", "progress", "safety", "note")
 
 
 class Annotation(Base):
-    """A note pinned to a direction in a 360 frame."""
+    """A note pinned to a direction in a 360 frame, or to a point in an as-built check."""
 
     __tablename__ = "annotations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
-    capture_id: Mapped[int] = mapped_column(ForeignKey("captures.id"), index=True)
-    frame_id: Mapped[int] = mapped_column(ForeignKey("frames.id"), index=True)
-    # Direction in the panorama, degrees (yaw 0 = image centre, pitch 0 = horizon).
-    yaw: Mapped[float] = mapped_column(Float)
-    pitch: Mapped[float] = mapped_column(Float)
+    # 360 frame pins: capture, frame and direction in the panorama, degrees
+    # (yaw 0 = image centre, pitch 0 = horizon).
+    capture_id: Mapped[int | None] = mapped_column(
+        ForeignKey("captures.id"), index=True
+    )
+    frame_id: Mapped[int | None] = mapped_column(ForeignKey("frames.id"), index=True)
+    yaw: Mapped[float | None] = mapped_column(Float)
+    pitch: Mapped[float | None] = mapped_column(Float)
+    # As-built check pins: a point in model coordinates and the element there.
+    check_id: Mapped[int | None] = mapped_column(
+        ForeignKey("scan_checks.id"), index=True
+    )
+    element_guid: Mapped[str | None] = mapped_column(String(64))
+    position: Mapped[list | None] = mapped_column(JSON)
     category: Mapped[str] = mapped_column(String(16))
     title: Mapped[str] = mapped_column(String(200))
     body: Mapped[str] = mapped_column(Text, default="")
