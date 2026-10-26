@@ -42,12 +42,19 @@ from sqlalchemy.orm import Session
 from sitecapture import auth
 from sitecapture.config import Settings, get_settings
 from sitecapture.db import (
+    ANNOTATION_CATEGORIES,
+    DESIGN_STATUSES,
+    Annotation,
     BimModel,
     Capture,
+    DesignComment,
+    DesignFile,
+    DesignRequest,
     Drawing,
     Frame,
     Job,
     Project,
+    ProjectMember,
     Report,
     Upload,
     User,
@@ -106,6 +113,9 @@ class UserCreateIn(BaseModel):
     name: str = Field(default="", max_length=200)
     password: str = Field(max_length=1024)
     is_admin: bool = False
+    role: str = Field(default="staff", pattern="^(staff|client)$")
+    # Projects a client may view.
+    project_ids: list[int] = Field(default_factory=list)
 
 
 class UserUpdateIn(BaseModel):
@@ -118,6 +128,65 @@ class UserUpdateIn(BaseModel):
 class UploadStartIn(BaseModel):
     filename: str = Field(min_length=1, max_length=255)
     size: int = Field(gt=0)
+
+
+class MemberIn(BaseModel):
+    user_id: int
+
+
+class AnnotationIn(BaseModel):
+    yaw: float = Field(ge=-360, le=360)
+    pitch: float = Field(ge=-90, le=90)
+    category: str
+    title: str = Field(min_length=1, max_length=200)
+    body: str = Field(default="", max_length=5000)
+    visible_to_client: bool = False
+    ai_assisted: bool = False
+
+
+class AnnotationUpdateIn(BaseModel):
+    category: str | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    body: str | None = Field(default=None, max_length=5000)
+    status: str | None = Field(default=None, pattern="^(open|resolved)$")
+    visible_to_client: bool | None = None
+
+
+class SuggestIn(BaseModel):
+    yaw: float = Field(ge=-360, le=360)
+    pitch: float = Field(ge=-90, le=90)
+    note: str = Field(default="", max_length=2000)
+
+
+class DesignRequestIn(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    site: dict = Field(default_factory=dict)
+    requirements: dict = Field(default_factory=dict)
+    description: str = Field(default="", max_length=20000)
+    # Staff can lodge a request on a client's behalf.
+    client_id: int | None = None
+
+
+class DesignUpdateIn(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    site: dict | None = None
+    requirements: dict | None = None
+    description: str | None = Field(default=None, max_length=20000)
+    status: str | None = None
+    assigned_to_id: int | None = None
+
+
+class DesignFileIn(BaseModel):
+    upload_id: int
+    kind: str = Field(
+        pattern="^(survey|grading|contour|sketch|drawing|photo|other|cad|render|da_set)$"
+    )
+    visible_to_client: bool = True
+
+
+class CommentIn(BaseModel):
+    body: str = Field(min_length=1, max_length=10000)
+    internal: bool = False
 
 
 class DrawingFromUploadIn(BaseModel):
@@ -141,6 +210,7 @@ def user_out(u: User) -> dict:
         "name": u.name,
         "is_admin": u.is_admin,
         "is_active": u.is_active,
+        "role": u.role,
     }
 
 
@@ -299,6 +369,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(403, "admins only")
         return user
 
+    def require_staff(user: User = Depends(require_user)) -> User:
+        if not user.is_staff:
+            raise HTTPException(403, "this action is for the YCB team")
+        return user
+
+    staff_only = [Depends(require_staff)]
+
+    def see_project(session: Session, user: User, project_id: int) -> Project:
+        """Project if this user may view it; clients only see their own."""
+        project = session.get(Project, project_id)
+        if project is None or (
+            not user.is_staff
+            and session.get(ProjectMember, (project_id, user.id)) is None
+        ):
+            raise HTTPException(404, f"Project {project_id} not found")
+        return project
+
     api = APIRouter(dependencies=[Depends(require_user)])
 
     def get_or_404(session: Session, model, obj_id: int):
@@ -342,7 +429,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- projects --
 
-    @api.post("/api/projects", status_code=201)
+    @api.post("/api/projects", status_code=201, dependencies=staff_only)
     def create_project(body: ProjectIn, session: Session = Depends(db)):
         project = Project(name=body.name)
         session.add(project)
@@ -350,15 +437,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return project_out(project)
 
     @api.get("/api/projects")
-    def list_projects(session: Session = Depends(db)):
-        return [
-            project_out(p)
-            for p in session.scalars(select(Project).order_by(Project.id))
-        ]
+    def list_projects(
+        user: User = Depends(require_user), session: Session = Depends(db)
+    ):
+        query = select(Project).order_by(Project.id)
+        if not user.is_staff:
+            query = query.join(
+                ProjectMember, ProjectMember.project_id == Project.id
+            ).where(ProjectMember.user_id == user.id)
+        return [project_out(p) for p in session.scalars(query)]
 
     @api.get("/api/projects/{project_id}")
-    def get_project(project_id: int, session: Session = Depends(db)):
-        p = get_or_404(session, Project, project_id)
+    def get_project(
+        project_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        p = see_project(session, user, project_id)
         return {
             **project_out(p),
             "drawings": [drawing_out(d) for d in p.drawings],
@@ -369,11 +464,52 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 {"id": b.id, "name": b.name, "source": b.source, "summary": b.summary}
                 for b in p.bim_models
             ],
+            "members": (
+                [
+                    user_out(session.get(User, m.user_id))
+                    for m in session.scalars(
+                        select(ProjectMember).where(ProjectMember.project_id == p.id)
+                    )
+                ]
+                if user.is_staff
+                else []
+            ),
         }
+
+    @api.post(
+        "/api/projects/{project_id}/members", status_code=201, dependencies=staff_only
+    )
+    def add_member(project_id: int, body: MemberIn, session: Session = Depends(db)):
+        get_or_404(session, Project, project_id)
+        member = get_or_404(session, User, body.user_id)
+        if member.is_staff:
+            raise HTTPException(400, "staff already see every project")
+        if session.get(ProjectMember, (project_id, member.id)) is None:
+            session.add(ProjectMember(project_id=project_id, user_id=member.id))
+            session.commit()
+        return user_out(member)
+
+    @api.get("/api/clients", dependencies=staff_only)
+    def list_clients(session: Session = Depends(db)):
+        """Client accounts, for giving them access to projects."""
+        query = select(User).where(User.role == "client", User.is_active.is_(True))
+        return [
+            user_out(u) for u in session.scalars(query.order_by(User.name, User.email))
+        ]
+
+    @api.delete("/api/projects/{project_id}/members/{user_id}", dependencies=staff_only)
+    def remove_member(project_id: int, user_id: int, session: Session = Depends(db)):
+        row = session.get(ProjectMember, (project_id, user_id))
+        if row is not None:
+            session.delete(row)
+            session.commit()
+        return {"ok": True}
 
     # -- drawings --
 
-    @api.post("/api/projects/{project_id}/drawings", status_code=201)
+    @api.post(
+        "/api/projects/{project_id}/drawings", status_code=201, dependencies=staff_only
+    )
     def upload_drawing(
         project_id: int, file: UploadFile = File(...), session: Session = Depends(db)
     ):
@@ -413,7 +549,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session.commit()
         return [drawing_out(d) for d in created]
 
-    @api.post("/api/projects/{project_id}/drawings/from-upload", status_code=201)
+    @api.post(
+        "/api/projects/{project_id}/drawings/from-upload",
+        status_code=201,
+        dependencies=staff_only,
+    )
     def drawing_from_upload(
         project_id: int,
         body: DrawingFromUploadIn,
@@ -440,12 +580,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return create_drawings(session, project_id, target, Path(upload.filename).stem)
 
     @api.get("/api/drawings/{drawing_id}/image")
-    def drawing_image(drawing_id: int, session: Session = Depends(db)):
-        return file_or_404(get_or_404(session, Drawing, drawing_id).image_path)
+    def drawing_image(
+        drawing_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        drawing = get_or_404(session, Drawing, drawing_id)
+        see_project(session, user, drawing.project_id)
+        return file_or_404(drawing.image_path)
 
     # -- captures --
 
-    @api.post("/api/projects/{project_id}/captures", status_code=201)
+    @api.post(
+        "/api/projects/{project_id}/captures", status_code=201, dependencies=staff_only
+    )
     def upload_capture(
         project_id: int,
         background: BackgroundTasks,
@@ -492,17 +640,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return capture_out(capture)
 
     @api.get("/api/captures/{capture_id}")
-    def get_capture(capture_id: int, session: Session = Depends(db)):
+    def get_capture(
+        capture_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
         capture = get_or_404(session, Capture, capture_id)
-        jobs = session.scalars(
-            select(Job).where(Job.capture_id == capture_id).order_by(Job.id)
-        ).all()
+        see_project(session, user, capture.project_id)
+        jobs = (
+            session.scalars(
+                select(Job).where(Job.capture_id == capture_id).order_by(Job.id)
+            ).all()
+            if user.is_staff
+            else []
+        )
         return {
             **capture_out(capture, with_frames=True),
             "jobs": [job_out(j) for j in jobs],
         }
 
-    @api.put("/api/captures/{capture_id}/control-points")
+    @api.put("/api/captures/{capture_id}/control-points", dependencies=staff_only)
     def set_control_points(
         capture_id: int, points: list[ControlPointIn], session: Session = Depends(db)
     ):
@@ -522,7 +679,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         out["alignment_rms"] = transform.rms_error if transform else None
         return out
 
-    @api.post("/api/captures/{capture_id}/reconstruct", status_code=202)
+    @api.post(
+        "/api/captures/{capture_id}/reconstruct",
+        status_code=202,
+        dependencies=staff_only,
+    )
     def reconstruct(capture_id: int, session: Session = Depends(db)):
         capture = get_or_404(session, Capture, capture_id)
         if not capture.frames:
@@ -530,10 +691,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return job_out(orchestrator.start_reconstruction(session, settings, capture))
 
     @api.get("/api/frames/{frame_id}/image")
-    def frame_image(frame_id: int, session: Session = Depends(db)):
-        return file_or_404(get_or_404(session, Frame, frame_id).image_path)
+    def frame_image(
+        frame_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        frame = get_or_404(session, Frame, frame_id)
+        see_project(session, user, frame.capture.project_id)
+        return file_or_404(frame.image_path)
 
-    @api.get("/api/jobs/{job_id}")
+    @api.get("/api/jobs/{job_id}", dependencies=staff_only)
     def get_job(job_id: int, session: Session = Depends(db)):
         return job_out(get_or_404(session, Job, job_id))
 
@@ -555,8 +722,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         x: float,
         y: float,
         radius: float = 0.03,
+        user: User = Depends(require_user),
         session: Session = Depends(db),
     ):
+        see_project(session, user, project_id)
         entries = timeline.nearest_frames(
             _drawing_captures(session, project_id, drawing_id), x, y, radius
         )
@@ -573,8 +742,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @api.post("/api/projects/{project_id}/timelapse")
     def create_timelapse(
-        project_id: int, body: TimelapseIn, session: Session = Depends(db)
+        project_id: int,
+        body: TimelapseIn,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
     ):
+        see_project(session, user, project_id)
         entries = timeline.nearest_frames(
             _drawing_captures(session, project_id, body.drawing_id),
             body.x,
@@ -600,9 +773,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return FileResponse(out, media_type="video/mp4", filename=out.name)
 
     @api.get("/api/projects/{project_id}/models")
-    def list_models(project_id: int, session: Session = Depends(db)):
+    def list_models(
+        project_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
         """Every capture's 3D model, oldest first (used by the Blender add-on)."""
-        get_or_404(session, Project, project_id)
+        see_project(session, user, project_id)
         captures = session.scalars(
             select(Capture)
             .where(Capture.project_id == project_id, Capture.model_path.is_not(None))
@@ -619,12 +796,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ]
 
     @api.get("/api/captures/{capture_id}/model")
-    def capture_model(capture_id: int, session: Session = Depends(db)):
-        return file_or_404(get_or_404(session, Capture, capture_id).model_path)
+    def capture_model(
+        capture_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        capture = get_or_404(session, Capture, capture_id)
+        see_project(session, user, capture.project_id)
+        return file_or_404(capture.model_path)
 
     # -- AI reports --
 
-    @api.post("/api/captures/{capture_id}/report", status_code=201)
+    @api.post(
+        "/api/captures/{capture_id}/report", status_code=201, dependencies=staff_only
+    )
     def create_report(capture_id: int, session: Session = Depends(db)):
         from sitecapture.ai import reports
 
@@ -664,7 +849,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     @api.get("/api/projects/{project_id}/reports")
-    def list_reports(project_id: int, session: Session = Depends(db)):
+    def list_reports(
+        project_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        see_project(session, user, project_id)
         rows = session.scalars(
             select(Report)
             .where(Report.project_id == project_id)
@@ -682,7 +872,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # -- BIM --
 
-    @api.post("/api/projects/{project_id}/bim", status_code=201)
+    @api.post(
+        "/api/projects/{project_id}/bim", status_code=201, dependencies=staff_only
+    )
     def upload_ifc(
         project_id: int, file: UploadFile = File(...), session: Session = Depends(db)
     ):
@@ -727,7 +919,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(404, f"Upload {upload_id} not found")
         return upload
 
-    @api.post("/api/projects/{project_id}/uploads", status_code=201)
+    @api.post(
+        "/api/projects/{project_id}/uploads", status_code=201, dependencies=staff_only
+    )
     def start_upload(
         project_id: int,
         body: UploadStartIn,
@@ -751,6 +945,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         upload = Upload(
             user_id=user.id,
             project_id=project_id,
+            purpose="drawing" if ext == ".pdf" else "media",
             filename=body.filename,
             size=body.size,
             path="",
@@ -814,7 +1009,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                             raise frames_mod.MediaError(
                                 f"{upload.filename} is not a PDF"
                             )
-                else:
+                elif upload.purpose == "media":
                     frames_mod.check_media(Path(upload.path))
             except (frames_mod.MediaError, subprocess.CalledProcessError) as exc:
                 Path(upload.path).unlink(missing_ok=True)
@@ -825,7 +1020,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         session.commit()
         return upload_out(upload, chunk_size())
 
-    @api.post("/api/projects/{project_id}/captures/from-uploads", status_code=201)
+    @api.post(
+        "/api/projects/{project_id}/captures/from-uploads",
+        status_code=201,
+        dependencies=staff_only,
+    )
     def capture_from_uploads(
         project_id: int,
         body: CaptureFromUploadsIn,
@@ -874,11 +1073,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return capture_out(capture)
 
     @api.get("/api/reports/{report_id}.pdf")
-    def report_pdf(report_id: int, session: Session = Depends(db)):
+    def report_pdf(
+        report_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
         from sitecapture.ai import pdf
 
         report = get_or_404(session, Report, report_id)
-        project = session.get(Project, report.project_id)
+        project = see_project(session, user, report.project_id)
         capture = session.get(Capture, report.capture_id)
         title = f"{project.name} – progress report {capture.captured_at:%Y-%m-%d}"
         out = storage.project_dir(project.id, "reports") / f"report_{report.id}.pdf"
@@ -948,12 +1151,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         _: User = Depends(require_admin),
         session: Session = Depends(db),
     ):
+        if body.role == "client" and body.is_admin:
+            raise HTTPException(400, "clients can't be admins")
         try:
             user = auth.create_user(
                 session, body.email, body.password, body.name, body.is_admin
             )
         except auth.AuthError as exc:
             raise HTTPException(400, str(exc)) from exc
+        user.role = body.role
+        for pid in body.project_ids if body.role == "client" else []:
+            get_or_404(session, Project, pid)
+            session.add(ProjectMember(project_id=pid, user_id=user.id))
+        session.commit()
         return user_out(user)
 
     @api.patch("/api/users/{user_id}")
@@ -982,6 +1192,447 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if body.password is not None or body.is_active is False:
             auth.end_all_sessions(session, user.id)
         return user_out(user)
+
+    # -- annotations on 360 frames --
+
+    def annotation_out(a: Annotation) -> dict:
+        return {
+            "id": a.id,
+            "project_id": a.project_id,
+            "capture_id": a.capture_id,
+            "frame_id": a.frame_id,
+            "yaw": a.yaw,
+            "pitch": a.pitch,
+            "category": a.category,
+            "title": a.title,
+            "body": a.body,
+            "status": a.status,
+            "visible_to_client": a.visible_to_client,
+            "ai_assisted": a.ai_assisted,
+            "author": (a.author.name or a.author.email) if a.author else None,
+            "created_at": a.created_at.isoformat(),
+        }
+
+    def check_category(category: str | None) -> None:
+        if category is not None and category not in ANNOTATION_CATEGORIES:
+            raise HTTPException(
+                400, f"category must be one of {', '.join(ANNOTATION_CATEGORIES)}"
+            )
+
+    @api.get("/api/captures/{capture_id}/annotations")
+    def list_capture_annotations(
+        capture_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        capture = get_or_404(session, Capture, capture_id)
+        see_project(session, user, capture.project_id)
+        query = select(Annotation).where(Annotation.capture_id == capture_id)
+        if not user.is_staff:
+            query = query.where(Annotation.visible_to_client.is_(True))
+        return [
+            annotation_out(a) for a in session.scalars(query.order_by(Annotation.id))
+        ]
+
+    @api.get("/api/projects/{project_id}/annotations")
+    def list_project_annotations(
+        project_id: int,
+        status: str | None = None,
+        category: str | None = None,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        see_project(session, user, project_id)
+        query = select(Annotation).where(Annotation.project_id == project_id)
+        if not user.is_staff:
+            query = query.where(Annotation.visible_to_client.is_(True))
+        if status:
+            query = query.where(Annotation.status == status)
+        if category:
+            query = query.where(Annotation.category == category)
+        return [
+            annotation_out(a)
+            for a in session.scalars(query.order_by(Annotation.id.desc()))
+        ]
+
+    @api.post(
+        "/api/frames/{frame_id}/annotations", status_code=201, dependencies=staff_only
+    )
+    def create_annotation(
+        frame_id: int,
+        body: AnnotationIn,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        frame = get_or_404(session, Frame, frame_id)
+        check_category(body.category)
+        a = Annotation(
+            project_id=frame.capture.project_id,
+            capture_id=frame.capture_id,
+            frame_id=frame.id,
+            author_id=user.id,
+            **body.model_dump(),
+        )
+        session.add(a)
+        session.commit()
+        return annotation_out(a)
+
+    @api.patch("/api/annotations/{annotation_id}", dependencies=staff_only)
+    def update_annotation(
+        annotation_id: int, body: AnnotationUpdateIn, session: Session = Depends(db)
+    ):
+        a = get_or_404(session, Annotation, annotation_id)
+        check_category(body.category)
+        for key, value in body.model_dump(exclude_none=True).items():
+            setattr(a, key, value)
+        session.commit()
+        return annotation_out(a)
+
+    @api.delete("/api/annotations/{annotation_id}", dependencies=staff_only)
+    def delete_annotation(annotation_id: int, session: Session = Depends(db)):
+        session.delete(get_or_404(session, Annotation, annotation_id))
+        session.commit()
+        return {"ok": True}
+
+    @api.post("/api/frames/{frame_id}/annotations/suggest", dependencies=staff_only)
+    def suggest_annotation(
+        frame_id: int, body: SuggestIn, session: Session = Depends(db)
+    ):
+        """Opus drafts an annotation for the direction the user clicked."""
+        from sitecapture.ai import annotate
+        from sitecapture.ai.claude import AiError
+
+        frame = get_or_404(session, Frame, frame_id)
+        if not storage.ensure(Path(frame.image_path)):
+            raise HTTPException(404, "frame image missing")
+        try:
+            return annotate.suggest_annotation(
+                Path(frame.image_path),
+                body.yaw,
+                body.pitch,
+                frame.capture.project.name,
+                note=body.note,
+                model=settings.ai_model,
+            )
+        except AiError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    # -- design requests (client brief -> concept -> CAD/renders -> DA) --
+
+    design_input_exts = {
+        ".pdf",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".heic",
+        ".dwg",
+        ".dxf",
+        ".ifc",
+        ".rvt",
+        ".skp",
+        ".pln",
+        ".zip",
+    }
+    client_kinds = {
+        "survey",
+        "grading",
+        "contour",
+        "sketch",
+        "drawing",
+        "photo",
+        "other",
+    }
+
+    def see_design(session: Session, user: User, request_id: int) -> DesignRequest:
+        req = session.get(DesignRequest, request_id)
+        if req is None or (not user.is_staff and req.client_id != user.id):
+            raise HTTPException(404, f"Design request {request_id} not found")
+        return req
+
+    def design_file_out(f: DesignFile) -> dict:
+        return {
+            "id": f.id,
+            "kind": f.kind,
+            "filename": f.filename,
+            "size": f.size,
+            "visible_to_client": f.visible_to_client,
+            "created_at": f.created_at.isoformat(),
+            "url": f"/api/design-files/{f.id}",
+        }
+
+    def design_out(req: DesignRequest, user: User, full: bool = False) -> dict:
+        out = {
+            "id": req.id,
+            "title": req.title,
+            "status": req.status,
+            "client": {
+                "id": req.client.id,
+                "name": req.client.name,
+                "email": req.client.email,
+            },
+            "assigned_to_id": req.assigned_to_id,
+            "created_at": req.created_at.isoformat(),
+            "updated_at": req.updated_at.isoformat(),
+            "file_count": sum(
+                1 for f in req.files if user.is_staff or f.visible_to_client
+            ),
+        }
+        if full:
+            out.update(
+                site=req.site or {},
+                requirements=req.requirements or {},
+                description=req.description,
+                files=[
+                    design_file_out(f)
+                    for f in req.files
+                    if user.is_staff or f.visible_to_client
+                ],
+                comments=[
+                    {
+                        "id": c.id,
+                        "author": c.author.name or c.author.email,
+                        "author_is_staff": c.author.is_staff,
+                        "body": c.body,
+                        "internal": c.internal,
+                        "created_at": c.created_at.isoformat(),
+                    }
+                    for c in req.comments
+                    if user.is_staff or not c.internal
+                ],
+                # The AI brief is a working document for the team.
+                ai_brief=req.ai_brief if user.is_staff else None,
+                ai_questions=req.ai_questions if user.is_staff else None,
+                concept=req.concept if user.is_staff else None,
+            )
+        return out
+
+    @api.get("/api/design-requests")
+    def list_design_requests(
+        user: User = Depends(require_user), session: Session = Depends(db)
+    ):
+        query = select(DesignRequest).order_by(DesignRequest.updated_at.desc())
+        if not user.is_staff:
+            query = query.where(DesignRequest.client_id == user.id)
+        return [design_out(r, user) for r in session.scalars(query)]
+
+    @api.post("/api/design-requests", status_code=201)
+    def create_design_request(
+        body: DesignRequestIn,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        client_id = user.id
+        if body.client_id is not None and body.client_id != user.id:
+            if not user.is_staff:
+                raise HTTPException(403, "clients can only create their own requests")
+            get_or_404(session, User, body.client_id)
+            client_id = body.client_id
+        req = DesignRequest(
+            client_id=client_id,
+            title=body.title,
+            site=body.site,
+            requirements=body.requirements,
+            description=body.description,
+        )
+        session.add(req)
+        session.commit()
+        return design_out(req, user, full=True)
+
+    @api.get("/api/design-requests/{request_id}")
+    def get_design_request(
+        request_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        return design_out(see_design(session, user, request_id), user, full=True)
+
+    @api.patch("/api/design-requests/{request_id}")
+    def update_design_request(
+        request_id: int,
+        body: DesignUpdateIn,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        req = see_design(session, user, request_id)
+        changes = body.model_dump(exclude_none=True)
+        if not user.is_staff:
+            if "status" in changes or "assigned_to_id" in changes:
+                raise HTTPException(403, "only the YCB team can change status")
+            if req.status not in ("submitted", "in_review"):
+                raise HTTPException(
+                    409, "drafting has started; message the team to change the brief"
+                )
+        if "status" in changes and changes["status"] not in DESIGN_STATUSES:
+            raise HTTPException(
+                400, f"status must be one of {', '.join(DESIGN_STATUSES)}"
+            )
+        for key, value in changes.items():
+            setattr(req, key, value)
+        session.commit()
+        return design_out(req, user, full=True)
+
+    @api.post("/api/design-requests/{request_id}/uploads", status_code=201)
+    def start_design_upload(
+        request_id: int,
+        body: UploadStartIn,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        see_design(session, user, request_id)
+        ext = Path(body.filename).suffix.lower()
+        if ext not in design_input_exts:
+            raise HTTPException(
+                400, f"{body.filename}: unsupported file type {ext or '(none)'}"
+            )
+        if body.size > max_upload:
+            raise HTTPException(
+                413, f"file is larger than the {settings.max_upload_gb:g} GB limit"
+            )
+        upload = Upload(
+            user_id=user.id,
+            design_request_id=request_id,
+            purpose="design",
+            filename=body.filename,
+            size=body.size,
+            path="",
+        )
+        session.add(upload)
+        session.flush()
+        directory = storage.root / "design" / str(request_id) / "uploads"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{upload.id}_{safe_name(body.filename)}"
+        if not isinstance(storage, DbBackedStorage):
+            path.touch()
+        upload.path = str(path)
+        session.commit()
+        return upload_out(upload, chunk_size())
+
+    @api.post("/api/design-requests/{request_id}/files", status_code=201)
+    def add_design_file(
+        request_id: int,
+        body: DesignFileIn,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        req = see_design(session, user, request_id)
+        if not user.is_staff and body.kind not in client_kinds:
+            raise HTTPException(403, "only the YCB team can add deliverables")
+        upload = own_upload(session, body.upload_id, user)
+        if upload.design_request_id != req.id:
+            raise HTTPException(400, "upload belongs to another request")
+        if upload.received != upload.size:
+            raise HTTPException(409, f"{upload.filename} has not finished uploading")
+        target = (
+            storage.root
+            / "design"
+            / str(req.id)
+            / "files"
+            / f"{upload.id}_{safe_name(upload.filename)}"
+        )
+        target.parent.mkdir(parents=True, exist_ok=True)
+        storage.move(Path(upload.path), target)
+        f = DesignFile(
+            kind=body.kind,
+            filename=upload.filename,
+            path=str(target),
+            size=upload.size,
+            visible_to_client=body.visible_to_client if user.is_staff else True,
+            uploaded_by_id=user.id,
+        )
+        session.delete(upload)
+        req.files.append(f)
+        session.commit()
+        return design_file_out(f)
+
+    @api.patch("/api/design-files/{file_id}", dependencies=staff_only)
+    def update_design_file(file_id: int, body: dict, session: Session = Depends(db)):
+        f = get_or_404(session, DesignFile, file_id)
+        if "visible_to_client" in body:
+            f.visible_to_client = bool(body["visible_to_client"])
+        session.commit()
+        return design_file_out(f)
+
+    @api.get("/api/design-files/{file_id}")
+    def get_design_file(
+        file_id: int, user: User = Depends(require_user), session: Session = Depends(db)
+    ):
+        f = get_or_404(session, DesignFile, file_id)
+        see_design(session, user, f.request_id)
+        if not user.is_staff and not f.visible_to_client:
+            raise HTTPException(404, f"DesignFile {file_id} not found")
+        if not storage.ensure(Path(f.path)):
+            raise HTTPException(404, "file not found")
+        return FileResponse(f.path, filename=f.filename)
+
+    @api.post("/api/design-requests/{request_id}/comments", status_code=201)
+    def add_design_comment(
+        request_id: int,
+        body: CommentIn,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        req = see_design(session, user, request_id)
+        req.comments.append(
+            DesignComment(
+                author_id=user.id,
+                body=body.body,
+                internal=body.internal and user.is_staff,
+            )
+        )
+        session.commit()
+        return design_out(req, user, full=True)
+
+    @api.post("/api/design-requests/{request_id}/ai-concept", dependencies=staff_only)
+    def generate_concept(
+        request_id: int,
+        user: User = Depends(require_user),
+        session: Session = Depends(db),
+    ):
+        """Opus reads the request and attachments, writes a brief and a concept plan.
+
+        The concept is saved as DXF and PDF files (team-only until shared).
+        """
+        from sitecapture import design_cad
+        from sitecapture.ai import design
+        from sitecapture.ai.claude import AiError
+
+        req = see_design(session, user, request_id)
+        inputs = []
+        for f in req.files:
+            if f.kind in client_kinds and storage.ensure(Path(f.path)):
+                inputs.append((f.kind, f.filename, Path(f.path)))
+        try:
+            result = design.generate(req, inputs, model=settings.ai_model)
+        except AiError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        req.ai_brief = result["brief_markdown"]
+        req.ai_questions = result["questions"]
+        req.concept = result["concept"]
+        if req.status == "submitted":
+            req.status = "in_review"
+        directory = storage.root / "design" / str(req.id) / "files"
+        directory.mkdir(parents=True, exist_ok=True)
+        stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d-%H%M%S")
+        dxf_path = directory / f"concept_{stamp}.dxf"
+        dxf_path.write_text(design_cad.to_dxf(req.concept, req.title))
+        pdf_path = design_cad.to_pdf(
+            req.concept, directory / f"concept_{stamp}.pdf", req.title
+        )
+        for path in (dxf_path, pdf_path):
+            storage.persist(path)
+            req.files.append(
+                DesignFile(
+                    kind="concept",
+                    filename=path.name,
+                    path=str(path),
+                    size=path.stat().st_size,
+                    visible_to_client=False,
+                    uploaded_by_id=user.id,
+                )
+            )
+        session.commit()
+        return design_out(req, user, full=True)
 
     app.include_router(api)
 

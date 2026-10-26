@@ -33,6 +33,14 @@
     <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m14 6 4 4"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 20a6.5 6.5 0 0 0-2.5-5.1"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
   </defs>
 </svg>
 
@@ -63,9 +71,13 @@
     <svg class="logo-mark"><use href="#i-logo"/></svg>
     <div><div class="brand-name">YCB</div><div class="brand-sub">Young Concepts Building</div></div>
   </div>
-  <div class="project-picker">
+  <nav class="nav-tabs" aria-label="Sections">
+    <button class="nav-tab active" data-view="sites"><svg class="ic"><use href="#i-pin"/></svg><span>Sites</span></button>
+    <button class="nav-tab" data-view="design"><svg class="ic"><use href="#i-home"/></svg><span>Design requests</span></button>
+  </nav>
+  <div class="project-picker" data-sites-only>
     <select id="projectSelect" aria-label="Project"><option value="">Select project…</option></select>
-    <button id="newProject" class="btn btn-primary btn-sm"><svg class="ic"><use href="#i-plus"/></svg><span>New project</span></button>
+    <button id="newProject" class="btn btn-primary btn-sm staff-only"><svg class="ic"><use href="#i-plus"/></svg><span>New project</span></button>
   </div>
   <span class="spacer"></span>
   <button id="themeBtn" class="icon-btn on-dark" title="Switch light / dark"><svg class="ic"><use href="#i-moon"/></svg></button>
@@ -81,19 +93,19 @@
   </div>
 </header>
 
-<main class="layout">
+<main class="layout" id="sitesView">
   <aside id="sidebar">
     <section class="card">
       <div class="card-head"><svg class="ic"><use href="#i-file"/></svg><h3>Drawings</h3></div>
       <select id="drawingSelect" aria-label="Drawing"></select>
-      <label class="dropzone compact" data-drop>
+      <label class="dropzone compact staff-only" data-drop>
         <input type="file" id="pdfInput" accept="application/pdf">
         <svg class="ic"><use href="#i-upload"/></svg>
         <span><strong>Add PDF drawing</strong><small>Drop here or click · one sheet per page</small></span>
       </label>
     </section>
 
-    <section class="card">
+    <section class="card staff-only">
       <div class="card-head"><svg class="ic"><use href="#i-video"/></svg><h3>Upload site walk</h3></div>
       <form id="captureForm">
         <label class="dropzone" data-drop>
@@ -118,9 +130,29 @@
       <ul id="captureList" class="capture-list"></ul>
     </section>
 
+    <section class="card staff-only">
+      <div class="card-head"><svg class="ic"><use href="#i-users"/></svg><h3>Client access</h3></div>
+      <ul id="memberList" class="simple-list"></ul>
+      <div class="row-inline">
+        <select id="memberSelect" aria-label="Client"></select>
+        <button id="addMember" class="btn btn-secondary btn-sm">Give access</button>
+      </div>
+      <p class="hint">Clients see this project's plans, walks, time-lapses and the annotations you share. They can't edit anything.</p>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><svg class="ic"><use href="#i-tag"/></svg><h3>Annotations</h3><span id="annotationCount" class="count"></span></div>
+      <div class="row-inline">
+        <select id="annotationFilter" aria-label="Filter annotations">
+          <option value="open">Open</option><option value="">All</option><option value="resolved">Resolved</option>
+        </select>
+      </div>
+      <ul id="annotationList" class="annotation-list"></ul>
+    </section>
+
     <section class="card">
       <div class="card-head"><svg class="ic"><use href="#i-cube"/></svg><h3>BIM models</h3></div>
-      <label class="dropzone compact" data-drop>
+      <label class="dropzone compact staff-only" data-drop>
         <input type="file" id="ifcInput" accept=".ifc">
         <svg class="ic"><use href="#i-upload"/></svg>
         <span><strong>Add IFC model</strong><small>Exported from Revit, ArchiCAD…</small></span>
@@ -133,7 +165,7 @@
     <div class="toolbar">
       <div class="segmented" role="radiogroup" aria-label="Mode">
         <label><input type="radio" name="mode" value="view" checked><span><svg class="ic"><use href="#i-eye"/></svg>View walk</span></label>
-        <label><input type="radio" name="mode" value="place"><span><svg class="ic"><use href="#i-pin"/></svg>Place frames</span></label>
+        <label class="staff-only"><input type="radio" name="mode" value="place"><span><svg class="ic"><use href="#i-pin"/></svg>Place frames</span></label>
         <label><input type="radio" name="mode" value="recall"><span><svg class="ic"><use href="#i-history"/></svg>Recall a spot</span></label>
       </div>
       <span id="status" class="status-pill" aria-live="polite"></span>
@@ -168,7 +200,10 @@
 
       <div id="viewerCol">
         <div class="viewer-card">
-          <div class="viewer-head"><span id="viewerTitle">360 view</span><span id="viewerSub" class="muted"></span></div>
+          <div class="viewer-head"><span id="viewerTitle">360 view</span><span id="viewerSub" class="muted"></span>
+            <span class="spacer"></span>
+            <button id="annotateBtn" class="btn btn-sm btn-annotate staff-only" aria-pressed="false" disabled><svg class="ic"><use href="#i-tag"/></svg>Annotate</button></div>
+          <div id="annotateHint" class="annotate-hint" hidden>Click the spot in the view you want to annotate · <button id="annotateCancel" class="linklike">Cancel</button></div>
           <div id="pano"><div class="pano-empty"><svg class="ic lg"><use href="#i-eye"/></svg><span>Select a capture or click a point on the plan</span></div></div>
         </div>
         <div id="recallPanel" class="panel" hidden>
@@ -187,6 +222,54 @@
   </section>
 </main>
 
+<main id="designView" class="design-layout" hidden>
+  <aside class="design-list-col">
+    <div class="design-list-head">
+      <h2>Design requests</h2>
+      <button id="newDesign" class="btn btn-primary btn-sm"><svg class="ic"><use href="#i-plus"/></svg><span>New request</span></button>
+    </div>
+    <div class="row-inline staff-only">
+      <select id="designStatusFilter" aria-label="Filter by status"><option value="">All statuses</option></select>
+    </div>
+    <ul id="designList" class="design-list"></ul>
+  </aside>
+  <section id="designDetail" class="design-detail">
+    <div class="empty-inner design-empty">
+      <svg class="ic"><use href="#i-home"/></svg>
+      <h3>Design your new home with YCB</h3>
+      <p>Tell us about your block, upload your survey or grading plans, and sketch or describe the house you want. Our team turns it into drawings ready for your DA.</p>
+    </div>
+  </section>
+</main>
+
+<dialog id="annotationDialog">
+  <form id="annotationForm" method="dialog">
+    <div class="dialog-head"><h3 id="annotationDialogTitle">New annotation</h3><button value="cancel" class="icon-btn" formnovalidate aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    <div class="ann-preview" id="annotationWhere"></div>
+    <div class="cat-picker" role="radiogroup" aria-label="Category">
+      <label><input type="radio" name="category" value="defect" required><span class="cat cat-defect">Defect</span></label>
+      <label><input type="radio" name="category" value="progress"><span class="cat cat-progress">Progress</span></label>
+      <label><input type="radio" name="category" value="safety"><span class="cat cat-safety">Safety</span></label>
+      <label><input type="radio" name="category" value="note" checked><span class="cat cat-note">Note / question</span></label>
+    </div>
+    <label class="field">Title <input type="text" name="title" maxlength="200" required placeholder="e.g. Gap at window flashing"></label>
+    <label class="field">Details <textarea name="body" rows="4" placeholder="What is it, where, and what needs doing?"></textarea></label>
+    <div class="ai-row">
+      <button type="button" id="suggestBtn" class="btn btn-ai btn-sm"><svg class="ic"><use href="#i-spark"/></svg>Suggest with Opus</button>
+      <span class="hint">Opus looks at this spot in the photo and drafts the text. Type a rough note first to guide it.</span>
+    </div>
+    <label class="check"><input type="checkbox" name="visible_to_client"> Show to client</label>
+    <label class="check" id="resolvedRow" hidden><input type="checkbox" name="resolved"> Resolved</label>
+    <p id="annotationError" class="error"></p>
+    <div class="dialog-actions">
+      <button type="button" id="annotationDelete" class="btn btn-ghost danger" hidden><svg class="ic"><use href="#i-trash"/></svg>Delete</button>
+      <span class="spacer"></span>
+      <button value="cancel" class="btn btn-ghost" formnovalidate>Cancel</button>
+      <button value="ok" class="btn btn-primary" id="annotationSave">Save</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- Generic form dialog (new project, passwords) -->
 <dialog id="formDialog">
   <form method="dialog" id="formDialogForm">
@@ -203,19 +286,22 @@
 <dialog id="usersDialog" class="wide">
   <div class="dialog-head"><h3>Users</h3><form method="dialog"><button class="icon-btn" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button></form></div>
   <div class="table-wrap">
-    <table id="usersTable"><thead><tr><th>Email</th><th>Name</th><th>Admin</th><th>Active</th><th></th></tr></thead><tbody></tbody></table>
+    <table id="usersTable"><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Admin</th><th>Active</th><th></th></tr></thead><tbody></tbody></table>
   </div>
   <h4>Add user</h4>
   <form id="addUserForm" class="inline-form">
     <input type="email" name="email" placeholder="Email" required>
     <input type="text" name="name" placeholder="Name">
     <input type="password" name="password" placeholder="Temporary password (10+ chars)" minlength="10" required>
-    <label class="check"><input type="checkbox" name="is_admin"> Admin</label>
+    <select name="role" aria-label="Role"><option value="staff">YCB team</option><option value="client">Client</option></select>
+    <label class="check" id="adminCheck"><input type="checkbox" name="is_admin"> Admin</label>
     <button type="submit" class="btn btn-primary btn-sm">Add user</button>
+    <div id="clientProjects" class="client-projects" hidden></div>
   </form>
 </dialog>
 
 <div id="toasts" class="toasts" aria-live="polite"></div>
 <script src="app.js"></script>
+<script src="design.js"></script>
 </body>
 </html>

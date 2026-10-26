@@ -100,7 +100,11 @@ def make_timelapse(
 
 
 def flat_view(
-    image: Path, out_path: Path, yaw_deg: float = 0.0, fov_deg: float = 90.0
+    image: Path,
+    out_path: Path,
+    yaw_deg: float = 0.0,
+    fov_deg: float = 90.0,
+    pitch_deg: float = 0.0,
 ) -> Path:
     """Single perspective crop of a 360 frame (used for AI reports)."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -115,7 +119,7 @@ def flat_view(
             "-i",
             str(image),
             "-vf",
-            f"v360=e:flat:yaw={yaw_deg}:h_fov={fov_deg}:v_fov={v_fov:.3f}:w={w}:h={h}",
+            f"v360=e:flat:yaw={yaw_deg}:pitch={pitch_deg}:h_fov={fov_deg}:v_fov={v_fov:.3f}:w={w}:h={h}",
             "-frames:v",
             "1",
             str(out_path),

@@ -74,6 +74,25 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     is_admin: Mapped[bool] = mapped_column(default=False)
     is_active: Mapped[bool] = mapped_column(default=True)
+    # "staff" (your team: sees and edits everything) or "client" (sees only
+    # projects they are a member of, read-only, plus their design requests).
+    role: Mapped[str] = mapped_column(String(16), default="staff")
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+
+    @property
+    def is_staff(self) -> bool:
+        return self.role != "client"
+
+
+class ProjectMember(Base):
+    """A client's access to a project."""
+
+    __tablename__ = "project_members"
+
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), default=_now
     )
@@ -103,7 +122,13 @@ class Upload(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"))
+    # Exactly one of project_id / design_request_id is set.
+    project_id: Mapped[int | None] = mapped_column(ForeignKey("projects.id"))
+    design_request_id: Mapped[int | None] = mapped_column(
+        ForeignKey("design_requests.id")
+    )
+    # "media" (site walk), "drawing" (PDF plan) or "design" (design request file).
+    purpose: Mapped[str] = mapped_column(String(16), default="media")
     filename: Mapped[str] = mapped_column(String(255))
     size: Mapped[int] = mapped_column(BigInteger)
     received: Mapped[int] = mapped_column(BigInteger, default=0)
@@ -251,6 +276,122 @@ class BimModel(Base):
     )
 
     project: Mapped[Project] = relationship(back_populates="bim_models")
+
+
+ANNOTATION_CATEGORIES = ("defect", "progress", "safety", "note")
+
+
+class Annotation(Base):
+    """A note pinned to a direction in a 360 frame."""
+
+    __tablename__ = "annotations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
+    capture_id: Mapped[int] = mapped_column(ForeignKey("captures.id"), index=True)
+    frame_id: Mapped[int] = mapped_column(ForeignKey("frames.id"), index=True)
+    # Direction in the panorama, degrees (yaw 0 = image centre, pitch 0 = horizon).
+    yaw: Mapped[float] = mapped_column(Float)
+    pitch: Mapped[float] = mapped_column(Float)
+    category: Mapped[str] = mapped_column(String(16))
+    title: Mapped[str] = mapped_column(String(200))
+    body: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(16), default="open")  # open | resolved
+    visible_to_client: Mapped[bool] = mapped_column(default=False)
+    ai_assisted: Mapped[bool] = mapped_column(default=False)
+    author_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    author: Mapped["User | None"] = relationship()
+
+
+DESIGN_STATUSES = (
+    "submitted",
+    "in_review",
+    "drafting",
+    "renders",
+    "ready_for_da",
+    "lodged",
+)
+
+
+class DesignRequest(Base):
+    """A client's request for house design drawings (site + brief -> CAD)."""
+
+    __tablename__ = "design_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    title: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(String(24), default="submitted")
+    # Block / site details: address, council, lot_width_m, lot_depth_m, ...
+    site: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Brief: storeys, bedrooms, bathrooms, garage_spaces, style, budget, ...
+    requirements: Mapped[dict] = mapped_column(JSON, default=dict)
+    description: Mapped[str] = mapped_column(Text, default="")
+    # Filled by Opus: design brief, open questions, concept floor plan.
+    ai_brief: Mapped[str | None] = mapped_column(Text)
+    ai_questions: Mapped[list | None] = mapped_column(JSON)
+    concept: Mapped[dict | None] = mapped_column(JSON)
+    assigned_to_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )
+
+    client: Mapped[User] = relationship(foreign_keys=[client_id])
+    files: Mapped[list["DesignFile"]] = relationship(
+        back_populates="request", order_by="DesignFile.id"
+    )
+    comments: Mapped[list["DesignComment"]] = relationship(
+        back_populates="request", order_by="DesignComment.id"
+    )
+
+
+class DesignFile(Base):
+    """Client inputs (survey, sketch...) and team deliverables (CAD, renders)."""
+
+    __tablename__ = "design_files"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("design_requests.id"))
+    # survey | grading | contour | sketch | drawing | photo | other
+    # | concept | cad | render | da_set
+    kind: Mapped[str] = mapped_column(String(24))
+    filename: Mapped[str] = mapped_column(String(255))
+    path: Mapped[str] = mapped_column(Text)
+    size: Mapped[int] = mapped_column(BigInteger, default=0)
+    visible_to_client: Mapped[bool] = mapped_column(default=True)
+    uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+
+    request: Mapped[DesignRequest] = relationship(back_populates="files")
+
+
+class DesignComment(Base):
+    __tablename__ = "design_comments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("design_requests.id"))
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    body: Mapped[str] = mapped_column(Text)
+    # Internal notes are visible to staff only.
+    internal: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=_now
+    )
+
+    request: Mapped[DesignRequest] = relationship(back_populates="comments")
+    author: Mapped[User] = relationship()
 
 
 def make_sessionmaker(database_url: str) -> sessionmaker:

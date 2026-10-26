@@ -1,6 +1,13 @@
 // YCB Site Capture web UI (no build step).
 const $ = (sel) => document.querySelector(sel);
-const state = { project: null, drawingId: null, capture: null, mode: "view", cps: [], recall: null, viewer: null, zoom: 1 };
+const state = {
+  me: null, project: null, drawingId: null, capture: null, mode: "view", cps: [], recall: null, viewer: null, zoom: 1,
+  frame: null,            // frame shown in the 360 viewer: {id, capture_id, ...}
+  annotations: [],        // project annotations (filtered list in the sidebar)
+  frameAnnotations: [],   // annotations on the frame in the viewer
+  annotating: false,
+};
+const isStaff = () => state.me && state.me.role !== "client";
 
 class ApiError extends Error {
   constructor(status, detail) {
@@ -77,12 +84,26 @@ async function startSession() {
   let me;
   try { me = await api("/api/auth/me"); } catch { return; }
   $("#loginScreen").hidden = true;
+  state.me = me;
+  document.body.classList.toggle("role-client", me.role === "client");
   $("#whoami").textContent = me.name || me.email;
   const initials = (me.name || me.email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((s) => s[0].toUpperCase()).join("");
   $("#avatar").textContent = initials || "?";
   $("#usersBtn").hidden = !me.is_admin;
   await loadProjects(storageGet("ycb-project"));
+  showView(storageGet("ycb-view") || "sites");
 }
+
+// ---- top-level views: Sites / Design requests -----------------------------
+function showView(view) {
+  document.querySelectorAll(".nav-tab").forEach((t) => t.classList.toggle("active", t.dataset.view === view));
+  $("#sitesView").hidden = view !== "sites";
+  $("#designView").hidden = view !== "design";
+  document.body.classList.toggle("view-design", view === "design");
+  storageSet("ycb-view", view);
+  if (view === "design" && window.Design) window.Design.open();
+}
+document.querySelectorAll(".nav-tab").forEach((t) => t.onclick = () => showView(t.dataset.view));
 $("#loginForm").onsubmit = async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
@@ -113,11 +134,22 @@ async function loadUsers() {
   const users = await api("/api/users");
   $("#usersTable tbody").innerHTML = users.map((u) => `<tr data-id="${u.id}">
     <td>${escapeHtml(u.email)}</td><td>${escapeHtml(u.name)}</td>
+    <td><span class="role-pill ${u.role}">${u.role === "client" ? "Client" : "YCB team"}</span></td>
     <td><input type="checkbox" data-field="is_admin" ${u.is_admin ? "checked" : ""} aria-label="Admin"></td>
     <td><input type="checkbox" data-field="is_active" ${u.is_active ? "checked" : ""} aria-label="Active"></td>
     <td><button class="btn btn-ghost btn-sm" data-reset>Reset password</button></td></tr>`).join("");
 }
-$("#usersBtn").onclick = () => { $("#usersDialog").showModal(); loadUsers().catch(fail); };
+$("#usersBtn").onclick = () => { $("#usersDialog").showModal(); loadUsers().catch(fail); renderClientProjects(); };
+async function renderClientProjects() {
+  const projects = await api("/api/projects").catch(() => []);
+  $("#clientProjects").innerHTML = "<strong>Projects this client can view</strong>" + (projects.map((p) =>
+    `<label class="check"><input type="checkbox" name="project_ids" value="${p.id}"> ${escapeHtml(p.name)}</label>`).join("") || '<span class="hint">No projects yet.</span>');
+}
+$("#addUserForm select[name=role]").onchange = (e) => {
+  const client = e.target.value === "client";
+  $("#clientProjects").hidden = !client;
+  $("#adminCheck").hidden = client;
+};
 $("#usersTable").onchange = async (e) => {
   const field = e.target.dataset.field, id = e.target.closest("tr")?.dataset.id;
   if (!field || !id) return;
@@ -138,8 +170,15 @@ $("#addUserForm").onsubmit = async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   try {
-    await api("/api/users", json("POST", { email: fd.get("email"), name: fd.get("name"), password: fd.get("password"), is_admin: fd.get("is_admin") === "on" }));
-    e.target.reset(); loadUsers(); toast("User added.", "ok");
+    const role = fd.get("role");
+    await api("/api/users", json("POST", {
+      email: fd.get("email"), name: fd.get("name"), password: fd.get("password"), role,
+      is_admin: role === "staff" && fd.get("is_admin") === "on",
+      project_ids: role === "client" ? fd.getAll("project_ids").map(Number) : [],
+    }));
+    e.target.reset(); $("#clientProjects").hidden = true; $("#adminCheck").hidden = false;
+    loadUsers(); toast(role === "client" ? "Client added. Send them their email and temporary password." : "User added.", "ok");
+    if (state.project) openProject(state.project.id);
   } catch (err) { fail(err); }
 };
 
@@ -163,16 +202,16 @@ document.querySelectorAll("[data-drop]").forEach((zone) => {
 
 // ---- resumable chunked upload ---------------------------------------------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-function uploadKey(file) { return `sc-upload:${state.project.id}:${file.name}:${file.size}:${file.lastModified}`; }
+function uploadKey(file, startUrl) { return `sc-upload:${startUrl}:${file.name}:${file.size}:${file.lastModified}`; }
 
-async function uploadFile(file, onProgress) {
+async function uploadFile(file, onProgress, startUrl = `/api/projects/${state.project.id}/uploads`) {
   // Resume an earlier attempt of the same file if the server still has it.
   let up = null;
-  const saved = storageGet(uploadKey(file));
+  const saved = storageGet(uploadKey(file, startUrl));
   if (saved) { try { up = await api(`/api/uploads/${saved}`); } catch { up = null; } }
   if (!up) {
-    up = await api(`/api/projects/${state.project.id}/uploads`, json("POST", { filename: file.name, size: file.size }));
-    storageSet(uploadKey(file), up.id);
+    up = await api(startUrl, json("POST", { filename: file.name, size: file.size }));
+    storageSet(uploadKey(file, startUrl), up.id);
   }
   let offset = up.received;
   onProgress(offset);
@@ -185,7 +224,7 @@ async function uploadFile(file, onProgress) {
         offset = r.received; break;
       } catch (err) {
         if (err.status === 409 && err.detail?.received != null) { offset = err.detail.received; break; }
-        if (err.status && err.status < 500 && err.status !== 408 && err.status !== 429) { storageSet(uploadKey(file), null); throw err; }
+        if (err.status && err.status < 500 && err.status !== 408 && err.status !== 429) { storageSet(uploadKey(file, startUrl), null); throw err; }
         if (++attempt > 8) throw new Error(`${file.name}: upload kept failing; select the file again to resume`);
         setStatus(`Connection problem, retrying (${attempt}/8)…`);
         await sleep(Math.min(30000, 1000 * 2 ** attempt));
@@ -193,7 +232,7 @@ async function uploadFile(file, onProgress) {
     }
     onProgress(offset);
   }
-  storageSet(uploadKey(file), null);
+  storageSet(uploadKey(file, startUrl), null);
   return up.id;
 }
 
@@ -222,7 +261,10 @@ async function openProject(id) {
   if ($("#planImg").getAttribute("src") !== src) { $("#planImg").setAttribute("src", src); setZoom(1); }
   renderCaptures();
   $("#bimList").innerHTML = state.project.bim_models.map((b) =>
-    `<li>${escapeHtml(b.name)} · ${(b.summary.storeys || []).length} storeys</li>`).join("");
+    `<li>${escapeHtml(b.name)} · ${(b.summary.storeys || []).length} storeys</li>`).join("") ||
+    '<li class="hint">No models yet.</li>';
+  if (isStaff()) renderMembers();
+  loadAnnotations().catch(fail);
   renderEmpty();
   draw();
 }
@@ -312,7 +354,7 @@ async function selectCapture(id) {
   slider.max = Math.max(0, state.capture.frames.length - 1);
   slider.value = 0; updateFrameLabel();
   renderCaptures(); draw();
-  if (state.capture.frames.length) showFrame(state.capture.frames[0]);
+  if (state.capture.frames.length) await showFrame(state.capture.frames[0]);
   if (state.mode === "view" && state.capture.status === "frames_ready") {
     toast("This walk isn't on the plan yet. Use Place frames to pin its start and end.");
   }
@@ -474,13 +516,14 @@ async function recall(x, y) {
   state.recall = { x, y }; draw();
   const entries = await api(`/api/projects/${state.project.id}/timeline?drawing_id=${state.drawingId}&x=${x}&y=${y}&radius=0.03`);
   $("#recallList").innerHTML = entries.map((e) =>
-    `<li data-img="${e.image_url}" data-date="${e.captured_at}"><span>${fmtDate(e.captured_at)}</span>${icon("eye", "ic sm")}</li>`).join("") ||
+    `<li data-img="${e.image_url}" data-date="${e.captured_at}" data-frame="${e.frame_id}" data-capture="${e.capture_id}"><span>${fmtDate(e.captured_at)}</span>${icon("eye", "ic sm")}</li>`).join("") ||
     '<li class="none">No photos within range of this spot.</li>';
-  if (entries.length) showPano(entries[entries.length - 1].image_url, fmtDate(entries[entries.length - 1].captured_at), "this spot");
+  const last = entries[entries.length - 1];
+  if (last) showFrameById(last.frame_id, last.capture_id, last.image_url, fmtDate(last.captured_at), "this spot");
 }
 $("#recallList").onclick = (e) => {
   const li = e.target.closest("li[data-img]");
-  if (li) showPano(li.dataset.img, fmtDate(li.dataset.date), "this spot");
+  if (li) showFrameById(+li.dataset.frame, +li.dataset.capture, li.dataset.img, fmtDate(li.dataset.date), "this spot");
 };
 $("#makeTimelapse").onclick = async () => {
   if (!state.recall) return toast("Click a spot on the plan first.", "error");
@@ -493,23 +536,208 @@ $("#makeTimelapse").onclick = async () => {
   } catch (err) { fail(err); }
 };
 
-// ---- 360 viewer -----------------------------------------------------------
-function showFrame(f) {
+// ---- 360 viewer + annotation hotspots ------------------------------------
+async function showFrame(f, look) {
   const when = state.capture ? fmtDate(state.capture.captured_at) : "";
-  showPano(f.image_url, when, `frame ${f.index + 1} of ${state.capture?.frames.length ?? "?"}`);
+  await showFrameById(f.id, f.capture_id ?? state.capture?.id, f.image_url, when,
+    `frame ${f.index + 1} of ${state.capture?.frames.length ?? "?"}`, look);
 }
-function showPano(url, title = "360 view", sub = "") {
+async function showFrameById(frameId, captureId, url, title, sub, look) {
+  state.frame = { id: frameId, capture_id: captureId, url, title, sub };
+  const all = await api(`/api/captures/${captureId}/annotations`).catch(() => []);
+  state.frameAnnotations = all.filter((a) => a.frame_id === frameId);
+  $("#annotateBtn").disabled = false;
+  showPano(url, title, sub, look);
+}
+function hotspotFor(a, pending = false) {
+  return {
+    id: `ann-${a.id ?? "new"}`, pitch: a.pitch, yaw: a.yaw,
+    cssClass: `ycb-hotspot ${pending ? "pending" : a.category} ${a.status === "resolved" ? "resolved" : ""}`,
+    createTooltipFunc: (div) => { const s = document.createElement("span"); s.textContent = a.title || "New annotation"; div.append(s); },
+    clickHandlerFunc: (ev) => { ev?.stopPropagation?.(); if (!pending) openAnnotation(a); },
+  };
+}
+function showPano(url, title = "360 view", sub = "", look) {
   $("#viewerTitle").textContent = title; $("#viewerSub").textContent = sub;
+  const spots = state.frameAnnotations;
   if (typeof pannellum === "undefined") {
-    // Viewer library unavailable (offline / CDN blocked): show the flat panorama.
-    $("#pano").innerHTML = `<img src="${url}" alt="360 frame" style="width:100%;height:100%;object-fit:contain">`;
+    // Viewer library unavailable (offline / CDN blocked): flat panorama with markers.
+    const marks = spots.map((a) => {
+      const x = ((((a.yaw + 180) % 360) + 360) % 360) / 360 * 100, y = (90 - a.pitch) / 180 * 100;
+      return `<div class="ycb-hotspot ${a.category} ${a.status === "resolved" ? "resolved" : ""}" data-ann="${a.id}" style="left:${x}%;top:${y}%"><span>${escapeHtml(a.title)}</span></div>`;
+    }).join("");
+    $("#pano").innerHTML = `<div class="flat-pano"><img src="${url}" alt="360 frame">${marks}</div>`;
+    state.viewer = null;
     return;
   }
-  const yaw = state.viewer ? state.viewer.getYaw() : 0;
+  const yaw = look?.yaw ?? (state.viewer ? state.viewer.getYaw() : 0);
+  const pitch = look?.pitch ?? (state.viewer ? state.viewer.getPitch() : 0);
   if (state.viewer) state.viewer.destroy();
   $("#pano").innerHTML = "";
-  state.viewer = pannellum.viewer("pano", { type: "equirectangular", panorama: url, autoLoad: true, yaw, showZoomCtrl: true });
+  state.viewer = pannellum.viewer("pano", {
+    type: "equirectangular", panorama: url, autoLoad: true, yaw, pitch, showZoomCtrl: true,
+    hotSpots: spots.map((a) => hotspotFor(a)),
+  });
+  let down = null;
+  state.viewer.on("mousedown", (e) => { down = { x: e.clientX, y: e.clientY }; });
+  state.viewer.on("mouseup", (e) => {
+    if (!state.annotating || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
+    const [p, y] = state.viewer.mouseEventToCoords(e);
+    pickAnnotationSpot(y, p);
+  });
 }
+// Flat fallback: clicks map straight to yaw/pitch on the equirectangular image.
+$("#pano").addEventListener("click", (e) => {
+  const mark = e.target.closest("[data-ann]");
+  if (mark) { const a = state.frameAnnotations.find((x) => x.id === +mark.dataset.ann); if (a) openAnnotation(a); return; }
+  if (state.viewer || !state.annotating) return;
+  const img = $("#pano img"); if (!img) return;
+  const r = img.getBoundingClientRect();
+  // object-fit: contain letterboxes the image; work out the drawn area.
+  const scale = Math.min(r.width / img.naturalWidth, r.height / img.naturalHeight);
+  const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
+  const fx = (e.clientX - r.left - (r.width - w) / 2) / w, fy = (e.clientY - r.top - (r.height - h) / 2) / h;
+  if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return;
+  pickAnnotationSpot(fx * 360 - 180, 90 - fy * 180);
+});
+
+function setAnnotating(on) {
+  state.annotating = on;
+  $("#annotateBtn").setAttribute("aria-pressed", String(on));
+  $("#annotateHint").hidden = !on;
+  $("#pano").classList.toggle("annotating", on);
+}
+$("#annotateBtn").onclick = () => setAnnotating(!state.annotating);
+$("#annotateCancel").onclick = () => setAnnotating(false);
+
+let editing = null; // {annotation?} or {frame_id, yaw, pitch, ai}
+function pickAnnotationSpot(yaw, pitch) {
+  setAnnotating(false);
+  if (state.viewer) state.viewer.addHotSpot(hotspotFor({ yaw, pitch }, true));
+  openAnnotation(null, { frame_id: state.frame.id, yaw, pitch });
+}
+function openAnnotation(a, spot) {
+  const form = $("#annotationForm");
+  form.reset();
+  editing = a ? { annotation: a, ai: a.ai_assisted } : { ...spot, ai: false };
+  const readOnly = !isStaff();
+  $("#annotationDialogTitle").textContent = a ? (readOnly ? a.title : "Edit annotation") : "New annotation";
+  if (a) {
+    form.category.value = a.category; form.title.value = a.title; form.body.value = a.body;
+    form.visible_to_client.checked = a.visible_to_client; form.resolved.checked = a.status === "resolved";
+  }
+  const where = a || spot;
+  $("#annotationWhere").textContent = `${state.frame?.title || ""} · ${state.frame?.sub || ""} · looking ${Math.round(where.yaw)}°, ${where.pitch >= 0 ? "up" : "down"} ${Math.abs(Math.round(where.pitch))}°` +
+    (a?.author ? ` · by ${a.author}` : "") + (a?.ai_assisted ? " · drafted with Opus" : "");
+  $("#resolvedRow").hidden = !a;
+  $("#annotationDelete").hidden = !a || readOnly;
+  form.querySelectorAll("input, textarea, #suggestBtn, #annotationSave").forEach((el) => { el.disabled = readOnly; });
+  form.querySelector(".ai-row").hidden = readOnly;
+  form.visible_to_client.closest("label").hidden = readOnly;
+  $("#annotationSave").hidden = readOnly;
+  $("#annotationError").textContent = "";
+  $("#annotationDialog").showModal();
+}
+$("#annotationDialog").addEventListener("close", () => {
+  // Drop the pending marker if the new annotation was cancelled.
+  if (state.viewer) { try { state.viewer.removeHotSpot("ann-new"); } catch {} }
+});
+$("#suggestBtn").onclick = async () => {
+  const form = $("#annotationForm"), btn = $("#suggestBtn");
+  const spot = editing.annotation || editing;
+  const frameId = editing.annotation ? editing.annotation.frame_id : editing.frame_id;
+  btn.disabled = true; btn.classList.add("loading"); btn.lastChild.textContent = "Opus is looking…";
+  try {
+    const s = await api(`/api/frames/${frameId}/annotations/suggest`, json("POST", {
+      yaw: spot.yaw, pitch: spot.pitch, note: [form.title.value, form.body.value].filter(Boolean).join(" — "),
+    }));
+    form.category.value = s.category; form.title.value = s.title; form.body.value = s.body;
+    editing.ai = true;
+  } catch (err) { $("#annotationError").textContent = err.message; }
+  finally { btn.disabled = false; btn.classList.remove("loading"); btn.lastChild.textContent = "Suggest with Opus"; }
+};
+$("#annotationForm").addEventListener("submit", async (e) => {
+  if (e.submitter?.value !== "ok") return;
+  e.preventDefault();
+  const form = e.target;
+  const body = {
+    category: form.category.value, title: form.title.value.trim(), body: form.body.value.trim(),
+    visible_to_client: form.visible_to_client.checked,
+  };
+  try {
+    if (editing.annotation) {
+      await api(`/api/annotations/${editing.annotation.id}`, json("PATCH", { ...body, status: form.resolved.checked ? "resolved" : "open" }));
+    } else {
+      await api(`/api/frames/${editing.frame_id}/annotations`, json("POST", { ...body, yaw: editing.yaw, pitch: editing.pitch, ai_assisted: editing.ai }));
+    }
+    $("#annotationDialog").close();
+    toast("Annotation saved.", "ok");
+    await refreshAnnotations();
+  } catch (err) { $("#annotationError").textContent = err.message; }
+});
+$("#annotationDelete").onclick = async () => {
+  if (!editing?.annotation) return;
+  try {
+    await api(`/api/annotations/${editing.annotation.id}`, { method: "DELETE" });
+    $("#annotationDialog").close(); toast("Annotation deleted.");
+    await refreshAnnotations();
+  } catch (err) { fail(err); }
+};
+async function refreshAnnotations() {
+  await loadAnnotations();
+  if (state.frame) {
+    const look = state.viewer ? { yaw: state.viewer.getYaw(), pitch: state.viewer.getPitch() } : undefined;
+    await showFrameById(state.frame.id, state.frame.capture_id, state.frame.url, state.frame.title, state.frame.sub, look);
+  }
+}
+async function loadAnnotations() {
+  if (!state.project) return;
+  const status = $("#annotationFilter").value;
+  state.annotations = await api(`/api/projects/${state.project.id}/annotations${status ? `?status=${status}` : ""}`);
+  const capDate = Object.fromEntries((state.project.captures || []).map((c) => [c.id, c.captured_at]));
+  $("#annotationCount").textContent = state.annotations.length || "";
+  $("#annotationList").innerHTML = state.annotations.map((a) => `
+    <li data-id="${a.id}" class="${a.status}">
+      <div class="ann-top"><span class="cat cat-${a.category}">${a.category === "note" ? "Note" : a.category}</span>
+        ${a.visible_to_client && isStaff() ? '<span class="shared-pill">SHARED</span>' : ""}
+        ${a.status === "resolved" ? `<span class="badge ok">${icon("check", "ic sm")}Resolved</span>` : ""}</div>
+      <div class="ann-title">${escapeHtml(a.title)}</div>
+      <div class="ann-meta">${capDate[a.capture_id] ? fmtDate(capDate[a.capture_id]) : ""}${a.ai_assisted ? ` · ${icon("spark", "ic sm")} Opus` : ""}</div>
+    </li>`).join("") || `<li class="empty-li">${isStaff() ? "No annotations. Open a 360 view and press Annotate." : "No notes shared yet."}</li>`;
+}
+$("#annotationFilter").onchange = () => loadAnnotations().catch(fail);
+$("#annotationList").onclick = async (e) => {
+  const li = e.target.closest("li[data-id]"); if (!li) return;
+  const a = state.annotations.find((x) => x.id === +li.dataset.id); if (!a) return;
+  try {
+    if (state.capture?.id !== a.capture_id) await selectCapture(a.capture_id);
+    const f = state.capture.frames.find((x) => x.id === a.frame_id);
+    if (f) await showFrame(f, { yaw: a.yaw, pitch: a.pitch });
+  } catch (err) { fail(err); }
+};
+
+// ---- client access (staff) -------------------------------------------------
+async function renderMembers() {
+  const members = state.project.members || [];
+  $("#memberList").innerHTML = members.map((m) =>
+    `<li class="member-row"><span>${escapeHtml(m.name || m.email)}</span><span class="spacer"></span><button class="linklike" data-remove="${m.id}">Remove</button></li>`).join("") ||
+    '<li class="hint">No clients have access yet.</li>';
+  const clients = await api("/api/clients").catch(() => []);
+  const available = clients.filter((c) => !members.some((m) => m.id === c.id));
+  $("#memberSelect").innerHTML = available.map((c) => `<option value="${c.id}">${escapeHtml(c.name || c.email)}</option>`).join("") ||
+    '<option value="">No other client accounts</option>';
+  $("#addMember").disabled = !available.length;
+}
+$("#addMember").onclick = async () => {
+  const id = +$("#memberSelect").value; if (!id) return;
+  try { await api(`/api/projects/${state.project.id}/members`, json("POST", { user_id: id })); toast("Client can now view this project.", "ok"); openProject(state.project.id); }
+  catch (err) { fail(err); }
+};
+$("#memberList").onclick = async (e) => {
+  const id = e.target.dataset.remove; if (!id) return;
+  try { await api(`/api/projects/${state.project.id}/members/${id}`, { method: "DELETE" }); openProject(state.project.id); }
+  catch (err) { fail(err); }
+};
 
 // ---- helpers --------------------------------------------------------------
 function escapeHtml(s) {
