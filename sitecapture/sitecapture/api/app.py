@@ -1,4 +1,4 @@
-"""HTTP API and the bundled web UI.
+"""HTTP API and the bundled YCB web UI.
 
 Run with ``uvicorn sitecapture.api.app:app``. Every ``/api`` route except
 login and the GPU worker callbacks (which use a per-job token) needs a
@@ -269,7 +269,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         yield
         stop_reaper.set()
 
-    app = FastAPI(title="SiteCapture", version="0.2.0", lifespan=lifespan)
+    app = FastAPI(title="YCB Site Capture", version="0.2.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.sessionmaker = SessionLocal
 

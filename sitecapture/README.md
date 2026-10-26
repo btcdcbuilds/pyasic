@@ -1,4 +1,6 @@
-# SiteCapture
+# YCB Site Capture
+
+*Young Concepts Building* — the web app is branded YCB; the Python package is `sitecapture`.
 
 360° site-walk capture for construction progress: upload walks from a 360
 camera, place them on the PDF drawing, recall what any spot looked like on any
