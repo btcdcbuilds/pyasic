@@ -1,0 +1,14 @@
+key,value,source / notes
+fx_thb_per_usd,,Bank rate on payment day
+ocean_freight_usd,,Freight forwarder quote (FOB China port to Laem Chabang)
+insurance_usd,,Marine cargo insurance quote
+inspection_usd,,Third-party pre-shipment inspection quote
+port_and_do_charges_thb,,"Forwarder / shipping line local charges (THC, D/O etc.)"
+customs_broker_fee_thb,,Customs broker quote
+haulage_to_warehouse_thb,,Trucking quote port to warehouse
+unloading_thb,,Crane / forklift hire for unloading
+local_fitout_thb,,e.g. Thai electrician fitting TISI parts (0 if not needed)
+import_vat_rate,0.07,Thai VAT 7% (Royal Decree 807 - valid to 30 Sep 2027)
+vat_registered,yes,yes/no
+markup,0.25,Cost-plus markup (owner rule: 25%)
+round_up_thb,100,Round selling price up to the next THB 100

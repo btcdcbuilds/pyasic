@@ -1,0 +1,508 @@
+<title>BaanPub Test Site</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky top bar + tabbed workspace; each tab is one working tool. Steel-and-safety-orange site vernacular. */
+:root{
+  --bg:#f3f4f6; --surface:#ffffff; --ink:#1b2330; --muted:#5a6575; --line:#dde2e9;
+  --steel:#3a4656; --accent:#e2661b; --accent-ink:#ffffff; --accent-soft:#fdeee4;
+  --ok:#23845a; --warn:#a96a12; --bad:#b83a2b; --grass:#a9c48c; --grass2:#98b77b; --road:#9aa3ad;
+  --f-display:"Anuphan","Noto Sans Thai",system-ui,sans-serif;
+  --f-body:"Anuphan","Noto Sans Thai",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141922; --surface:#1c2330; --ink:#e7ebf1; --muted:#9aa5b5; --line:#2d3646;
+  --steel:#c4cdd9; --accent:#f07a32; --accent-ink:#1a0e05; --accent-soft:#3a2416;
+  --ok:#4cc08a; --warn:#e2a54a; --bad:#ef7462; --grass:#4d6b3f; --grass2:#456238; --road:#5b6470; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141922; --surface:#1c2330; --ink:#e7ebf1; --muted:#9aa5b5; --line:#2d3646;
+  --steel:#c4cdd9; --accent:#f07a32; --accent-ink:#1a0e05; --accent-soft:#3a2416;
+  --ok:#4cc08a; --warn:#e2a54a; --bad:#ef7462; --grass:#4d6b3f; --grass2:#456238; --road:#5b6470; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1240px;margin:0 auto}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.topin{display:flex;align-items:center;gap:16px;padding-block:10px;flex-wrap:wrap}
+.logo{font-family:var(--f-display);font-weight:700;font-size:22px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:8px}
+.logo b{color:var(--accent)}
+.logo small{font-weight:500;font-size:13px;color:var(--muted)}
+nav.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+nav.tabs button{font:inherit;font-weight:600;border:0;background:none;color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{background:var(--accent-soft);color:var(--ink)}
+nav.tabs button:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.testbar{background:var(--steel);color:var(--surface);font-size:13px}
+.testbar .wrap{padding-block:6px}
+main{padding-block:24px 48px}
+section[role="tabpanel"]{display:grid;gap:20px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:clamp(28px,4.2vw,44px);font-weight:700;letter-spacing:-.015em}
+h2{font-size:22px;font-weight:700}
+h3{font-size:16px;font-weight:600}
+p{margin:0}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.label{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:20px}
+@media (max-width:880px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.btn{font:inherit;font-weight:600;display:inline-flex;align-items:center;gap:8px;border-radius:9px;padding:10px 16px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.line{background:#06c755;border-color:#06c755;color:#fff}
+.btn.wa{background:#1fa855;border-color:#1fa855;color:#fff}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pill{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--accent-soft);color:var(--ink)}
+.pill.warn{background:transparent;border:1px solid var(--warn);color:var(--warn)}
+.pill.ok{background:transparent;border:1px solid var(--ok);color:var(--ok)}
+.pill.bad{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+/* Home */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:center}
+@media (max-width:880px){.hero{grid-template-columns:minmax(0,1fr)}}
+.hero p.lead{font-size:18px;color:var(--muted);max-width:56ch;margin-block:14px 20px}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:22px}
+@media (max-width:560px){.facts{grid-template-columns:minmax(0,1fr)}}
+.fact{border-top:2px solid var(--accent);padding-top:8px}
+.fact .mono{font-size:20px;font-weight:500}
+.models{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.model{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface);display:grid;gap:6px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.model:hover{border-color:var(--accent)}
+.model .mono{font-size:13px;color:var(--muted)}
+/* Builder */
+.seg{display:flex;gap:8px;flex-wrap:wrap}
+.seg button{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:9px;padding:9px 12px;cursor:pointer;text-align:left}
+.seg button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.spec{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;font-size:14px}
+.spec dt{color:var(--muted)}
+.spec dd{margin:0}
+.opts{display:grid;gap:8px}
+.opt{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.opt input{margin-right:8px;accent-color:var(--accent)}
+.opt.on{border-color:var(--accent)}
+.opt .code{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+#view3d{width:100%;aspect-ratio:4/3;max-width:100%;border-radius:10px;background:linear-gradient(180deg,var(--accent-soft),var(--surface));display:block;touch-action:none}
+.note{font-size:13px;color:var(--muted)}
+/* Land tool */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.canvaswrap{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+#landCanvas{display:block;width:100%;height:auto;touch-action:none;cursor:grab}
+.status{display:flex;gap:8px;flex-wrap:wrap}
+.scalebox{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px;border:1px dashed var(--accent);border-radius:9px}
+.scalebox input{width:90px;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink)}
+select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.gaplist{font-size:14px;display:grid;gap:4px}
+.gaplist div{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-block:4px}
+/* Quote */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+td.num,th.num{text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.calc{display:grid;gap:10px}
+.calc input{font:inherit;font-family:var(--f-mono);padding:8px 10px;border:1px solid var(--line);border-radius:8px;width:100%;max-width:220px;background:var(--surface);color:var(--ink)}
+.calc output{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px)}
+textarea{width:100%;font:inherit;font-family:var(--f-mono);font-size:13px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);min-height:140px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header class="top">
+  <div class="wrap topin">
+    <div class="logo">Baan<b>Pub</b><small>บ้านพับ · prefab offices &amp; homes</small></div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" id="t-home" aria-controls="home" aria-selected="true">Home</button>
+      <button role="tab" id="t-build" aria-controls="build" aria-selected="false">Build your unit</button>
+      <button role="tab" id="t-land" aria-controls="land" aria-selected="false">See it on your land</button>
+      <button role="tab" id="t-quote" aria-controls="quote" aria-selected="false">Quote</button>
+    </nav>
+  </div>
+  <div class="testbar"><div class="wrap">Test version. Prices aren't set yet, and LINE/WhatsApp aren't connected. Unit sizes come from the supplier catalogue. Photos you add stay on your device.</div></div>
+</header>
+
+<main class="wrap">
+
+<!-- HOME -->
+<section role="tabpanel" id="home" aria-labelledby="t-home">
+  <div class="hero">
+    <div>
+      <span class="pill">Site offices · homes · staff accommodation</span>
+      <h1 style="margin-top:12px">Ready-to-use units, delivered and set on screw piles</h1>
+      <p class="lead">Folding and expandable steel units, stocked near Laem Chabang. Send a photo of your land and we'll show you the unit on it, to scale.</p>
+      <div class="row">
+        <button class="btn pri" data-go="land">See it on your land</button>
+        <button class="btn" data-go="build">Build your unit</button>
+        <button class="btn line" data-notconnected="LINE">Chat on LINE</button>
+        <button class="btn wa" data-notconnected="WhatsApp">WhatsApp</button>
+      </div>
+      <div class="facts">
+        <div class="fact"><div class="mono">5.8 × 2.5 m</div><div class="note">Folding unit footprint</div></div>
+        <div class="fact"><div class="mono">12 per 40HQ</div><div class="note">Folding units per container</div></div>
+        <div class="fact"><div class="mono">2 people · 10 min</div><div class="note">Unfolding, supplier's figure</div></div>
+      </div>
+    </div>
+    <div class="panel" style="padding:10px">
+      <canvas id="heroCanvas" width="640" height="440" style="width:100%;height:auto;display:block" aria-label="Drawing of a folding unit on screw piles"></canvas>
+      <p class="note" style="padding:6px 6px 2px">Drawing at catalogue proportions. Real photos come after the first container lands.</p>
+    </div>
+  </div>
+  <div class="panel" style="display:grid;gap:14px">
+    <div class="row" style="justify-content:space-between"><h2>Units we can supply</h2><span class="note">Source: Henan Jinming catalogue 2024</span></div>
+    <div class="models" id="modelCards"></div>
+  </div>
+</section>
+
+<!-- BUILD -->
+<section role="tabpanel" id="build" aria-labelledby="t-build" hidden>
+  <div class="grid2">
+    <div class="panel" style="display:grid;gap:16px;align-content:start">
+      <div><div class="label">1 · Model</div><div class="seg" id="modelSeg" style="margin-top:8px"></div></div>
+      <dl class="spec" id="specList"></dl>
+      <div><div class="label">2 · Options</div><div class="opts" id="optList" style="margin-top:8px"></div></div>
+      <div class="row"><label for="qty" class="label">Quantity</label><select id="qty"></select><button class="btn pri" data-go="quote">Go to quote</button></div>
+    </div>
+    <div class="panel" style="display:grid;gap:10px;align-content:start">
+      <div class="row" style="justify-content:space-between"><h3 id="viewTitle">3D view</h3><span class="pill warn">Doors and windows not drawn yet</span></div>
+      <canvas id="view3d" aria-label="3D view of the selected unit. Drag to rotate."></canvas>
+      <p class="note">Drag to rotate, scroll or pinch to zoom. Box sizes are the catalogue's installed sizes. The AC unit and screw piles are shown in illustrative positions: our engineer sets the real pile layout.</p>
+      <p class="note" id="view3dFallback" hidden>The 3D view needs WebGL, which this browser didn't provide.</p>
+    </div>
+  </div>
+</section>
+
+<!-- LAND -->
+<section role="tabpanel" id="land" aria-labelledby="t-land" hidden>
+  <div class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,2fr)">
+    <div class="panel" style="display:grid;gap:14px;align-content:start">
+      <h2>See it on your land</h2>
+      <p class="muted">Use a top-down photo: a drone shot or a screenshot of a satellite map. Then set the scale from one distance you know, like your gate width.</p>
+      <div style="display:grid;gap:8px">
+        <div class="label">1 · Photo</div>
+        <label class="btn" for="photo" style="justify-content:center">Upload a top-down photo</label>
+        <input type="file" id="photo" accept="image/*" hidden>
+        <button class="btn sm" id="sampleBtn">Use the example site</button>
+        <p class="note" id="photoNote">Showing a drawn example site. It is not a real place.</p>
+      </div>
+      <div style="display:grid;gap:8px">
+        <div class="label">2 · Scale</div>
+        <button class="btn sm" id="scaleBtn" aria-pressed="false">Set scale: tap two points</button>
+        <div class="scalebox" id="scaleBox" hidden>
+          <label for="scaleM">Distance between the two points (m)</label>
+          <input id="scaleM" type="number" min="0.1" step="0.1" inputmode="decimal" value="4.0">
+          <button class="btn sm pri" id="scaleApply">Apply</button>
+        </div>
+        <p class="note mono" id="scaleNote"></p>
+      </div>
+      <div style="display:grid;gap:8px">
+        <div class="label">3 · Units</div>
+        <div class="row"><select id="addModel" aria-label="Model to add"></select><button class="btn sm pri" id="addBtn">Add</button></div>
+        <div class="row"><button class="btn sm" id="rotBtn">Rotate 90°</button><button class="btn sm" id="rot15">Rotate 15°</button><button class="btn sm" id="delBtn">Remove</button></div>
+        <p class="note">Drag a unit to move it. Tap one to select it.</p>
+      </div>
+      <div style="display:grid;gap:8px">
+        <div class="label">4 · Boundary (optional)</div>
+        <div class="row"><button class="btn sm" id="bndBtn" aria-pressed="false">Draw boundary</button><button class="btn sm" id="bndDone">Finish</button><button class="btn sm" id="bndClear">Clear</button></div>
+      </div>
+    </div>
+    <div style="display:grid;gap:12px;align-content:start">
+      <div class="canvaswrap"><canvas id="landCanvas" width="1000" height="640" aria-label="Site plan with units drawn to scale"></canvas></div>
+      <div class="status" id="landStatus"></div>
+      <div class="panel"><h3 style="margin-bottom:8px">Measured gaps</h3><div class="gaplist" id="gapList"></div>
+        <p class="note" style="margin-top:10px">Concept layout for planning and quotation only. Not a survey. Local setback rules apply: check with your district office (อบต./เทศบาล/สำนักงานเขต).</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- QUOTE -->
+<section role="tabpanel" id="quote" aria-labelledby="t-quote" hidden>
+  <div class="grid2">
+    <div class="panel" style="display:grid;gap:12px;align-content:start">
+      <h2>Your quote request</h2>
+      <div style="overflow-x:auto"><table id="quoteTable"></table></div>
+      <p class="note">Prices appear once the price list is set. Every price will follow one rule: our cost plus 25%, rounded up to the next ฿100, plus 7% VAT.</p>
+      <div class="label">Message for our team</div>
+      <textarea id="quoteText" aria-label="Quote request text" readonly></textarea>
+      <div class="row"><button class="btn pri" id="copyBtn">Copy request</button><button class="btn line" data-notconnected="LINE">Send on LINE</button></div>
+    </div>
+    <div class="panel calc" style="align-content:start">
+      <h2>Owner tool: price rule check</h2>
+      <p class="muted">Type a landed cost to see the price the agents will quote. This mirrors the pricing script.</p>
+      <label for="costIn" class="label">Landed cost per unit (฿)</label>
+      <input id="costIn" type="number" min="0" step="1" value="45000" inputmode="decimal">
+      <table>
+        <tr><td>Cost × 1.25</td><td class="num"><output id="cRaw"></output></td></tr>
+        <tr><td>Price ex VAT (rounded up to ฿100)</td><td class="num"><output id="cEx"></output></td></tr>
+        <tr><td>VAT 7%</td><td class="num"><output id="cVat"></output></td></tr>
+        <tr><td><b>Customer pays</b></td><td class="num"><b><output id="cInc"></output></b></td></tr>
+        <tr><td>Gross margin on price ex VAT</td><td class="num"><output id="cMargin"></output></td></tr>
+      </table>
+      <p class="note">The ฿45,000 starting value is only an example, not a real cost. Running costs (rent, staff, ads) have to come out of the margin.</p>
+    </div>
+  </div>
+</section>
+</main>
+<div class="toast" id="toast" hidden role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+"use strict";
+/* ---------- Catalogue (Henan Jinming 2024; installed sizes in mm) ---------- */
+const MODELS = [
+  {code:"UNIT-FD-20", name:"Folding house", page:10, L:5800, W:2500, H:2450, per40:12, install:"2 workers · 10 min",
+   walls:"50 mm rock wool panel", floor:"15 mm MGO board", note:"Height assumes the catalogue's folded/unfolded labels are swapped (confirming with supplier)."},
+  {code:"UNIT-FP-20", name:"Folding & packing", page:18, L:5800, W:2500, H:2650, per40:6, install:"2 workers · 2 min",
+   walls:"50 mm rock wool panel", floor:"18 mm cement board + PVC"},
+  {code:"UNIT-EX-20", name:"Expandable 20ft", page:12, L:5900, W:6300, H:2480, per40:2, install:"5 workers · 10 min",
+   walls:"75 mm rock wool / EPS panel", floor:"18 mm MGO board", note:"Size shown expanded. Ships 5900 × 2200 mm."},
+  {code:"UNIT-DT-20", name:"Detachable", page:15, L:5950, W:3000, H:2800, per40:17, install:"4 workers · 3 h",
+   walls:"50 mm rock wool panel", floor:"MGO / cement fibre board"},
+  {code:"UNIT-FK-20", name:"Flat pack", page:17, L:5950, W:2438, H:2896, per40:6, install:"4 workers · 2 h",
+   walls:"50 mm rock wool panel", floor:"18 mm cement board + PVC"},
+];
+const OPTIONS = [
+  {id:"ACR", name:"AC-ready: bracket, pipe sleeve, dedicated circuit"},
+  {id:"ACI", name:"AC supplied and installed (licensed partner)"},
+  {id:"SEC", name:"Security grilles + security door"},
+  {id:"WET", name:"Wet room: toilet, shower, basin"},
+  {id:"FURN", name:"Site office furniture pack", code:"FURN-F-SITE"},
+  {id:"PILE", name:"Screw-pile kit (engineer-specified)"},
+  {id:"DEL", name:"Delivery by crane truck", code:"SRV-DELIV"},
+  {id:"INST", name:"Installation on screw piles", code:"SRV-INSTALL"},
+];
+const state = {model:MODELS[0], opts:new Set(["ACR","PILE","DEL","INST"]), qty:1};
+const $ = s => document.querySelector(s);
+const fmtM = mm => (mm/1000).toFixed(mm%100===0?1:2).replace(/\.?0+$/,m=>m.includes(".")?"":m);
+const sizeTxt = m => `${(m.L/1000).toFixed(2).replace(/0$/,"")} × ${(m.W/1000).toFixed(2).replace(/0$/,"")} × ${(m.H/1000).toFixed(2).replace(/0$/,"")} m`;
+const optCode = o => o.code || `OPT-${o.id}-${state.model.code.replace("UNIT-","")}`.replace("OPT-PILE","PILE-KIT");
+
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast._t);toast._t=setTimeout(()=>t.hidden=true,3200);}
+document.addEventListener("click",e=>{
+  const n=e.target.closest("[data-notconnected]"); if(n){toast(`${n.dataset.notconnected} isn't connected in this test version yet.`);}
+  const g=e.target.closest("[data-go]"); if(g){showTab(g.dataset.go);}
+});
+
+/* ---------- Tabs ---------- */
+const TABS=["home","build","land","quote"];
+function showTab(id){
+  TABS.forEach(t=>{$("#"+t).hidden=t!==id;$("#t-"+t).setAttribute("aria-selected",t===id);});
+  if(id==="build") view3d.resize();
+  if(id==="land") land.draw();
+  if(id==="quote") renderQuote();
+  try{history.replaceState(null,"","#"+id);}catch(e){}
+  window.scrollTo({top:0});
+}
+TABS.forEach(t=>$("#t-"+t).addEventListener("click",()=>showTab(t)));
+
+/* ---------- Home ---------- */
+$("#modelCards").innerHTML = MODELS.map(m=>`<button class="model" data-model="${m.code}">
+  <h3>${m.name}</h3><div class="mono">${m.code}</div><div class="mono">${sizeTxt(m)}</div>
+  <div class="note">${m.per40} per 40HQ · catalogue p.${m.page}</div></button>`).join("");
+$("#modelCards").addEventListener("click",e=>{const b=e.target.closest("[data-model]");if(!b)return;selectModel(b.dataset.model);showTab("build");});
+
+function drawHero(){
+  const c=$("#heroCanvas"),x=c.getContext("2d"),cs=getComputedStyle(document.documentElement);
+  const v=n=>cs.getPropertyValue(n).trim();
+  x.clearRect(0,0,c.width,c.height);
+  // simple oblique projection of a 5.8 x 2.5 x 2.45 m box, 60 px per metre
+  const s=60,ox=120,oy=330,dx=0.55,dy=-0.32;
+  const P=(X,Y,Z)=>[ox+X*s+Y*s*dx, oy-Z*s+Y*s*dy];
+  const L=5.8,W=2.5,H=2.45,poly=(pts,fill,stroke)=>{x.beginPath();pts.forEach((p,i)=>i?x.lineTo(...p):x.moveTo(...p));x.closePath();x.fillStyle=fill;x.fill();if(stroke){x.strokeStyle=stroke;x.lineWidth=1;x.stroke();}};
+  x.fillStyle="rgba(0,0,0,.08)";x.beginPath();x.ellipse(ox+L*s/2+40,oy+38,L*s/2+70,24,0,0,7);x.fill();
+  x.strokeStyle=v("--muted");x.lineWidth=5;[[0.4,0.3],[L-0.4,0.3],[0.4,W-0.3],[L-0.4,W-0.3],[L/2,0.3],[L/2,W-0.3]].forEach(([X,Y])=>{const a=P(X,Y,0),b=P(X,Y,-0.55);x.beginPath();x.moveTo(...a);x.lineTo(...b);x.stroke();});
+  poly([P(0,0,0),P(L,0,0),P(L,0,H),P(0,0,H)],"#eef1f4","#c9d0d9");
+  poly([P(L,0,0),P(L,W,0),P(L,W,H),P(L,0,H)],"#d9dfe6","#c9d0d9");
+  poly([P(0,0,H),P(L,0,H),P(L,W,H),P(0,W,H)],"#3a4656");
+  for(let i=1;i<6;i++){const a=P(i*L/6,0,0.05),b=P(i*L/6,0,H-0.05);x.strokeStyle="#cfd6de";x.lineWidth=1;x.beginPath();x.moveTo(...a);x.lineTo(...b);x.stroke();}
+  poly([P(0,0,H-0.35),P(L,0,H-0.35),P(L,0,H-0.25),P(0,0,H-0.25)],v("--accent"));
+  x.fillStyle=v("--ink");x.font="500 14px "+v("--f-mono");
+  const a=P(0,0,-0.75),b=P(L,0,-0.75);x.strokeStyle=v("--ink");x.lineWidth=1;x.beginPath();x.moveTo(...a);x.lineTo(...b);x.stroke();
+  x.fillText("5.80 m",(a[0]+b[0])/2-22,a[1]+18);
+  const h1=P(-0.3,0,0),h2=P(-0.3,0,H);x.beginPath();x.moveTo(...h1);x.lineTo(...h2);x.stroke();x.fillText("2.45 m",h1[0]-62,(h1[1]+h2[1])/2);
+  x.fillText("2.50 m",P(L,W/2,0)[0]+10,P(L,W/2,0)[1]+8);
+}
+
+/* ---------- Builder ---------- */
+function selectModel(code){state.model=MODELS.find(m=>m.code===code)||MODELS[0];renderBuilder();view3d.build();}
+function renderBuilder(){
+  const m=state.model;
+  $("#modelSeg").innerHTML=MODELS.map(x=>`<button aria-pressed="${x===m}" data-code="${x.code}">${x.name}<br><span class="mono" style="font-size:12px;color:var(--muted)">${x.code}</span></button>`).join("");
+  $("#specList").innerHTML=`<dt>Installed size</dt><dd class="mono">${sizeTxt(m)}</dd>
+    <dt>Floor area</dt><dd class="mono">${(m.L*m.W/1e6).toFixed(1)} m²</dd>
+    <dt>Walls</dt><dd>${m.walls}</dd><dt>Floor</dt><dd>${m.floor}</dd>
+    <dt>Per 40HQ</dt><dd class="mono">${m.per40} units</dd><dt>Install</dt><dd>${m.install} <span class="note">(supplier)</span></dd>
+    ${m.note?`<dt>Note</dt><dd class="note">${m.note}</dd>`:""}`;
+  $("#optList").innerHTML=OPTIONS.map(o=>`<label class="opt ${state.opts.has(o.id)?"on":""}"><span><input type="checkbox" data-opt="${o.id}" ${state.opts.has(o.id)?"checked":""}>${o.name}<br><span class="code">${optCode(o)}</span></span><span class="pill warn">price pending</span></label>`).join("");
+  $("#viewTitle").textContent=`3D view · ${m.name}`;
+}
+$("#modelSeg").addEventListener("click",e=>{const b=e.target.closest("[data-code]");if(b)selectModel(b.dataset.code);});
+$("#optList").addEventListener("change",e=>{const i=e.target.dataset.opt;if(!i)return;e.target.checked?state.opts.add(i):state.opts.delete(i);renderBuilder();view3d.build();});
+$("#qty").innerHTML=Array.from({length:20},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join("");
+$("#qty").addEventListener("change",e=>state.qty=+e.target.value);
+
+/* ---------- 3D view (three.js, metres) ---------- */
+const view3d=(()=>{
+  const canvas=$("#view3d"); let renderer,scene,camera,group,theta=-0.75,phi=1.05,dist=14,ok=true;
+  try{ if(!window.THREE) throw 0;
+    renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+    renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+    scene=new THREE.Scene(); camera=new THREE.PerspectiveCamera(38,4/3,0.1,200);
+    scene.add(new THREE.HemisphereLight(0xffffff,0x8a8f99,0.85));
+    const d=new THREE.DirectionalLight(0xffffff,0.75); d.position.set(8,14,6); scene.add(d);
+    const ground=new THREE.Mesh(new THREE.CircleGeometry(12,48),new THREE.MeshLambertMaterial({color:0x9db884}));
+    ground.rotation.x=-Math.PI/2; ground.position.y=-0.55; scene.add(ground);
+  }catch(e){ok=false;canvas.hidden=true;$("#view3dFallback").hidden=false;}
+  const mat=c=>new THREE.MeshLambertMaterial({color:c});
+  function box(w,h,d,c,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(c));m.position.set(x,y,z);group.add(m);return m;}
+  function build(){
+    if(!ok) return; if(group) scene.remove(group); group=new THREE.Group(); scene.add(group);
+    const m=state.model,L=m.L/1000,W=m.W/1000,H=m.H/1000;
+    box(L,H,W,0xeef1f4,0,H/2,0);                     // body at catalogue size
+    box(L+0.06,0.08,W+0.06,0x3a4656,0,H+0.04,0);      // roof edge
+    box(L+0.02,0.12,W+0.02,0xe2661b,0,H-0.32,0);      // brand stripe
+    box(L+0.04,0.1,W+0.04,0x4b5563,0,0.05,0);         // floor frame
+    for(let i=1;i<6;i++) box(0.012,H-0.1,W+0.012,0xcfd6de,-L/2+i*L/6,H/2,0); // panel seams
+    if(state.opts.has("PILE")){ // illustrative pile positions only
+      const xs=[-L/2+0.4,0,L/2-0.4], zs=[-W/2+0.3,W/2-0.3];
+      xs.forEach(x=>zs.forEach(z=>{const p=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.6,12),mat(0x7a8696));p.position.set(x,-0.25,z);group.add(p);}));
+    }
+    if(state.opts.has("ACR")||state.opts.has("ACI")) box(0.8,0.55,0.3,0xffffff,L/2-1.2,1.0,W/2+0.2); // illustrative AC outdoor unit
+    dist=Math.max(L,W)*2.1+3; place(); render();
+  }
+  function place(){camera.position.set(dist*Math.sin(phi)*Math.cos(theta),dist*Math.cos(phi),dist*Math.sin(phi)*Math.sin(theta));camera.lookAt(0,1,0);}
+  function render(){if(ok) renderer.render(scene,camera);}
+  function resize(){if(!ok)return;const w=canvas.clientWidth||600,h=w*3/4;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();render();}
+  let drag=null;
+  canvas.addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY};canvas.setPointerCapture(e.pointerId);});
+  canvas.addEventListener("pointermove",e=>{if(!drag)return;theta+=(e.clientX-drag.x)*0.01;phi=Math.min(1.45,Math.max(0.25,phi-(e.clientY-drag.y)*0.01));drag={x:e.clientX,y:e.clientY};place();render();});
+  canvas.addEventListener("pointerup",()=>drag=null);
+  canvas.addEventListener("wheel",e=>{e.preventDefault();dist=Math.min(60,Math.max(6,dist*(e.deltaY>0?1.1:0.9)));place();render();},{passive:false});
+  window.addEventListener("resize",resize);
+  return {build,resize};
+})();
+
+/* ---------- Land tool ---------- */
+const land=(()=>{
+  const cv=$("#landCanvas"),ctx=cv.getContext("2d");
+  const st={img:null,sample:true,mpp:1/15,units:[],sel:-1,mode:null,pts:[],boundary:[],bndOpen:false};
+  // geometry (image pixels)
+  const corners=u=>{const m=MODELS.find(x=>x.code===u.code),l=m.L/1000/st.mpp,w=m.W/1000/st.mpp,a=u.rot*Math.PI/180,c=Math.cos(a),s=Math.sin(a);
+    return [[-1,-1],[1,-1],[1,1],[-1,1]].map(([dx,dy])=>{const X=dx*l/2,Y=dy*w/2;return [u.x+X*c-Y*s,u.y+X*s+Y*c];});};
+  const edges=p=>p.map((v,i)=>[v,p[(i+1)%p.length]]);
+  const segPt=(p,a,b)=>{const dx=b[0]-a[0],dy=b[1]-a[1],L2=dx*dx+dy*dy;let t=L2?((p[0]-a[0])*dx+(p[1]-a[1])*dy)/L2:0;t=Math.max(0,Math.min(1,t));return Math.hypot(p[0]-a[0]-t*dx,p[1]-a[1]-t*dy);};
+  const inPoly=(p,poly)=>{let ins=false;for(const [[x1,y1],[x2,y2]] of edges(poly)){if((y1>p[1])!==(y2>p[1])&&p[0]<(x2-x1)*(p[1]-y1)/(y2-y1)+x1)ins=!ins;}return ins;};
+  const orient=(p,q,r)=>(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);
+  const cross=(a,b,c,d)=>orient(a,b,c)*orient(a,b,d)<0&&orient(c,d,a)*orient(c,d,b)<0;
+  const overlap=(p,q)=>edges(p).some(([a,b])=>edges(q).some(([c,d])=>cross(a,b,c,d)))||inPoly(p[0],q)||inPoly(q[0],p);
+  const gap=(p,q)=>overlap(p,q)?0:Math.min(...p.flatMap(v=>edges(q).map(([a,b])=>segPt(v,a,b))),...q.flatMap(v=>edges(p).map(([a,b])=>segPt(v,a,b))));
+
+  function sampleScene(){ // drawn example site, 15 px per metre
+    const c=document.createElement("canvas");c.width=1000;c.height=640;const x=c.getContext("2d"),v=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    x.fillStyle=v("--grass");x.fillRect(0,0,1000,640);x.fillStyle=v("--grass2");for(let i=0;i<900;i++){x.fillRect((i*137)%1000,(i*251)%560,2,2);}
+    x.fillStyle=v("--road");x.fillRect(0,560,1000,80);x.fillStyle="#fff";x.font="16px sans-serif";x.fillText("Soi (road)",16,606);
+    x.fillStyle="#c9b8a6";x.fillRect(640,90,240,170);x.fillStyle="#5b4c3e";x.fillText("Existing house",700,180);
+    x.fillStyle="#6f9a52";x.beginPath();x.arc(200,140,46,0,7);x.fill();x.beginPath();x.arc(250,170,34,0,7);x.fill();
+    x.fillStyle="#8a7a66";x.fillRect(420,536,4,24);x.fillRect(480,536,4,24); // gate posts 60 px = 4 m apart
+    return c;
+  }
+  function reset(sample){
+    st.sample=sample; st.units=[]; st.sel=-1; st.boundary=[]; st.bndOpen=false; st.mode=null;
+    if(sample){ st.img=sampleScene(); st.mpp=1/15;
+      st.boundary=[[80,60],[920,60],[920,540],[80,540]];
+      st.units=[{code:"UNIT-EX-20",x:424,y:347,rot:0},{code:"UNIT-FD-20",x:233,y:364,rot:0}];
+      $("#photoNote").textContent="Showing a drawn example site. It is not a real place. Gate posts are 4.0 m apart.";
+    }
+    cv.width=st.img.width; cv.height=st.img.height; updateScaleNote(); draw();
+  }
+  function updateScaleNote(){ $("#scaleNote").textContent = st.mpp ? `Scale: ${(1/st.mpp).toFixed(1)} px per metre${st.sample?" (example)":""}` : "Scale not set: tap “Set scale” first."; }
+  function draw(){
+    if(!st.img) return; const v=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+    ctx.setTransform(1,0,0,1,0,0); ctx.drawImage(st.img,0,0,cv.width,cv.height);
+    const k=Math.max(1,cv.width/1000); // line weight for large photos
+    if(st.boundary.length){ctx.setLineDash([14*k,8*k]);ctx.strokeStyle="#1f6fff";ctx.lineWidth=4*k;ctx.beginPath();st.boundary.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));if(!st.bndOpen)ctx.closePath();ctx.stroke();ctx.setLineDash([]);}
+    if(st.mpp){
+      const polys=st.units.map(corners);
+      polys.forEach((p,i)=>{ctx.beginPath();p.forEach((q,j)=>j?ctx.lineTo(...q):ctx.moveTo(...q));ctx.closePath();
+        ctx.fillStyle=i===st.sel?"rgba(226,102,27,.75)":"rgba(226,102,27,.5)";ctx.fill();ctx.lineWidth=(i===st.sel?4:2.5)*k;ctx.strokeStyle="#9c3f08";ctx.stroke();
+        const u=st.units[i],m=MODELS.find(x=>x.code===u.code);ctx.fillStyle="#111";ctx.font=`600 ${12*k}px sans-serif`;ctx.textAlign="center";ctx.fillText(m.name,u.x,u.y-2*k);ctx.font=`${10*k}px monospace`;ctx.fillText(`${m.L/1000}×${m.W/1000} m`,u.x,u.y+11*k);ctx.textAlign="start";});
+      // scale bar
+      const barM=Math.max(1,Math.round(cv.width*st.mpp/5)),bar=barM/st.mpp;ctx.fillStyle="rgba(255,255,255,.88)";ctx.fillRect(14*k,14*k,bar+70*k,32*k);ctx.fillStyle="#000";ctx.fillRect(24*k,34*k,bar,5*k);ctx.font=`${14*k}px sans-serif`;ctx.fillText(`${barM} m`,bar+30*k,40*k);
+    }
+    st.pts.forEach(p=>{ctx.fillStyle="#1f6fff";ctx.beginPath();ctx.arc(p[0],p[1],7*k,0,7);ctx.fill();});
+    if(st.pts.length===2){ctx.strokeStyle="#1f6fff";ctx.lineWidth=3*k;ctx.beginPath();ctx.moveTo(...st.pts[0]);ctx.lineTo(...st.pts[1]);ctx.stroke();}
+    ctx.fillStyle="rgba(255,255,255,.9)";ctx.fillRect(0,cv.height-22*k,cv.width,22*k);ctx.fillStyle="#b83a2b";ctx.font=`${12*k}px sans-serif`;ctx.fillText("Concept layout for planning and quotation only. Not a survey. Not for permit submission.",8*k,cv.height-7*k);
+    report();
+  }
+  function report(){
+    const out=[],status=[]; const polys=st.mpp?st.units.map(corners):[];
+    let overlaps=0,outside=0;
+    for(let i=0;i<polys.length;i++)for(let j=i+1;j<polys.length;j++){const g=gap(polys[i],polys[j])*st.mpp;if(g===0)overlaps++;out.push([`${nm(i)} ↔ ${nm(j)}`,g]);}
+    if(st.boundary.length>2&&!st.bndOpen){polys.forEach((p,i)=>{const crosses=edges(p).some(([a,b])=>edges(st.boundary).some(([c,d])=>cross(a,b,c,d)));const ins=p.every(v=>inPoly(v,st.boundary));if(crosses||!ins)outside++;
+      const g=Math.min(...p.flatMap(v=>edges(st.boundary).map(([a,b])=>segPt(v,a,b))))*st.mpp;out.push([`${nm(i)} ↔ boundary`,(crosses||!ins)?-1:g]);});}
+    $("#gapList").innerHTML=out.length?out.map(([l,g])=>`<div><span>${l}</span><span class="mono">${g<0?'<span class="pill bad">outside</span>':g===0?'<span class="pill bad">overlap</span>':g.toFixed(1)+" m"}</span></div>`).join(""):'<p class="note">Add two or more units, or a boundary, to see gaps.</p>';
+    status.push(`<span class="pill">Units: ${st.units.length}</span>`);
+    status.push(overlaps?`<span class="pill bad">Overlaps: ${overlaps}</span>`:`<span class="pill ok">No overlaps</span>`);
+    if(st.boundary.length>2&&!st.bndOpen) status.push(outside?`<span class="pill bad">Outside boundary: ${outside}</span>`:`<span class="pill ok">Inside boundary</span>`);
+    if(!st.mpp) status.push(`<span class="pill warn">Set the scale to place units</span>`);
+    $("#landStatus").innerHTML=status.join("");
+  }
+  const nm=i=>{const u=st.units[i];return `${i+1}. ${MODELS.find(x=>x.code===u.code).name}`;};
+  const toImg=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*cv.width/r.width,(e.clientY-r.top)*cv.height/r.height];};
+  let dragging=null;
+  cv.addEventListener("pointerdown",e=>{
+    const p=toImg(e);
+    if(st.mode==="scale"){st.pts.push(p);if(st.pts.length>2)st.pts=[p];if(st.pts.length===2)$("#scaleBox").hidden=false;draw();return;}
+    if(st.mode==="bnd"){st.boundary.push(p);st.bndOpen=true;draw();return;}
+    if(!st.mpp) return;
+    const polys=st.units.map(corners);let hit=-1;for(let i=polys.length-1;i>=0;i--){if(inPoly(p,polys[i])){hit=i;break;}}
+    st.sel=hit; if(hit>=0){dragging={i:hit,dx:p[0]-st.units[hit].x,dy:p[1]-st.units[hit].y};cv.setPointerCapture(e.pointerId);cv.style.cursor="grabbing";}
+    draw();
+  });
+  cv.addEventListener("pointermove",e=>{if(!dragging)return;const p=toImg(e),u=st.units[dragging.i];u.x=p[0]-dragging.dx;u.y=p[1]-dragging.dy;draw();});
+  cv.addEventListener("pointerup",()=>{dragging=null;cv.style.cursor="grab";});
+  // controls
+  $("#photo").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{
+      const max=2000,sc=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement("canvas");c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      st.img=c;st.sample=false;st.mpp=0;st.units=[];st.sel=-1;st.boundary=[];st.pts=[];cv.width=c.width;cv.height=c.height;
+      $("#photoNote").textContent=`Your photo (${c.width} × ${c.height} px). It stays in this browser and isn't uploaded.`;updateScaleNote();setMode("scale");draw();URL.revokeObjectURL(img.src);};
+    img.onerror=()=>toast("That file couldn't be opened as an image. Try a JPG or PNG.");img.src=URL.createObjectURL(f);});
+  $("#sampleBtn").addEventListener("click",()=>{st.pts=[];setMode(null);reset(true);});
+  function setMode(m){st.mode=m;$("#scaleBtn").setAttribute("aria-pressed",m==="scale");$("#bndBtn").setAttribute("aria-pressed",m==="bnd");if(m!=="scale"){$("#scaleBox").hidden=true;}
+    if(m==="scale"){st.pts=[];toast("Tap the two ends of a distance you know, e.g. the gate posts.");}}
+  $("#scaleBtn").addEventListener("click",()=>setMode(st.mode==="scale"?null:"scale"));
+  $("#scaleApply").addEventListener("click",()=>{const m=parseFloat($("#scaleM").value);if(!(m>0)||st.pts.length!==2){toast("Tap two points and enter a distance above 0.");return;}
+    const px=Math.hypot(st.pts[1][0]-st.pts[0][0],st.pts[1][1]-st.pts[0][1]);if(px<5){toast("The two points are too close together. Pick points further apart.");return;}
+    st.mpp=m/px;st.sample=false;st.pts=[];setMode(null);updateScaleNote();toast(`Scale set: ${m} m = ${px.toFixed(0)} px.`);draw();});
+  $("#addModel").innerHTML=MODELS.map(m=>`<option value="${m.code}">${m.name} (${m.L/1000}×${m.W/1000} m)</option>`).join("");
+  $("#addBtn").addEventListener("click",()=>{if(!st.mpp){toast("Set the scale first, so the unit is drawn at the right size.");return;}st.units.push({code:$("#addModel").value,x:cv.width/2,y:cv.height/2,rot:0});st.sel=st.units.length-1;draw();});
+  const rot=d=>{if(st.sel<0){toast("Tap a unit to select it first.");return;}st.units[st.sel].rot=(st.units[st.sel].rot+d)%360;draw();};
+  $("#rotBtn").addEventListener("click",()=>rot(90)); $("#rot15").addEventListener("click",()=>rot(15));
+  $("#delBtn").addEventListener("click",()=>{if(st.sel<0){toast("Tap a unit to select it first.");return;}st.units.splice(st.sel,1);st.sel=-1;draw();});
+  $("#bndBtn").addEventListener("click",()=>{if(st.mode==="bnd"){setMode(null);return;}st.boundary=[];st.bndOpen=true;setMode("bnd");toast("Tap each corner of your land in order, then press Finish.");draw();});
+  $("#bndDone").addEventListener("click",()=>{if(st.boundary.length<3){toast("A boundary needs at least 3 corners.");return;}st.bndOpen=false;setMode(null);draw();});
+  $("#bndClear").addEventListener("click",()=>{st.boundary=[];st.bndOpen=false;setMode(null);draw();});
+  return {draw,reset,units:()=>st.units};
+})();
+
+/* ---------- Quote ---------- */
+const priceRule=cost=>{const raw=cost*1.25;const ex=Math.ceil(Math.round(raw/100*1e9)/1e9)*100;return {raw,ex,vat:ex*0.07,inc:ex*1.07,margin:ex?(ex-cost)/ex:0};};
+const thb=n=>"฿"+n.toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:2});
+function renderCalc(){const c=parseFloat($("#costIn").value);if(!(c>=0)){["cRaw","cEx","cVat","cInc","cMargin"].forEach(i=>$("#"+i).textContent="–");return;}
+  const r=priceRule(c);$("#cRaw").textContent=thb(r.raw);$("#cEx").textContent=thb(r.ex);$("#cVat").textContent=thb(r.vat);$("#cInc").textContent=thb(r.inc);$("#cMargin").textContent=(r.margin*100).toFixed(1)+"%";}
+$("#costIn").addEventListener("input",renderCalc);
+function renderQuote(){
+  const m=state.model,lines=[[m.code,`${m.name}, ${sizeTxt(m)}`,state.qty]];
+  OPTIONS.filter(o=>state.opts.has(o.id)).forEach(o=>lines.push([optCode(o),o.name,state.qty]));
+  $("#quoteTable").innerHTML=`<tr><th>Code</th><th>Item</th><th class="num">Qty</th><th class="num">Price</th></tr>`+
+    lines.map(l=>`<tr><td class="mono" style="font-size:12px">${l[0]}</td><td>${l[1]}</td><td class="num">${l[2]}</td><td class="num"><span class="pill warn">pending</span></td></tr>`).join("");
+  const site=land.units().length?`\nSite layout: ${land.units().length} unit(s) placed in the layout tool.`:"";
+  $("#quoteText").value=`BaanPub quote request\n\n`+lines.map(l=>`${l[2]} × ${l[0]} (${l[1]})`).join("\n")+site+`\n\nName:\nPhone / LINE ID:\nSite province / district:\nWhen needed:`;
+}
+$("#copyBtn").addEventListener("click",()=>{const t=$("#quoteText");navigator.clipboard.writeText(t.value).then(()=>toast("Copied."),()=>{t.select();toast("Text selected. Copy it with your keyboard or long-press.");});});
+
+/* ---------- Boot ---------- */
+renderBuilder(); view3d.build(); land.reset(true); renderCalc(); drawHero();
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change",()=>{drawHero();land.draw();});
+const start=(location.hash||"").slice(1); if(TABS.includes(start)) showTab(start);
+</script>
