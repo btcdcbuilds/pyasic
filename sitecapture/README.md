@@ -42,7 +42,20 @@ date, and generate AI progress reports, time-lapses and 3D models.
 | Cloud storage (S3/R2) | Not implemented | Files are kept on the VPS disk (Docker volume) |
 | Database migrations | Not implemented | New tables are created automatically; changes to existing tables will need a migration tool (Alembic) later |
 
-## Quick start
+## Run it on your own computer
+
+Needs **Python 3.12 or newer** ([python.org](https://www.python.org/downloads/); on Windows tick "Add python.exe to PATH"). ffmpeg is bundled; no database server is needed (a local SQLite file is used).
+
+| System | Do this |
+|---|---|
+| Windows | Double-click `sitecapture\start-local.bat` |
+| macOS / Linux | In a terminal: `./sitecapture/start-local.sh` |
+
+The first run installs everything into `sitecapture/.venv` (a few minutes) and asks for the first admin email and password. Then open <http://localhost:8000>. Uploads and the database stay in `sitecapture/local-data`. Opus features need `ANTHROPIC_API_KEY` set before starting.
+
+What works on a laptop: everything except the structure-from-motion step (OpenSfM), which places 360 frames automatically and builds a point cloud from a walk. Without it, place frames by tapping 2+ positions on the plan (the rest are interpolated). As-built checks run on the laptop's CPU.
+
+## Quick start (developers)
 
 ```bash
 cd sitecapture
