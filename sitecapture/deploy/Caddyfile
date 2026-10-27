@@ -1,0 +1,9 @@
+{$SITECAPTURE_DOMAIN} {
+	encode gzip
+	reverse_proxy app:8000 {
+		# Time-lapse rendering and AI reports can take a few minutes.
+		transport http {
+			read_timeout 15m
+		}
+	}
+}
