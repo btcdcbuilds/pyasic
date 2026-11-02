@@ -1,0 +1,34 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.brassknocker.game"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.brassknocker.game"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    // The game itself is the HTML5 build in ../../web, packaged as the APK's assets.
+    sourceSets {
+        main {
+            assets.srcDirs = ["../../web"]
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
