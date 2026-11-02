@@ -165,3 +165,13 @@ h3 { color: var(--brass-hi); }
   .choices { gap: 5px; margin-top: 8px; }
   .choice { padding: 6px 10px; min-height: 40px; font-size: 15px; }
 }
+
+/* Finding the Brass additions */
+.chip.cand { color: #ff9ac4; }
+.chip.dose { color: #fff; background: #8a1010; border-color: #ff5050; animation: pulse 1.6s infinite; }
+.dose-note { color: #ff8080; border-left: 3px solid #d03030; padding-left: 8px; font-family: sans-serif; font-size: 14px; }
+.good-note { color: var(--good); border-left: 3px solid var(--good); padding-left: 8px; font-family: sans-serif; font-size: 14px; }
+.candbox { background: #3a1a2a88; border: 1px solid #a05070; border-radius: 6px; padding: 8px 10px; margin: 6px 0 10px; font-size: 14px; }
+.candbox ul, .doselist { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
+.swatch { display: inline-block; width: 11px; height: 11px; border: 1px solid #000; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.clue.dz { background: #4a101066; }

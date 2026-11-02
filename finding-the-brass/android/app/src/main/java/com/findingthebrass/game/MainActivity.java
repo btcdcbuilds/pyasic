@@ -1,4 +1,4 @@
-package com.brassknocker.game;
+package com.findingthebrass.game;
 
 import android.app.Activity;
 import android.net.Uri;
@@ -24,7 +24,7 @@ import java.io.InputStream;
  * Assets are served from a private https origin so that localStorage (save games) works reliably.
  */
 public class MainActivity extends Activity {
-    private static final String HOST = "brassknocker.local";
+    private static final String HOST = "findingthebrass.local";
     private static final String START_URL = "https://" + HOST + "/index.html";
     private WebView web;
 

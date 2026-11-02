@@ -1,4 +1,4 @@
-/* The Brass Knocker — canvas rendering, lighting, NPCs, input and sound. */
+/* Finding the Brass — canvas rendering, lighting, NPCs, input and sound. */
 "use strict";
 (function () {
   var U = BK.util, WD = BK.world, T = WD.T;
@@ -17,7 +17,7 @@
 
   /* ---------------- sound (synthesized, no files) ---------------- */
   var ac = null, muted = false;
-  try { muted = localStorage.getItem("brassknocker.mute") === "1"; } catch (e) { /* ignore */ }
+  try { muted = localStorage.getItem("findingthebrass.mute") === "1"; } catch (e) { /* ignore */ }
   function audio() {
     if (muted) return null;
     if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
@@ -58,13 +58,14 @@
     clue: function () { tone(523, 0, 0.12, "triangle", 0.12); tone(659, 0.1, 0.12, "triangle", 0.12); tone(784, 0.2, 0.2, "triangle", 0.12); },
     evidence: function () { [523, 659, 784, 1047].forEach(function (f, i) { tone(f, i * 0.12, 0.3, "triangle", 0.14); }); },
     hit: function () { thud(0, 0.7); },
+    warn: function () { tone(330, 0, 0.18, "square", 0.06); tone(247, 0.18, 0.3, "square", 0.06); },
     hurt: function () { tone(200, 0, 0.2, "sawtooth", 0.08, 90); },
     alarm: function () { tone(1800, 0, 0.25, "sine", 0.06, 2300); tone(1800, 0.3, 0.3, "sine", 0.06, 2300); },
     level: function () { [392, 523, 659, 784, 1047].forEach(function (f, i) { tone(f, i * 0.09, 0.25, "square", 0.05); }); },
     win: function () { [523, 659, 784, 1047, 784, 1047].forEach(function (f, i) { tone(f, i * 0.15, 0.35, "triangle", 0.12); }); },
     bad: function () { tone(220, 0, 0.4, "sawtooth", 0.07, 110); tone(160, 0.35, 0.5, "sawtooth", 0.07, 80); },
     dawn: function () { tone(880, 0, 0.6, "sine", 0.05); tone(1320, 0.25, 0.8, "sine", 0.04); },
-    toggle: function () { muted = !muted; try { localStorage.setItem("brassknocker.mute", muted ? "1" : "0"); } catch (e) { /* ignore */ } return !muted; },
+    toggle: function () { muted = !muted; try { localStorage.setItem("findingthebrass.mute", muted ? "1" : "0"); } catch (e) { /* ignore */ } return !muted; },
     isOn: function () { return !muted; }
   };
 
@@ -76,6 +77,7 @@
     dctx = dark.getContext("2d");
     WD.prerender();
     window.addEventListener("resize", resize);
+    window.addEventListener("orientationchange", function () { setTimeout(resize, 200); });
     resize();
     spawnNpcs();
     for (var i = 0; i < 14; i++) fog.push({ x: Math.random() * WD.W * T, y: Math.random() * WD.H * T, r: 60 + Math.random() * 90, v: 4 + Math.random() * 8 });
@@ -83,10 +85,16 @@
     requestAnimationFrame(frame);
   };
 
+  function viewSize() {
+    var w = window.innerWidth || document.documentElement.clientWidth || (window.screen && window.screen.width) || 0;
+    var h = window.innerHeight || document.documentElement.clientHeight || (window.screen && window.screen.height) || 0;
+    return { w: w, h: h };
+  }
   function resize() {
     dpr = Math.min(window.devicePixelRatio || 1, 2.5);
-    cv.width = Math.round(window.innerWidth * dpr);
-    cv.height = Math.round(window.innerHeight * dpr);
+    var v = viewSize();
+    cv.width = Math.max(1, Math.round(v.w * dpr));
+    cv.height = Math.max(1, Math.round(v.h * dpr));
     dark.width = cv.width; dark.height = cv.height;
     Z = Math.max(1.5 * dpr, Math.min(cv.width / (19 * T), cv.height / (11 * T)));
   }
@@ -293,7 +301,8 @@
     ctx.fillStyle = o.skin || "#e8c8a8"; ctx.fillRect(x + 5, y + 1 + bob, 6, 5);
     // hat
     ctx.fillStyle = o.hatColor || "#111";
-    if (o.hat === "helmet") { ctx.fillRect(x + 5, y - 3 + bob, 6, 4); ctx.fillStyle = "#c0a050"; ctx.fillRect(x + 7, y - 4 + bob, 2, 1); }
+    if (o.hat === "sailor") { ctx.fillStyle = "#f0ece0"; ctx.fillRect(x + 4, y + bob, 8, 2); ctx.fillStyle = "#1a1a2a"; ctx.fillRect(x + 4, y + 2 + bob, 8, 1); ctx.fillStyle = "#f0ece0"; ctx.fillRect(x + 6, y + 6 + bob, 4, 2); }
+    else if (o.hat === "helmet") { ctx.fillRect(x + 5, y - 3 + bob, 6, 4); ctx.fillStyle = "#c0a050"; ctx.fillRect(x + 7, y - 4 + bob, 2, 1); }
     else if (o.hat === "bonnet") { ctx.fillStyle = o.hatColor || "#8a1a1a"; ctx.fillRect(x + 4, y + bob, 8, 3); ctx.fillRect(x + 4, y + bob, 2, 5); ctx.fillRect(x + 10, y + bob, 2, 5); }
     else if (o.hat === 1) { ctx.fillRect(x + 4, y + 1 + bob, 8, 1); ctx.fillRect(x + 5, y - 2 + bob, 6, 3); }
     else if (o.hat === 2) { ctx.fillRect(x + 5, y + bob, 6, 2); ctx.fillRect(x + 10, y + 1 + bob, 3, 1); }
@@ -303,7 +312,17 @@
     else if (o.facing !== "up") { ctx.fillStyle = "#222"; ctx.fillRect(x + 6, y + 3 + bob, 1, 1); ctx.fillRect(x + 9, y + 3 + bob, 1, 1); }
   }
 
+  /* The loop must never die: Android WebView can report a 0x0 viewport at start-up,
+     which used to throw on the first frame and leave a black screen. */
   function frame(ts) {
+    requestAnimationFrame(frame);
+    var v = viewSize();
+    if (!v.w || !v.h) return;
+    if (cv.width !== Math.max(1, Math.round(v.w * Math.min(window.devicePixelRatio || 1, 2.5))) ||
+        cv.height !== Math.max(1, Math.round(v.h * Math.min(window.devicePixelRatio || 1, 2.5)))) resize();
+    try { draw(ts); } catch (e) { if (window.console) console.error(e); }
+  }
+  function draw(ts) {
     var dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts; clock += dt;
     var s = S();
     var playing = s && !document.getElementById("title").classList.contains("show");
@@ -365,7 +384,7 @@
     });
     // player
     if (playing) {
-      drawPerson(px * T, py * T, { coat: "#9a1c1c", skirt: "#2a1a2a", hat: "bonnet", hatColor: "#6a1414", moving: !!mv, facing: s.facing, skin: "#ecc8a8" }, clock);
+      drawPerson(px * T, py * T, { coat: "#1c2c5e", hat: "sailor", moving: !!mv, facing: s.facing, skin: "#e2b890" }, clock);
       ctx.fillStyle = "#f0c060"; ctx.fillRect(px * T + 12, py * T + 8, 2, 3);
     }
     // tap marker
@@ -433,16 +452,20 @@
       ctx.fillStyle = "#f0d8a0"; ctx.fillText(sg.text, sxp, syp + dpr);
     });
     if (playing) {
-      // door markers: knocked tonight (✓), suspects (◆), quests (!)
+      // door markers: dose warnings (✖), doors that still fit your notes (♥), ruled out / knocked (✓), locals (◆)
       var carrying = s.quests.filter(function (q) { return q.state !== "done" && s.inv[q.item]; }).map(function (q) { return q.giver; });
+      var cands = BK.game.candidates(), showHearts = cands.length <= 12;
+      var candIds = {}; cands.forEach(function (d) { candIds[d.id] = 1; });
       WD.doors.forEach(function (d) {
         if (!vis(d.x, d.y)) return;
         var mx = ((d.x + 0.5) * T - camX) * Z, my = ((d.y - 0.6) * T - camY) * Z;
         var sym = null, col = "#fff";
-        if (carrying.indexOf(d.id) >= 0) { sym = "!"; col = "#ffd040"; }
-        else if (s.knocked[d.id]) { sym = "✓"; col = "rgba(140,180,220,0.9)"; }
-        else if (d.kind === "suspect") { sym = "◆"; col = "#d090f0"; }
-        if (sym) { ctx.font = "bold " + Math.round(12 * dpr) + "px sans-serif"; ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillText(sym, mx + dpr, my + dpr); ctx.fillStyle = col; ctx.fillText(sym, mx, my); }
+        if (s.doseKnown[d.id]) { sym = "✖"; col = "#ff4040"; }
+        else if (carrying.indexOf(d.id) >= 0) { sym = "!"; col = "#ffd040"; }
+        else if (showHearts && candIds[d.id]) { sym = "♥"; col = "#ff7ab0"; }
+        else if (s.knocked[d.id] || s.ruled[d.id]) { sym = "✓"; col = "rgba(140,180,220,0.9)"; }
+        else if (d.kind === "local") { sym = "◆"; col = "#d090f0"; }
+        if (sym) { ctx.font = "bold " + Math.round(13 * dpr) + "px sans-serif"; ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillText(sym, mx + dpr, my + dpr); ctx.fillStyle = col; ctx.fillText(sym, mx, my); }
       });
       // constables alert
       if (s.suspicion >= 50) npcs.forEach(function (n) {
@@ -454,6 +477,5 @@
       if (!mv && !BK.ui.isOpen()) BK.ui.setAction(labelFor(R.targetHere()));
       if (Math.floor(clock * 4) !== Math.floor((clock - dt) * 4)) BK.ui.hud();
     }
-    requestAnimationFrame(frame);
   }
 })();

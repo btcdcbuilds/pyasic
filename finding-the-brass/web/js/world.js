@@ -1,4 +1,4 @@
-/* The Brass Knocker — the town of Brassmoor: map generation, collision, pathfinding, rendering. */
+/* Finding the Brass — the town of Brassmoor: map generation, collision, pathfinding, rendering. */
 "use strict";
 (function () {
   var U = BK.util;
@@ -22,7 +22,7 @@
   var WHOLE = {
     "3,0": { lm: "church", label: "St Bride's Church", roof: "#3a3f4a", wall: "#6b6458" },
     "2,0": { park: "churchyard", label: "Churchyard" },
-    "3,1": { lm: "court", label: "Magistrate's Court", roof: "#3c3c46", wall: "#8a8478" },
+    "3,1": { lm: "court", label: "The Lock Hospital", roof: "#3c3c46", wall: "#8a8478" },
     "3,2": { plaza: true, label: "Gaslight Square" },
     "4,2": { lm: "hall", label: "Empire Music Hall", roof: "#5a2030", wall: "#9a6a4a" },
     "6,2": { lm: "mill", label: "Crake's Mill", roof: "#3a2a22", wall: "#7a3a2a" },
@@ -32,15 +32,15 @@
   };
   // half-block specials: [block, side 0=left 1=right]
   var HALF = {
-    "1,0,0": { kind: "suspect", suspect: "pell", label: "Dr Pell's Surgery", knocker: "owl" },
-    "4,0,0": { kind: "suspect", suspect: "mott", label: "The Vicarage", knocker: "hand" },
-    "5,0,0": { kind: "suspect", suspect: "crake", label: "Crake House", knocker: "lion" },
-    "4,1,0": { kind: "suspect", suspect: "grime", label: "Station House", knocker: "ring" },
-    "5,1,1": { kind: "suspect", suspect: "vane", label: "Vane's Lodgings", knocker: "hand" },
-    "5,3,0": { kind: "landmark", lm: "pawn", suspect: "fenn", label: "Fenn's Pawnshop", knocker: "fox" },
-    "4,4,0": { kind: "suspect", suspect: "ruddock", label: "Harbourmaster's Rooms", knocker: "anchor" },
-    "2,2,1": { kind: "suspect", suspect: "lark", label: "Miss Lark's Rooms", knocker: "rose" },
-    "0,3,0": { kind: "home", label: "Your lodging", knocker: "rose" }
+    "1,0,0": { kind: "local", local: "pell", label: "Dr Pell's Surgery", knocker: "owl", colour: "black" },
+    "4,0,0": { kind: "local", local: "mott", label: "The Vicarage", knocker: "hand", colour: "black" },
+    "5,0,0": { kind: "local", local: "crake", label: "Crake House", knocker: "lion", colour: "green" },
+    "4,1,0": { kind: "local", local: "grime", label: "Station House", knocker: "ring", colour: "blue" },
+    "5,1,1": { kind: "local", local: "vane", label: "Vane's Lodgings", knocker: "hand", colour: "white" },
+    "5,3,0": { kind: "landmark", lm: "pawn", local: "fenn", label: "Fenn's Pawnshop", knocker: "fox", colour: "yellow" },
+    "4,4,0": { kind: "local", local: "ruddock", label: "Harbourmaster's Rooms", knocker: "anchor", colour: "blue" },
+    "2,2,1": { kind: "local", local: "lark", label: "Miss Lark's Rooms", knocker: "rose", colour: "red" },
+    "0,3,0": { kind: "home", label: "The Sailors' Home", knocker: "anchor", colour: "blue" }
   };
 
   var world = {
@@ -106,7 +106,7 @@
         var b = { x: x0, y: y0, w: BW, h: BH, roof: whole.roof, wall: whole.wall, lm: whole.lm, label: whole.label, district: dist };
         world.buildings.push(b);
         for (y = y0; y < y0 + BH; y++) for (x = x0; x < x0 + BW; x++) set(x, y, TILE.BUILDING);
-        var d = addDoor({ x: x0 + 4, y: y0 + BH - 1, fx: x0 + 4, fy: y0 + BH, district: dist, kind: "landmark", lm: whole.lm, label: whole.label, knocker: whole.lm === "church" ? "hand" : whole.lm === "court" ? "lion" : "ring", building: b });
+        var d = addDoor({ x: x0 + 4, y: y0 + BH - 1, fx: x0 + 4, fy: y0 + BH, district: dist, kind: "landmark", lm: whole.lm, label: whole.label, knocker: whole.lm === "church" ? "hand" : whole.lm === "court" ? "hand" : "ring", colour: whole.lm === "court" ? "white" : "black", building: b });
         b.door = d;
         world.signs.push({ x: x0 + 4, y: y0 - 0.3, text: whole.label });
         continue;
@@ -124,13 +124,15 @@
         var door = { x: dx, y: y0 + BH - 1, fx: dx, fy: y0 + BH, district: dist, building: hb };
         if (spec) {
           door.kind = spec.kind; door.label = spec.label; door.knocker = spec.knocker;
-          if (spec.suspect) door.suspect = spec.suspect;
+          if (spec.local) door.local = spec.local;
+          door.colour = spec.colour;
           if (spec.lm) door.lm = spec.lm;
           hb.label = spec.label;
           world.signs.push({ x: hx + 2, y: y0 - 0.3, text: spec.label, small: true });
         } else {
           door.kind = "resident";
           door.knocker = U.pick(rng, BK.DISTRICT_KNOCKERS[dist]);
+          door.colour = U.pick(rng, BK.COLOURS).id;
         }
         hb.door = addDoor(door);
       }
@@ -299,7 +301,7 @@
     world.doors.forEach(function (d) {
       var px = d.x * T, py = d.y * T;
       g.fillStyle = "#1a120c"; g.fillRect(px + 2, py - 6, 12, 22);
-      var col = d.lm === "church" ? "#3a2a1a" : d.kind === "home" ? "#5a1a1a" : ["#2a3a2a", "#3a2418", "#1a2a3a", "#3a1a2a", "#2a2a2a"][d.x % 5];
+      var col = BK.COLOURS.filter(function (c) { return c.id === d.colour; })[0].hex;
       g.fillStyle = col; g.fillRect(px + 3, py - 5, 10, 21);
       g.fillStyle = shade(col, 1.4); g.fillRect(px + 4, py - 3, 3, 7); g.fillRect(px + 9, py - 3, 3, 7); g.fillRect(px + 4, py + 6, 3, 8); g.fillRect(px + 9, py + 6, 3, 8);
       g.fillStyle = "#555"; g.fillRect(px + 1, py + 15, 14, 1);

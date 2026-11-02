@@ -1,4 +1,4 @@
-/* The Brass Knocker — HTML interface: dialogs, HUD, notebook, bag, shop, title. */
+/* Finding the Brass — HTML interface: dialogs, HUD, notebook, bag, shop, title. */
 "use strict";
 (function () {
   var U = BK.util;
@@ -161,6 +161,9 @@
     $("h-coin").textContent = S.coin + "s";
     $("h-lvl").textContent = "Lv " + S.level;
     $("h-xp").style.width = Math.round(100 * S.xp / BK.game.xpNext()) + "%";
+    var n = BK.game.candidates().length;
+    $("h-cand").textContent = "♥ " + n + (n === 1 ? " door" : " doors");
+    $("h-dose").style.display = S.dosed ? "" : "none";
   };
 
   ui.setAction = function (label) {
@@ -185,28 +188,37 @@
     node.appendChild(bar);
     var body = document.createElement("div"); body.className = "tabbody";
     if (nbTab === "case") {
-      var html = "<p class='hint'>Tap a row to cycle your own mark: ✗ cleared · ? doubtful · ★ guilty. Testimony marks itself automatically.</p><div class='grid3'>";
-      ["suspect", "means", "place"].forEach(function (cat) {
+      var cands = BK.game.candidates();
+      var html = "<p>Find <b>" + BK.CHAPTERS[S.chapter].target + "</b>'s door. Every clue rules out a street, a door colour or a knocker. Tap a row to add your own mark (✗ ruled out · ? doubtful).</p>";
+      html += "<div class='candbox'><b>♥ " + cands.length + "</b> door" + (cands.length === 1 ? "" : "s") + " in town still fit your notes" + (cands.length ? "" : ". <span class='warn'>None! Somebody lied to you: check the ? marks and the clue log.</span>");
+      if (cands.length && cands.length <= 8) html += "<ul>" + cands.map(function (d) { return "<li>" + U.esc(BK.game.describeDoor(d)) + "</li>"; }).join("") + "</ul>";
+      html += "</div><div class='grid3'>";
+      Object.keys(BK.CATS).forEach(function (cat) {
         var list = BK.CATS[cat];
         var crossed = list.filter(function (o) { var n = S.notes[cat][o.id]; return n && n.m === "x"; }).length;
         html += "<div class='col'><h3>" + BK.CAT_LABEL[cat] + "</h3>";
         if (crossed === list.length) html += "<div class='warn'>Everything is crossed off. Somebody lied to you!</div>";
         list.forEach(function (o) {
           var n = S.notes[cat][o.id], m = n ? n.m : "";
-          var sym = m === "x" ? "✗" : m === "?" ? "?" : m === "!" ? "★" : "";
-          html += "<button class='nrow m" + (m === "x" ? "x" : m === "?" ? "q" : m === "!" ? "s" : "") + "' data-cat='" + cat + "' data-id='" + o.id + "'><span class='sym'>" + sym + "</span><span class='nm'>" + U.esc(o.name) +
+          var sym = m === "x" ? "✗" : m === "?" ? "?" : "";
+          var sw = cat === "colour" ? "<i class='swatch' style='background:" + o.hex + "'></i>" : "";
+          html += "<button class='nrow m" + (m === "x" ? "x" : m === "?" ? "q" : "") + "' data-cat='" + cat + "' data-id='" + o.id + "'><span class='sym'>" + sym + "</span><span class='nm'>" + sw + U.esc(o.name) +
             (n && n.src ? "<small>" + U.esc(n.src) + "</small>" : "") + "</span></button>";
         });
         html += "</div>";
       });
       html += "</div>";
+      var dosed = Object.keys(S.doseKnown);
+      html += "<h3>☠ Known to have the dose</h3>" + (dosed.length ? "<ul class='doselist'>" + dosed.map(function (id) {
+        return "<li>" + U.esc(S.brass[id] ? S.brass[id].name : "A brass") + ": " + U.esc(BK.game.describeDoor(BK.game.doorById(id))) + "</li>";
+      }).join("") + "</ul>" : "<p class='hint'>Nobody yet. Ask the tavern landlord, Mrs Vane or the Lock Hospital matron, or look a brass over carefully before you step inside.</p>");
       body.innerHTML = html;
       body.querySelectorAll(".nrow").forEach(function (b) {
         b.onclick = function () { BK.game.cycleMark(b.getAttribute("data-cat"), b.getAttribute("data-id")); ui.notebook("case"); };
       });
     } else if (nbTab === "clues") {
       body.innerHTML = S.clues.length ? S.clues.map(function (c) {
-        return "<div class='clue" + (c.evidence ? " ev" : "") + "'><div class='src'>Night " + c.night + " · " + U.esc(c.src) + "</div>" + c.text + "</div>";
+        return "<div class='clue" + (c.evidence ? " ev" : c.dose ? " dz" : "") + "'><div class='src'>Night " + c.night + " · " + U.esc(c.src) + "</div>" + c.text + "</div>";
       }).join("") : "<p>No clues yet. Start knocking.</p>";
     } else if (nbTab === "quests") {
       var qs = S.quests.filter(function (q) { return q.state !== "unknown"; });
@@ -215,21 +227,21 @@
         var known = q.state !== "found";
         var st = q.state === "done" ? "Returned ✓" : S.inv[q.item] ? "In your bag: return it" : "Look in " + BK.DISTRICT_NAMES[BK.game.doorById(q.holder).district];
         return "<tr><td>" + BK.ITEMS[q.item].name + "</td><td>" + (known ? U.esc(r.name) + "<br><small>" + BK.game.address(gd) + "</small>" : "Unknown owner") + "</td><td>" + st + "</td></tr>";
-      }).join("") + "</table>" : "<p>Nobody has asked you for a favour yet. Residents sometimes do, once they trust you.</p>";
+      }).join("") + "</table>" : "<p>Nobody has asked you for a favour yet. Ordinary householders sometimes do, once they trust you.</p>";
     } else if (nbTab === "secrets") {
       var ids = Object.keys(S.secrets);
       body.innerHTML = ids.length ? "<table class='tbl'><tr><th>Who</th><th>Where</th><th>Secret</th></tr>" + ids.map(function (id) {
         var d = BK.game.doorById(id), r = S.residents[id];
         return "<tr><td>" + U.esc(r.name) + "</td><td>" + BK.game.address(d) + "<br><small>" + BK.KNOCKERS[d.knocker].name + " knocker</small></td><td>" + U.esc(r.secret) + "</td></tr>";
-      }).join("") + "</table>" : "<p>No secrets yet. Rose-door sisters and taproom gossip are good places to hear them.</p>";
+      }).join("") + "</table>" : "<p>No secrets yet. Taproom gossip is a good place to hear them.</p>";
     } else if (nbTab === "map") {
       body.appendChild(ui.minimap());
       var leg = document.createElement("div"); leg.className = "legend";
-      leg.innerHTML = "<span><i style='background:#e05050'></i>You</span><span><i style='background:#f0c040'></i>Landmark</span><span><i style='background:#c080f0'></i>Suspect</span><span><i style='background:#70a0d0'></i>Knocked tonight</span><span><i style='background:#7a6a50'></i>Door</span>";
+      leg.innerHTML = "<span><i style='background:#ff7ab0'></i>Still fits your notes</span><span><i style='background:#ff3030'></i>Has the dose</span><span><i style='background:#5a6a7a'></i>Ruled out</span><span><i style='background:#f0c040'></i>Landmark</span><span><i style='background:#c080f0'></i>Local</span><span><i style='background:#fff'></i>You</span>";
       body.appendChild(leg);
     }
     node.appendChild(body);
-    ui.dialog({ title: "Nell's Notebook", sub: BK.CHAPTERS[S.chapter].title + " · Victim: " + BK.CHAPTERS[S.chapter].victim, node: node, choices: [] });
+    ui.dialog({ title: "Jack's Notebook", sub: BK.CHAPTERS[S.chapter].title + " · Looking for: " + BK.CHAPTERS[S.chapter].target, node: node, choices: [] });
   };
 
   ui.minimap = function () {
@@ -242,8 +254,9 @@
       g.fillStyle = t === w.TILE.BUILDING || t === w.TILE.DOOR ? "#4a3a30" : t === w.TILE.WATER || t === w.TILE.LOCK ? "#1a3040" : t === w.TILE.GRASS || t === w.TILE.TREE || t === w.TILE.GRAVE ? "#2a4a28" : t === w.TILE.BANK ? "#223020" : "#6a6258";
       g.fillRect(x * sc, y * sc, sc, sc);
     }
+    var cand = {}; BK.game.candidates().forEach(function (d) { cand[d.id] = 1; });
     w.doors.forEach(function (d) {
-      g.fillStyle = S.knocked[d.id] ? "#70a0d0" : d.kind === "landmark" || d.kind === "home" ? "#f0c040" : d.kind === "suspect" ? "#c080f0" : "#7a6a50";
+      g.fillStyle = S.doseKnown[d.id] ? "#ff3030" : d.kind === "landmark" || d.kind === "home" ? "#f0c040" : d.kind === "local" ? "#c080f0" : cand[d.id] ? "#ff7ab0" : "#5a6a7a";
       g.fillRect(d.x * sc - 1, d.y * sc - 1, sc + 2, sc + 2);
     });
     g.fillStyle = "#f0c040"; w.spots.forEach(function (s) { g.fillRect((s.x + 1) * sc, (s.y + 1) * sc, sc * 2, sc * 2); });
@@ -254,8 +267,8 @@
       g.fillStyle = "rgba(0,0,0,0.7)"; g.fillText(s.text, s.x * sc + 1, yy + 1);
       g.fillStyle = "#fff"; g.fillText(s.text, s.x * sc, yy);
     });
-    g.fillStyle = "#e05050"; g.beginPath(); g.arc((S.px + 0.5) * sc, (S.py + 0.5) * sc, 5, 0, 6.3); g.fill();
-    g.strokeStyle = "#fff"; g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = "#ffffff"; g.beginPath(); g.arc((S.px + 0.5) * sc, (S.py + 0.5) * sc, 5, 0, 6.3); g.fill();
+    g.strokeStyle = "#000"; g.lineWidth = 1.5; g.stroke();
     return c;
   };
 
@@ -263,10 +276,11 @@
   ui.bag = function () {
     var S = BK.game.state();
     var node = document.createElement("div");
-    var stats = "<table class='tbl stats'><tr><th>Charm</th><td>" + BK.game.stat("charm") + (S.buffs.perfume ? " (perfumed)" : "") + "</td><th>Level</th><td>" + S.level + " (" + S.xp + "/" + BK.game.xpNext() + " XP)</td></tr>" +
+    var stats = "<table class='tbl stats'><tr><th>Charm</th><td>" + BK.game.stat("charm") + (S.buffs.cologne ? " (cologne)" : "") + (S.dosed ? " (dosed −2)" : "") + "</td><th>Level</th><td>" + S.level + " (" + S.xp + "/" + BK.game.xpNext() + " XP)</td></tr>" +
       "<tr><th>Wits</th><td>" + BK.game.stat("wits") + (S.buffs.snuff ? " (snuff)" : "") + "</td><th>Reputation</th><td>" + S.rep + "</td></tr>" +
       "<tr><th>Grit</th><td>" + S.grit + "</td><th>Weapon</th><td>" + (S.equip.weapon ? BK.ITEMS[S.equip.weapon].name : "Bare hands") + "</td></tr>" +
-      "<tr><th>Nerve</th><td>" + S.nerve + "/" + S.maxNerve + "</td><th>Clothing</th><td>" + (S.equip.wear ? BK.ITEMS[S.equip.wear].name : "Everyday dress") + "</td></tr></table>";
+      "<tr><th>Nerve</th><td>" + S.nerve + "/" + S.maxNerve + "</td><th>Clothing</th><td>" + (S.equip.wear ? BK.ITEMS[S.equip.wear].name : "Sailor's slops") + "</td></tr>" +
+      "<tr><th>The dose</th><td>" + (S.dosed ? "<b style='color:#ff6060'>DOSED</b>" : "Clean") + "</td><th>Doses this leave</th><td>" + S.doses + " of " + BK.game.MAX_DOSES + "</td></tr></table>";
     var ids = Object.keys(S.inv);
     var list = ids.length ? ids.map(function (id) {
       var it = BK.ITEMS[id];
@@ -278,7 +292,7 @@
     node.querySelectorAll("button[data-id]").forEach(function (b) {
       b.onclick = function () { BK.game.useItem(b.getAttribute("data-id")); ui.bag(); };
     });
-    ui.dialog({ title: "Nell Tanner", sub: "Your bag and your talents", portrait: { seed: "nell", coat: "#8a1a1a", hair: "#6a2a10", hat: "bonnet", skin: "#ecc8a8" }, node: node, choices: [] });
+    ui.dialog({ title: "Jack Halyard", sub: "Able seaman, brig Gannet", portrait: { seed: "jack", coat: "#1c2c5e", hair: "#5a3a1a", hat: "sailor", skin: "#e2b890" }, node: node, choices: [] });
   };
 
   /* ---------- shop ---------- */
@@ -310,44 +324,7 @@
         ui.shop(mode);
       };
     });
-    ui.dialog({ title: "Fenn's Pawnshop", sub: "“Everything has a price, Tanner.”", portrait: { seed: "fenn", coat: "#3a3a20", hair: "#222", hat: "cap", skin: "#e0c0a0" }, node: node, choices: [] });
-  };
-
-  /* ---------- accusation ---------- */
-  ui.accuse = function () {
-    var S = BK.game.state();
-    var sel = { suspect: null, means: null, place: null };
-    // pre-select starred items
-    ["suspect", "means", "place"].forEach(function (cat) {
-      BK.CATS[cat].forEach(function (o) { var n = S.notes[cat][o.id]; if (n && n.m === "!") sel[cat] = o.id; });
-    });
-    var node = document.createElement("div");
-    function render() {
-      var html = "<p>Choose one from each column. Rejected accusations so far: <b>" + S.strikes + " / 3</b>.</p><div class='grid3'>";
-      ["suspect", "means", "place"].forEach(function (cat) {
-        html += "<div class='col'><h3>" + BK.CAT_LABEL[cat] + "</h3>";
-        BK.CATS[cat].forEach(function (o) {
-          var n = S.notes[cat][o.id], m = n ? n.m : "";
-          html += "<button class='nrow pick" + (sel[cat] === o.id ? " sel" : "") + (m === "x" ? " mx" : "") + "' data-cat='" + cat + "' data-id='" + o.id + "'><span class='sym'>" + (sel[cat] === o.id ? "●" : m === "x" ? "✗" : m === "!" ? "★" : m === "?" ? "?" : "") + "</span><span class='nm'>" + U.esc(o.name) + "</span></button>";
-        });
-        html += "</div>";
-      });
-      html += "</div>";
-      var ready = sel.suspect && sel.means && sel.place;
-      html += "<button class='big' id='acc-go'" + (ready ? "" : " disabled") + ">Lay the charge before the Magistrate</button>";
-      node.innerHTML = html;
-      node.querySelectorAll(".pick").forEach(function (b) {
-        b.onclick = function () { sel[b.getAttribute("data-cat")] = b.getAttribute("data-id"); render(); };
-      });
-      node.querySelector("#acc-go").onclick = function () {
-        modalOpen = false; current = null; $("modal").classList.remove("show");
-        BK.game.accuse(sel.suspect, sel.means, sel.place);
-        ui.hud();
-        if (!modalOpen) BK.game.afterModal();
-      };
-    }
-    render();
-    ui.dialog({ title: "The Accusation", sub: "WHO did it, WITH WHAT, and WHERE", node: node, choices: [] });
+    ui.dialog({ title: "Fenn's Pawnshop", sub: "“Everything has a price, sailor.”", portrait: { seed: "fenn", coat: "#3a3a20", hair: "#222", hat: "cap", skin: "#e0c0a0" }, node: node, choices: [] });
   };
 
   /* ---------- story screens ---------- */
@@ -358,9 +335,9 @@
     function show() {
       var last = i === pages.length - 1;
       ui.dialog({
-        title: ch.title, sub: "The victim: " + ch.victim,
-        body: "<p class='story'>" + pages[i] + "</p>" + (last ? "<p class='hint'>Tip: the design of each brass knocker tells you who lives behind the door. Check the Notebook (N) often.</p>" : ""),
-        choices: [{ label: last ? "Step out into the night" : "Continue", fn: function () { if (!last) { i++; show(); } else { ui.toast("Night " + S.night + " · 8:00pm · " + BK.CHAPTERS[S.chapter].nights + " nights to solve it"); BK.game.save(); } } }],
+        title: ch.title, sub: "Looking for: " + ch.target,
+        body: "<p class='story'>" + pages[i] + "</p>" + (last ? "<p class='hint'>Tip: the ♥ count at the top shows how many doors still fit your notes. When it reaches 1, go and knock. Red ✖ marks a door with the dose.</p>" : ""),
+        choices: [{ label: last ? "Step out into the night" : "Continue", fn: function () { if (!last) { i++; show(); } else { ui.toast("Night " + S.night + " · 8:00pm · " + BK.CHAPTERS[S.chapter].nights + " nights of shore leave"); BK.game.save(); } } }],
         noClose: true
       });
     }
@@ -369,17 +346,16 @@
 
   ui.help = function () {
     ui.dialog({
-      title: "How to play", sub: "A detective RPG of doors and deduction",
+      title: "How to play", sub: "Knock on doors. Find the brass. Avoid the dose.",
       body: "<table class='tbl'>" +
-        "<tr><th>Goal</th><td>Work out <b>who</b> killed the victim, <b>with what</b> and <b>where</b>, then make your accusation at the Magistrate's Court in Gaslight Square.</td></tr>" +
-        "<tr><th>Doors</th><td>Walk up to a door and press <b>Knock</b>. The brass knocker design tells you who lives there: lions are wealthy, foxes may lie, roses are friends, and so on.</td></tr>" +
-        "<tr><th>Clues</th><td>Testimony crosses innocent names off your notebook automatically. ★ marks hard evidence. You can also mark rows yourself.</td></tr>" +
-        "<tr><th>Places</th><td>Visit the eight possible crime scenes and <b>search</b> them to rule them in or out.</td></tr>" +
-        "<tr><th>Suspects</th><td>Each suspect has a door. Pick at their alibi (Wits) or accuse them to their face (risky).</td></tr>" +
-        "<tr><th>Time</th><td>Each night runs from 8pm to 5am. Walking, knocking and searching all take time. Run out of nights and the case goes cold.</td></tr>" +
-        "<tr><th>Nerve</th><td>Your health. Fights and insults wear it down. Eat, drink, pray or rest with the sisters.</td></tr>" +
-        "<tr><th>Suspicion</th><td>Too much and constables will stop you. At 100 you're arrested.</td></tr>" +
-        "<tr><th>Controls</th><td>Arrows/WASD or the d-pad to move, or tap the map to walk there. <b>E/Space</b> knock or act · <b>N</b> notebook · <b>B</b> bag · <b>1–9</b> pick an option · <b>Esc</b> close.</td></tr>" +
+        "<tr><th>Goal</th><td>You're a sailor on shore leave. Find the door that one particular brass (a lady of the night) works from, knock, and <b>step inside</b> before your ship sails.</td></tr>" +
+        "<tr><th>Clues</th><td>Her door is pinned down by three things: <b>which street</b>, <b>what colour</b> it's painted, and <b>which brass knocker</b> hangs on it. Every clue rules one out. The ♥ number at the top shows how many doors in town still fit.</td></tr>" +
+        "<tr><th>Knocking</th><td>Walk up to a door and press <b>Knock</b>. Ordinary households give gossip. If a brass answers, you can look her over, ask her questions, or step inside.</td></tr>" +
+        "<tr><th>The dose</th><td>Some brasses have <b>the dose</b>. Step inside with one and you'll probably catch it: −2 Charm and lost Nerve every morning. Catch it 3 times and your shore leave is over. Avoid it with dose warnings (red ✖), a careful look (Wits), or a French letter from Fenn's. Cure it at the Lock Hospital, Dr Pell's, or with mercury pills.</td></tr>" +
+        "<tr><th>Knockers</th><td>The knocker design also tells you who lives there: lions are wealthy, foxes and mermaids may lie, owls are sharp, anchors are sailors.</td></tr>" +
+        "<tr><th>Time</th><td>Each night runs from 8pm to 5am. Walking, knocking and talking all take time. Run out of nights and the ship sails without you finding her.</td></tr>" +
+        "<tr><th>Nerve / Suspicion</th><td>Nerve is your health. Suspicion builds when you bang on doors: too much and the constables stop you; at 100 you're arrested.</td></tr>" +
+        "<tr><th>Controls</th><td>D-pad or arrows/WASD to walk, or tap the map to walk there. <b>E/Space</b> knock · <b>N</b> notebook · <b>B</b> bag · <b>1–9</b> pick an option · <b>Esc</b> close.</td></tr>" +
         "</table>",
       choices: []
     });

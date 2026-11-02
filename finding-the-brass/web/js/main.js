@@ -1,4 +1,4 @@
-/* The Brass Knocker — boot, title screen and pause menu. */
+/* Finding the Brass — boot, title screen and pause menu. */
 "use strict";
 (function () {
   var $ = function (id) { return document.getElementById(id); };
