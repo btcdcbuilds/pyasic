@@ -39,6 +39,7 @@
       var raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return false;
       S = JSON.parse(raw);
+      Object.keys(S.inv || {}).forEach(function (k) { if (!BK.ITEMS[k]) delete S.inv[k]; });
       return true;
     } catch (e) { return false; }
   };
@@ -50,7 +51,7 @@
       px: WD.start.x, py: WD.start.y, facing: "up",
       charm: 3, wits: 2, grit: 2, level: 1, xp: 0, nerve: 50, maxNerve: 50,
       coin: 8, suspicion: 0, rep: 0,
-      inv: { bread: 2, sheath: 1 }, equip: { weapon: null, wear: null }, buffs: {},
+      inv: { bread: 2 }, equip: { weapon: null, wear: null }, buffs: {},
       knocked: {}, talked: {}, nightFlags: {}, chapterFlags: {},
       notes: { district: {}, colour: {}, knocker: {} }, clues: [], quests: [], secrets: {}, residents: {},
       brass: {}, ruled: {}, doseKnown: {}, target: null, dosed: false, doses: 0,
@@ -478,7 +479,7 @@
       ch.push({ label: "Pay her for gossip [2s]", disabled: S.coin < 2, fn: function () { addCoin(-2); brassTalk(d, "pay"); } });
     }
     var cands = G.candidates(), fits = cands.some(function (o) { return o.id === d.id; });
-    ch.push({ label: "Step inside [3s]", note: (fits ? "Is she " + nick() + "? Only one way to find out. " : "Your notes say she isn't " + nick() + ". ") + "Risky if she has the dose.", disabled: S.coin < 3, fn: function () { stepInside(d); } });
+    ch.push({ label: "Go up to her room [3s]", note: (fits ? "Is she " + nick() + "? Only one way to find out. " : "Your notes say she isn't " + nick() + ". ") + "If she's the wrong brass and has the dose, you'll catch it.", disabled: S.coin < 3, fn: function () { stepInside(d); } });
     ch.push(leave("Move on"));
     dlg({ title: b.name, sub: "A brass · " + G.address(d), portrait: brassPortrait(b), body: body, choices: ch });
   }
@@ -504,21 +505,14 @@
     var body = "<p>The door closes behind you, and what happens next stays behind it.</p>";
     S.ruled[d.id] = "a brass works here, but not " + nick();
     if (b.dosed) {
-      var risk = 0.85;
-      var usedSheath = takeItem("sheath");
-      if (usedSheath) risk = 0.4;
+      // The rule of the game: sleep with the wrong brass, one who has the dose, and you catch it. Every time.
       S.doseKnown[d.id] = true; b.status = "dosed";
-      if (R() < risk) {
-        S.dosed = true; S.doses++; S.totals.doses++;
-        addNerve(-15); sfx("bad");
-        body += "<p>An hour later, walking back through the fog, you notice an itch you didn't have before. Then a burn. You know exactly what it is.</p>" +
-          "<p class='dose-note'><b>You've caught the dose!</b> (" + S.doses + " of " + MAX_DOSES + " this shore leave.) Charm −2 and you'll feel rough every morning until you're cured: try the Lock Hospital, Dr Pell, or mercury pills from Fenn.</p>" +
-          (usedSheath ? "<p class='note'>Even the French letter didn't save you.</p>" : "");
-        if (S.doses >= MAX_DOSES) {
-          return gameOver("Three doses in one shore leave. Captain Ruddock takes one look at you and signs you over to the Lock Hospital for the winter. The Gannet sails without you.");
-        }
-      } else {
-        body += "<p class='good-note'>Afterwards she admits she's taking the mercury cure. " + (usedSheath ? "The French letter did its job: you got away clean." : "By sheer luck you got away clean, this time.") + "</p>";
+      S.dosed = true; S.doses++; S.totals.doses++;
+      addNerve(-15); sfx("bad");
+      body += "<p>Wrong room, wrong brass. An hour later, walking back through the fog, you notice an itch you didn't have before. Then a burn. You know exactly what it is.</p>" +
+        "<p class='dose-note'><b>You've caught the dose!</b> (" + S.doses + " of " + MAX_DOSES + " this shore leave.) Charm −2 and you'll feel rough every morning until you're cured: try the Lock Hospital, Dr Pell, or mercury pills from Fenn.</p>";
+      if (S.doses >= MAX_DOSES) {
+        return gameOver("Three doses in one shore leave. Captain Ruddock takes one look at you and signs you over to the Lock Hospital for the winter. The Gannet sails without you.");
       }
       body += "<p>She isn't " + nick() + ", either.</p>";
     } else {

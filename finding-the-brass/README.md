@@ -4,7 +4,7 @@ A bawdy Victorian role-playing game for Android and the web, for adults. It is s
 
 You play **Jack Halyard**, a sailor on shore leave. Somewhere in town, one particular **brass** (a lady of the night) works from behind one of the doors. Go round knocking on brass knockers, pick up gossip, and work out which door she's behind before your ship sails. Some of the other brasses have **the dose**, so avoid them.
 
-Nothing explicit is shown: whatever happens once you "step inside" stays behind the door.
+Nothing explicit is shown: whatever happens once you "go up to her room" stays behind the door.
 
 ## Download
 
@@ -19,10 +19,10 @@ To install on a phone, copy the APK over, open it, and allow "install unknown ap
 
 | Part | Details |
 |---|---|
-| Goal | Find the brass's door and step inside, within the nights of shore leave you have |
+| Goal | Find the brass's door and go up to her room, within the nights of shore leave you have |
 | Deduction | Her door is pinned down by **street** (5), **door colour** (6) and **brass knocker** (8). Each clue rules one out, and the ♥ counter shows how many doors still fit |
-| Knocking | Ordinary households give gossip (and rule their own door out). When a brass answers you can look her over (Wits), ask about the target (Charm/coin), or step inside |
-| The dose | Some brasses have it. Step inside with one and you'll probably catch it: −2 Charm and Nerve lost every morning. 3 doses in one shore leave ends it. Avoid it with dose warnings (red ✖ on the map), a careful look, or a French letter; cure it at the Lock Hospital, Dr Pell's or with mercury pills |
+| Knocking | Ordinary households give gossip (and rule their own door out). When a brass answers you can look her over (Wits), ask about the target (Charm/coin), or go up to her room |
+| The dose | Some brasses have it. The **only** way to catch it is to go up to the wrong room and sleep with the wrong brass, one who has it, and then you catch it every time. Knocking, talking and looking are always safe. It costs −2 Charm and Nerve every morning, and 3 doses in one shore leave ends it. Spot it first with dose warnings (red ✖ on the map) or a careful look; cure it at the Lock Hospital, Dr Pell's or with mercury pills |
 | Chapters | 3 shore leaves: Ruby Raines (5 nights, 10 brasses, 4 dosed), Velvet Violet (4 nights, 12 brasses, 6 dosed, liars appear), Lady Lucinda (4 nights, 14 brasses, 8 dosed) |
 | Town | 72×53-tile map with 5 districts and 58 doors, 43 of which can hide a brass. Plus the locals (pawnbroker, surgeon, landlady, constable, your captain and more) and landmarks (tavern, church, Lock Hospital, music hall, mill, warehouse) |
 | RPG | Charm, Wits and Grit; levels and XP; Nerve; Suspicion and constables; street fights; side quests; secrets to use as leverage; shop and equipment |

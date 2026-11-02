@@ -107,8 +107,8 @@ BK.CHAPTERS = [
     intro: [
       "Brassmoor, 1887. The brig Gannet ties up at the Wharf after seven months at sea, and Captain Ruddock gives the crew five nights' shore leave.",
       "You are Jack Halyard, able seaman. Every one of those seven months you've thought about Ruby Raines, the finest brass in Brassmoor. She wrote you letters. She never wrote her address.",
-      "Somewhere in this town Ruby works from behind one of the doors. Behind some of the others are brasses who have THE DOSE. The ship's surgeon has warned the whole crew: catch it and you'll be taking mercury for a month.",
-      "Ask around. Every clue tells you which street her door is on, what colour it's painted, or what brass knocker hangs on it. When your notes point to one door, knock and step inside. Find the brass. Avoid the dose."
+      "Somewhere in this town Ruby works from behind one of the doors. Behind some of the others are brasses who have THE DOSE. The ship's surgeon has warned the whole crew: go up to the wrong room with the wrong brass and you WILL catch it, and you'll be taking mercury for a month.",
+      "Ask around. Every clue tells you which street her door is on, what colour it's painted, or what brass knocker hangs on it. When your notes point to one door, knock and go up to her room. Find the brass. Avoid the dose."
     ]
   },
   {
@@ -175,7 +175,6 @@ BK.ITEMS = {
   oil:      { name: "Lantern oil", price: 2, desc: "Your lantern burns wider for the rest of the night.", use: { lantern: 1 } },
   cologne:  { name: "Bay rum cologne", price: 3, desc: "+2 Charm for the rest of the night.", use: { cologne: 1 } },
   snuff:    { name: "Pinch of snuff", price: 3, desc: "+2 Wits for the rest of the night.", use: { snuff: 1 } },
-  sheath:   { name: "French letter", price: 2, desc: "Victorian protection. Used up automatically the next time you step inside, halving the chance of catching the dose.", use: null },
   mercury:  { name: "Mercury pills", price: 8, desc: "The old cure for the dose. Works 7 times in 10, and tastes like a ship's anchor.", use: { cure: 0.7 } },
   lockpick: { name: "Lockpick", price: 6, desc: "Lets you slip into a house when nobody answers. Breaks after use. Raises Suspicion.", use: null },
   marlin:   { name: "Marlinspike", price: 4, desc: "Weapon: +2 damage.", equip: { slot: "weapon", atk: 2 } },
@@ -191,7 +190,7 @@ BK.ITEMS = {
   medal:    { name: "Crimean medal", price: 0, desc: "An old soldier's pride.", quest: true },
   ribbon:   { name: "Blue silk ribbon", price: 0, desc: "A sweetheart's keepsake.", quest: true }
 };
-BK.SHOP_STOCK = ["bread", "pie", "rum", "tonic", "oil", "cologne", "snuff", "sheath", "mercury", "lockpick", "marlin", "cosh", "knuckles", "peacoat", "oilskin"];
+BK.SHOP_STOCK = ["bread", "pie", "rum", "tonic", "oil", "cologne", "snuff", "mercury", "lockpick", "marlin", "cosh", "knuckles", "peacoat", "oilskin"];
 BK.QUEST_ITEMS = ["locket", "letter", "ledger", "spoon", "medal", "ribbon"];
 
 /* ---------- street enemies ---------- */

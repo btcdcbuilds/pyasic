@@ -211,7 +211,7 @@
       var dosed = Object.keys(S.doseKnown);
       html += "<h3>☠ Known to have the dose</h3>" + (dosed.length ? "<ul class='doselist'>" + dosed.map(function (id) {
         return "<li>" + U.esc(S.brass[id] ? S.brass[id].name : "A brass") + ": " + U.esc(BK.game.describeDoor(BK.game.doorById(id))) + "</li>";
-      }).join("") + "</ul>" : "<p class='hint'>Nobody yet. Ask the tavern landlord, Mrs Vane or the Lock Hospital matron, or look a brass over carefully before you step inside.</p>");
+      }).join("") + "</ul>" : "<p class='hint'>Nobody yet. Ask the tavern landlord, Mrs Vane or the Lock Hospital matron, or look a brass over carefully before you go up to her room.</p>");
       body.innerHTML = html;
       body.querySelectorAll(".nrow").forEach(function (b) {
         b.onclick = function () { BK.game.cycleMark(b.getAttribute("data-cat"), b.getAttribute("data-id")); ui.notebook("case"); };
@@ -348,10 +348,10 @@
     ui.dialog({
       title: "How to play", sub: "Knock on doors. Find the brass. Avoid the dose.",
       body: "<table class='tbl'>" +
-        "<tr><th>Goal</th><td>You're a sailor on shore leave. Find the door that one particular brass (a lady of the night) works from, knock, and <b>step inside</b> before your ship sails.</td></tr>" +
+        "<tr><th>Goal</th><td>You're a sailor on shore leave. Find the door that one particular brass (a lady of the night) works from, knock, and <b>go up to her room</b> before your ship sails.</td></tr>" +
         "<tr><th>Clues</th><td>Her door is pinned down by three things: <b>which street</b>, <b>what colour</b> it's painted, and <b>which brass knocker</b> hangs on it. Every clue rules one out. The ♥ number at the top shows how many doors in town still fit.</td></tr>" +
-        "<tr><th>Knocking</th><td>Walk up to a door and press <b>Knock</b>. Ordinary households give gossip. If a brass answers, you can look her over, ask her questions, or step inside.</td></tr>" +
-        "<tr><th>The dose</th><td>Some brasses have <b>the dose</b>. Step inside with one and you'll probably catch it: −2 Charm and lost Nerve every morning. Catch it 3 times and your shore leave is over. Avoid it with dose warnings (red ✖), a careful look (Wits), or a French letter from Fenn's. Cure it at the Lock Hospital, Dr Pell's, or with mercury pills.</td></tr>" +
+        "<tr><th>Knocking</th><td>Walk up to a door and press <b>Knock</b>. Ordinary households give gossip. If a brass answers, you can look her over, ask her questions, or go up to her room.</td></tr>" +
+        "<tr><th>The dose</th><td>Some brasses have <b>the dose</b>. The only way to catch it is to go up to the wrong room and sleep with the wrong brass, one who has it, and then you catch it every time. Knocking, talking and looking are always safe. The dose costs −2 Charm and Nerve every morning; catch it 3 times and your shore leave is over. Spot it first with dose warnings (red ✖ on the map) or a careful look (Wits). Cure it at the Lock Hospital, Dr Pell's, or with mercury pills.</td></tr>" +
         "<tr><th>Knockers</th><td>The knocker design also tells you who lives there: lions are wealthy, foxes and mermaids may lie, owls are sharp, anchors are sailors.</td></tr>" +
         "<tr><th>Time</th><td>Each night runs from 8pm to 5am. Walking, knocking and talking all take time. Run out of nights and the ship sails without you finding her.</td></tr>" +
         "<tr><th>Nerve / Suspicion</th><td>Nerve is your health. Suspicion builds when you bang on doors: too much and the constables stop you; at 100 you're arrested.</td></tr>" +
