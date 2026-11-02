@@ -1,10 +1,10 @@
 # Finding the Brass
 
-A bawdy Victorian role-playing game for Android and the web, for adults. It is set in Brassmoor, a fictional English port town in 1887.
+A bawdy Victorian game of luck, ladies and shore leave, for adults. It runs on Android and in a web browser.
 
-You play **Jack Halyard**, a sailor on shore leave. Somewhere in town, one particular **brass** (a lady of the night) works from behind one of the doors. Go round knocking on brass knockers, pick up gossip, and work out which door she's behind before your ship sails. Some of the other brasses have **the dose**, so avoid them.
+You play **Jack Halyard**, a sailor ashore in the fictional port of Brassmoor in 1887, with 30 shillings of pay and 6 nights of shore leave. Walk the gas-lit streets, knock on doors with brass knockers, and see who answers. Some nights are the time of your life. Some nights you get robbed, overcharged, chased off by a fancy-man, or you catch **the dose**.
 
-Nothing explicit is shown: whatever happens once you "go up to her room" stays behind the door.
+Nothing explicit is shown: whatever happens once you "go up to her room" stays behind the door. All the ladies are drawn in period dress.
 
 ## Download
 
@@ -13,32 +13,22 @@ Nothing explicit is shown: whatever happens once you "go up to her room" stays b
 | `dist/FindingTheBrass.apk` | Installable Android build (debug-signed, Android 7.0+ / API 24+) |
 | `web/index.html` | The same game: open it in any modern browser |
 
-To install on a phone, copy the APK over, open it, and allow "install unknown apps" when Android asks.
-
 ## How it plays
 
 | Part | Details |
 |---|---|
-| Goal | Find the brass's door and go up to her room, within the nights of shore leave you have |
-| Deduction | Her door is pinned down by **street** (5), **door colour** (6) and **brass knocker** (8). Each clue rules one out, and the ♥ counter shows how many doors still fit |
-| Knocking | Ordinary households give gossip (and rule their own door out). When a brass answers you can look her over (Wits), ask about the target (Charm/coin), or go up to her room |
-| The dose | Some brasses have it. The **only** way to catch it is to go up to the wrong room and sleep with the wrong brass, one who has it, and then you catch it every time. Knocking, talking and looking are always safe. It costs −2 Charm and Nerve every morning, and 3 doses in one shore leave ends it. Spot it first with dose warnings (red ✖ on the map) or a careful look; cure it at the Lock Hospital, Dr Pell's or with mercury pills |
-| Chapters | 3 shore leaves: Ruby Raines (5 nights, 10 brasses, 4 dosed), Velvet Violet (4 nights, 12 brasses, 6 dosed, liars appear), Lady Lucinda (4 nights, 14 brasses, 8 dosed) |
-| Town | 72×53-tile map with 5 districts and 58 doors, 43 of which can hide a brass. Plus the locals (pawnbroker, surgeon, landlady, constable, your captain and more) and landmarks (tavern, church, Lock Hospital, music hall, mill, warehouse) |
-| RPG | Charm, Wits and Grit; levels and XP; Nerve; Suspicion and constables; street fights; side quests; secrets to use as leverage; shop and equipment |
-| Controls | Touch d-pad, tap-to-walk and a big Knock button; keyboard (WASD/arrows, E, N, B, 1–9, Esc); the Android back button opens the pause menu |
-| Saving | Autosaves at dawn and when the app is paused |
+| Knocking | Each door's brass knocker gives you the odds. Rose doors are almost always brass houses. Lions might be a courtesan, or a rich man calling the constables. Hands will just lecture you. |
+| The ladies | When a lady answers, her portrait is revealed like a turned card, with her looks and her price. Pay and go up to her room, haggle (Charm), buy her a drink, give her violets, look her over (Wits), or move on. |
+| Luck of the draw | Every night upstairs is a gamble: *the night of your life*, *a grand night*, *fair enough*, *disappointing* or *a disaster*. Pricier ladies are safer bets. She might lift your purse, or her fancy-man might demand more. If she falls for you, she won't charge you again. |
+| The dose | Go up to the wrong room with a lady who has the dose and you **always** catch it; nothing else gives it. It costs Good Times, Charm and Nerve. Three doses ends your shore leave. Gossip, the landlady, the hospital matron and a careful look can warn you; cures are at the Lock Hospital, Dr Pell's, or mercury pills. |
+| Money | Ladies cost 2–25 shillings. Drinks, cures, fines and fancy-men add up. By day you can rest, work the docks for pay, or drink in the gin palace. |
+| Score | **Good Times** over the shore leave, with a rank and a saved best score. Each new shore leave brings new ladies behind new doors. |
+| The ladies' portraits | Generated in code: every lady has her own face, hair, eyes, gown and jewellery. |
+| Little Black Book | Every lady you've met or heard about, with your star ratings, dose and thief warnings, a diary, and a map. |
+| Town | 72×53-tile gas-lit map, 5 districts, 58 doors, constables, street fights, a tavern, music hall, church, Lock Hospital and pawnshop. |
+| Controls | Touch d-pad, tap-to-walk and a big Knock button; keyboard (WASD/arrows, E, B, I, 1–9, Esc); the Android back button opens the pause menu. |
 
 All graphics are drawn in code and all sounds are synthesised, so the game uses no external assets.
-
-## Project layout
-
-```
-finding-the-brass/
-  web/            HTML5 game (index.html, style.css, js/*.js)
-  android/        Gradle project that wraps web/ in a full-screen WebView
-  dist/           Prebuilt APK
-```
 
 ## Building the APK yourself
 
@@ -50,5 +40,3 @@ echo "sdk.dir=/path/to/android-sdk" > local.properties
 ./gradlew assembleDebug
 # output: app/build/outputs/apk/debug/app-debug.apk
 ```
-
-For a Play Store release you need your own signing key: add a `signingConfigs` block to `app/build.gradle` and run `./gradlew bundleRelease`.

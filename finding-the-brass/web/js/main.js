@@ -8,13 +8,13 @@
     BK.render.snap();
     BK.ui.hud();
     if (isNew) BK.ui.intro();
-    else BK.ui.toast("Welcome back. Night " + BK.game.state().night + ", " + BK.game.clockText());
+    else BK.ui.toast("Welcome back. Night " + BK.game.state().night + ", " + BK.game.clockText() + ", " + BK.game.state().coin + "s in your pocket");
   }
 
   BK.menu = function () {
     var on = BK.sfx.isOn();
     BK.ui.dialog({
-      title: "Paused", sub: BK.CHAPTERS[BK.game.state().chapter].title,
+      title: "Paused", sub: "Shore leave " + BK.game.state().leave + " · Night " + BK.game.state().night + " · Good Times " + BK.game.state().good,
       choices: [
         { label: "Resume", fn: function () { } },
         { label: "How to play", fn: function () { BK.ui.help(); } },
@@ -35,6 +35,9 @@
 
   window.addEventListener("load", function () {
     BK.render.init();
+    // three ladies on the title screen
+    var tl = $("t-ladies"), seeds = ["title-a", "title-b", "title-c"], tiers = ["parlour", "courtesan", "street"];
+    tl.innerHTML = seeds.map(function (s, i) { return "<div class='tl'>" + BK.portraits.svg(BK.portraits.makeLady(s + Math.floor(Math.random() * 1000), { tier: tiers[i] }), 96) + "</div>"; }).join("");
     BK.ui.title();
     $("t-new").onclick = function () {
       if (!BK.game.hasSave()) { BK.game.newGame(); begin(true); return; }
@@ -53,7 +56,7 @@
       BK.ui.help();
       var restore = setInterval(function () { if (!BK.ui.isOpen()) { clearInterval(restore); BK.ui.title(); } }, 200);
     };
-    $("btn-note").onclick = function () { BK.ui.notebook(); };
+    $("btn-note").onclick = function () { BK.ui.book(); };
     $("btn-bag").onclick = function () { BK.ui.bag(); };
     $("btn-menu").onclick = function () { BK.menu(); };
     $("modal").addEventListener("click", function (e) { if (e.target === $("modal")) BK.ui.close(); });

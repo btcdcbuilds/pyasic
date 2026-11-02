@@ -18,7 +18,7 @@
   <div class="hr">
     <div class="stat"><label>Nerve</label><div class="bar nerve"><i id="h-nerve"></i><span id="h-nerve-t"></span></div></div>
     <div class="stat"><label>Suspicion</label><div class="bar susp"><i id="h-susp"></i><span id="h-susp-t"></span></div></div>
-    <div class="chips"><span id="h-dose" class="chip dose" style="display:none">☠ DOSED</span><span id="h-cand" class="chip cand">♥</span><span id="h-coin" class="chip coin">5s</span><span class="chip lvl"><b id="h-lvl">Lv 1</b><em class="xp"><i id="h-xp"></i></em></span></div>
+    <div class="chips"><span id="h-dose" class="chip dose" style="display:none">☠ DOSED</span><span id="h-good" class="chip good">★ 0</span><span id="h-coin" class="chip coin">5s</span><span class="chip lvl"><b id="h-lvl">Lv 1</b><em class="xp"><i id="h-xp"></i></em></span></div>
   </div>
 </div>
 
@@ -31,7 +31,7 @@
   </div>
   <div id="side">
     <button id="btn-menu" class="sm" aria-label="Menu">☰</button>
-    <button id="btn-note" class="sm">Notebook</button>
+    <button id="btn-note" class="sm">Black Book</button>
     <button id="btn-bag" class="sm">Bag</button>
     <button id="btn-act" aria-label="Act">·</button>
   </div>
@@ -54,18 +54,21 @@
       </svg>
     </div>
     <h1>Finding the Brass</h1>
-    <p class="tag">Brassmoor, 1887. A sailor on shore leave, a town full of brass knockers, and one lady of the night behind one of the doors. Find the brass. Avoid the dose.</p>
+    <p class="tag">Brassmoor, 1887. A sailor on shore leave, a pocketful of pay, and a town full of doors with brass knockers. Knock, and take your chances. Avoid the dose.</p>
+    <div id="t-ladies" class="t-ladies"></div>
     <div class="tbtns">
       <button id="t-continue" class="big">Continue</button>
       <button id="t-new" class="big">New Game</button>
       <button id="t-help">How to Play</button>
     </div>
-    <p class="fine">A bawdy Victorian role-playing game of knocking, gossip and deduction. For adults.</p>
+    <p id="t-best" class="best"></p>
+    <p class="fine">A bawdy Victorian game of luck, ladies and shore leave. For adults.</p>
   </div>
 </div>
 
 <script src="js/data.js"></script>
 <script src="js/world.js"></script>
+<script src="js/portrait.js"></script>
 <script src="js/game.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/render.js"></script>

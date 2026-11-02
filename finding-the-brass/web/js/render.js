@@ -58,6 +58,7 @@
     clue: function () { tone(523, 0, 0.12, "triangle", 0.12); tone(659, 0.1, 0.12, "triangle", 0.12); tone(784, 0.2, 0.2, "triangle", 0.12); },
     evidence: function () { [523, 659, 784, 1047].forEach(function (f, i) { tone(f, i * 0.12, 0.3, "triangle", 0.14); }); },
     hit: function () { thud(0, 0.7); },
+    reveal: function () { [660, 880, 1320].forEach(function (f, i) { tone(f, 0.18 + i * 0.07, 0.35, "sine", 0.06); }); },
     warn: function () { tone(330, 0, 0.18, "square", 0.06); tone(247, 0.18, 0.3, "square", 0.06); },
     hurt: function () { tone(200, 0, 0.2, "sawtooth", 0.08, 90); },
     alarm: function () { tone(1800, 0, 0.25, "sine", 0.06, 2300); tone(1800, 0.3, 0.3, "sine", 0.06, 2300); },
@@ -235,9 +236,9 @@
       }
       if (keymap[e.code]) { held[keymap[e.code]] = 1; e.preventDefault(); }
       else if (e.code === "KeyE" || e.code === "Space" || e.code === "Enter") { R.act(); e.preventDefault(); }
-      else if (e.code === "KeyN" || e.code === "KeyJ") BK.ui.notebook();
-      else if (e.code === "KeyB" || e.code === "KeyI") BK.ui.bag();
-      else if (e.code === "KeyM") BK.ui.notebook("map");
+      else if (e.code === "KeyN" || e.code === "KeyJ" || e.code === "KeyB") BK.ui.book();
+      else if (e.code === "KeyI") BK.ui.bag();
+      else if (e.code === "KeyM") BK.ui.book("map");
       else if (e.code === "KeyH") BK.ui.help();
       else if (e.key === "Escape") BK.menu();
     });
@@ -452,19 +453,19 @@
       ctx.fillStyle = "#f0d8a0"; ctx.fillText(sg.text, sxp, syp + dpr);
     });
     if (playing) {
-      // door markers: dose warnings (✖), doors that still fit your notes (♥), ruled out / knocked (✓), locals (◆)
-      var carrying = s.quests.filter(function (q) { return q.state !== "done" && s.inv[q.item]; }).map(function (q) { return q.giver; });
-      var cands = BK.game.candidates(), showHearts = cands.length <= 12;
-      var candIds = {}; cands.forEach(function (d) { candIds[d.id] = 1; });
+      // door markers from the Little Black Book: ✖ dose, ♛ Lady Lucinda, ♥ sweetheart, ★ rating, ♀ known lady, ✓ knocked tonight, ◆ locals
       WD.doors.forEach(function (d) {
         if (!vis(d.x, d.y)) return;
         var mx = ((d.x + 0.5) * T - camX) * Z, my = ((d.y - 0.6) * T - camY) * Z;
+        var e = s.book[d.id], L = s.ladies[d.id], known = e && L && (e.seen || e.tip);
         var sym = null, col = "#fff";
-        if (s.doseKnown[d.id]) { sym = "✖"; col = "#ff4040"; }
-        else if (carrying.indexOf(d.id) >= 0) { sym = "!"; col = "#ffd040"; }
-        else if (showHearts && candIds[d.id]) { sym = "♥"; col = "#ff7ab0"; }
-        else if (s.knocked[d.id] || s.ruled[d.id]) { sym = "✓"; col = "rgba(140,180,220,0.9)"; }
-        else if (d.kind === "local") { sym = "◆"; col = "#d090f0"; }
+        if (known && e.known.dose) { sym = "✖"; col = "#ff4040"; }
+        else if (known && e.sweetheart) { sym = "♥"; col = "#ff5a9a"; }
+        else if (known && L.legend) { sym = "♛"; col = "#ffd040"; }
+        else if (known && e.visits) { sym = e.stars + "★"; col = "#ffd890"; }
+        else if (known) { sym = "♀"; col = "#ff9ac4"; }
+        else if (s.knocked[d.id]) { sym = "✓"; col = "rgba(140,180,220,0.9)"; }
+        else if (d.kind === "local") { sym = "◆"; col = "#c8a0f0"; }
         if (sym) { ctx.font = "bold " + Math.round(13 * dpr) + "px sans-serif"; ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillText(sym, mx + dpr, my + dpr); ctx.fillStyle = col; ctx.fillText(sym, mx, my); }
       });
       // constables alert

@@ -46,91 +46,71 @@ BK.util = {
   }
 };
 
-/* ---------- knockers: the design on the door tells you who lives there ---------- */
+/* ---------- knockers: the design on the door hints at what's behind it ---------- */
 BK.KNOCKERS = {
-  lion:    { name: "Lion's head", trait: "wealthy", hint: "Money behind this door. Proud folk who don't like being disturbed, and who often have secrets worth knowing.", color: "#e0b040" },
-  fox:     { name: "Fox head", trait: "shifty", hint: "Sly folk. They know plenty, but they don't always tell the truth.", color: "#d08a30" },
-  hand:    { name: "Brass hand", trait: "devout", hint: "Pious households. They don't approve of sailors, but they won't lie.", color: "#d8c070" },
-  anchor:  { name: "Anchor", trait: "sailor", hint: "Seafaring folk. Rough, generous and handy with their fists.", color: "#c0a050" },
-  owl:     { name: "Owl", trait: "scholar", hint: "Learned folk. Hard to fool, but what they tell you is sharp.", color: "#c8b060" },
-  rose:    { name: "Rose", trait: "sister", hint: "A rose on the door. Warm-hearted folk, friendly to a sailor far from home.", color: "#e09070" },
-  ring:    { name: "Plain ring", trait: "plain", hint: "Ordinary working folk. Tired, wary and honest enough.", color: "#b89848" },
-  mermaid: { name: "Mermaid", trait: "gambler", hint: "Gamblers and smugglers. You might win a fortune or lose your shirt.", color: "#d0a060" }
+  rose:    { name: "Rose", trait: "sister", hint: "A rose on the door: almost always a brass house. Good odds.", color: "#e09070" },
+  anchor:  { name: "Anchor", trait: "sailor", hint: "Sailors' girls work behind a lot of anchors. Cheap, cheerful, and sometimes a jealous husband instead.", color: "#c0a050" },
+  mermaid: { name: "Mermaid", trait: "gambler", hint: "Gamblers' houses. Pretty girls, but watch your purse.", color: "#d0a060" },
+  fox:     { name: "Fox head", trait: "shifty", hint: "Sly houses. A fair chance of a brass, and a fair chance of a fancy-man.", color: "#d08a30" },
+  lion:    { name: "Lion's head", trait: "wealthy", hint: "Money. Sometimes a high-class courtesan, sometimes a furious gentleman who'll call the constables.", color: "#e0b040" },
+  ring:    { name: "Plain ring", trait: "plain", hint: "Ordinary working folk, mostly. Now and then a girl earning a bit on the side.", color: "#b89848" },
+  owl:     { name: "Owl", trait: "scholar", hint: "Respectable, mostly: governesses, tutors, the odd discreet lady.", color: "#c8b060" },
+  hand:    { name: "Brass hand", trait: "devout", hint: "Pious households. You'll get a sermon, not a sweetheart.", color: "#d8c070" }
+};
+BK.KNOCKER_LIST = Object.keys(BK.KNOCKERS).map(function (k) { return { id: k, name: BK.KNOCKERS[k].name + " knocker" }; });
+
+/* chance that a door with this knocker hides a brass, and which kinds */
+BK.KNOCKER_ODDS = {
+  rose:    { p: 0.9, tiers: ["street", "parlour", "parlour", "street"] },
+  anchor:  { p: 0.55, tiers: ["dollymop", "street", "street"] },
+  mermaid: { p: 0.6, tiers: ["street", "parlour"], thief: 0.25 },
+  fox:     { p: 0.5, tiers: ["dollymop", "street"], thief: 0.15, fancy: 0.2 },
+  lion:    { p: 0.35, tiers: ["courtesan", "parlour", "courtesan"] },
+  ring:    { p: 0.3, tiers: ["dollymop", "street"] },
+  owl:     { p: 0.15, tiers: ["parlour"] },
+  hand:    { p: 0.05, tiers: ["dollymop"] }
 };
 
-/* ---------- the three things you need to pin down her door ---------- */
-BK.DISTRICTS = [
-  { id: "wharf", name: "The Wharf" },
-  { id: "mill", name: "Mill Row" },
-  { id: "chapel", name: "Chapel Hill" },
-  { id: "rookery", name: "The Rookery" },
-  { id: "square", name: "Gaslight Square" }
-];
+/* doors are painted in these colours (just for looks now) */
 BK.COLOURS = [
-  { id: "red", name: "Red door", hex: "#8e1c1c" },
-  { id: "green", name: "Green door", hex: "#1f5e2c" },
-  { id: "blue", name: "Blue door", hex: "#1c3c80" },
-  { id: "black", name: "Black door", hex: "#161616" },
-  { id: "yellow", name: "Yellow door", hex: "#b88e1c" },
-  { id: "white", name: "White door", hex: "#cfcabc" }
+  { id: "red", name: "Red door", hex: "#8e1c1c" }, { id: "green", name: "Green door", hex: "#1f5e2c" },
+  { id: "blue", name: "Blue door", hex: "#1c3c80" }, { id: "black", name: "Black door", hex: "#161616" },
+  { id: "yellow", name: "Yellow door", hex: "#b88e1c" }, { id: "white", name: "White door", hex: "#cfcabc" }
 ];
-BK.KNOCKER_LIST = Object.keys(BK.KNOCKERS).map(function (k) { return { id: k, name: BK.KNOCKERS[k].name + " knocker" }; });
-BK.CATS = { district: BK.DISTRICTS, colour: BK.COLOURS, knocker: BK.KNOCKER_LIST };
-BK.CAT_LABEL = { district: "Which street", colour: "Door colour", knocker: "Knocker" };
 
-/* ---------- the town's notable locals (they have their own doors) ---------- */
+/* kinds of brass: price range in shillings, hidden "spark" (how good a night), and risks */
+BK.TIERS = {
+  dollymop:  { name: "Dollymop", desc: "a part-time girl: cheap, cheerful and a gamble", price: [2, 4], spark: [1, 8], dose: 0.25, thief: 0.2, fancy: 0.12, looks: [2, 4] },
+  street:    { name: "Street brass", desc: "a working girl who knows her trade", price: [3, 6], spark: [3, 8], dose: 0.2, thief: 0.15, fancy: 0.3, looks: [2, 4] },
+  parlour:   { name: "Parlour girl", desc: "a lady of a respectable house: clean sheets and a fire", price: [6, 10], spark: [5, 9], dose: 0.12, thief: 0.08, fancy: 0.15, looks: [3, 5] },
+  courtesan: { name: "Courtesan", desc: "a high-class lady who chooses her gentlemen", price: [12, 18], spark: [7, 10], dose: 0.05, thief: 0.04, fancy: 0.08, looks: [4, 5] },
+  legend:    { name: "The Brass of Brassmoor", desc: "the most celebrated lady in the port", price: [25, 25], spark: [10, 10], dose: 0, thief: 0, fancy: 0, looks: [5, 5] }
+};
+BK.DISTRICT_PRICE = { chapel: 1.35, square: 1.15, mill: 1.0, wharf: 0.9, rookery: 0.8 };
+BK.DISTRICT_DOSE = { chapel: -0.05, square: 0, mill: 0, wharf: 0.05, rookery: 0.1 };
+
+/* the town's notable locals (they have their own doors) */
 BK.LOCALS = [
-  { id: "crake", name: "Alderman Josiah Crake", short: "Crake", role: "Mill owner",
-    desc: "Owns half of Brassmoor, and half the houses the brasses rent.", coat: "#3b2f2f", hair: "#bbbbbb", hat: "top" },
-  { id: "vane", name: "Mrs Honoria Vane", short: "Vane", role: "Widowed landlady",
-    desc: "Collects rents, and knows exactly which tenants are taking the mercury cure.", coat: "#4a2340", hair: "#2a1a10", hat: "bonnet" },
-  { id: "mott", name: "Father Silas Mott", short: "Mott", role: "Chaplain of St Bride's",
-    desc: "Preaches against sin, and keeps careful notes on where it lives.", coat: "#151515", hair: "#7a6a5a", hat: "none" },
-  { id: "pell", name: "Dr Ezra Pell", short: "Pell", role: "Surgeon",
-    desc: "Treats the dose quietly, for cash, no names asked.", coat: "#2b3a4a", hair: "#3a2a1a", hat: "bowler" },
-  { id: "ruddock", name: "Captain Ned Ruddock", short: "Ruddock", role: "Master of the brig Gannet, your captain",
-    desc: "Wants his crew back aboard in one piece and free of the dose.", coat: "#1f2f5a", hair: "#8a4a20", hat: "cap" },
-  { id: "lark", name: "Kitty Lark", short: "Lark", role: "Music-hall songbird",
-    desc: "Knows every brass in town, and every song about them.", coat: "#7a1f3a", hair: "#d8a040", hat: "feather" },
-  { id: "grime", name: "Sergeant Barnaby Grime", short: "Grime", role: "Brassmoor Constabulary",
-    desc: "Takes his tea with two sugars and a bribe.", coat: "#1a2440", hair: "#4a3a2a", hat: "helmet" },
-  { id: "fenn", name: "Solomon Fenn", short: "Fenn", role: "Pawnbroker",
-    desc: "Sells everything a sailor on shore leave could want.", coat: "#3a3a20", hair: "#222222", hat: "cap" }
+  { id: "crake", name: "Alderman Josiah Crake", short: "Crake", role: "Landlord of half the town", desc: "Owns half of Brassmoor, including a good many houses with rose knockers.", coat: "#3b2f2f", hair: "#bbbbbb", hat: "top" },
+  { id: "vane", name: "Mrs Honoria Vane", short: "Vane", role: "Widowed landlady", desc: "Knows exactly which of her tenants are taking the mercury cure.", coat: "#4a2340", hair: "#2a1a10", hat: "bonnet", lady: true },
+  { id: "mott", name: "Father Silas Mott", short: "Mott", role: "Chaplain of St Bride's", desc: "Preaches against sin, and keeps careful notes on where it lives.", coat: "#151515", hair: "#7a6a5a", hat: "none" },
+  { id: "pell", name: "Dr Ezra Pell", short: "Pell", role: "Surgeon", desc: "Treats the dose quietly, for cash, no names asked.", coat: "#2b3a4a", hair: "#3a2a1a", hat: "bowler" },
+  { id: "ruddock", name: "Captain Ned Ruddock", short: "Ruddock", role: "Master of the brig Gannet, your captain", desc: "Wants his crew back aboard in one piece and free of the dose.", coat: "#1f2f5a", hair: "#8a4a20", hat: "cap" },
+  { id: "lark", name: "Kitty Lark", short: "Lark", role: "Music-hall songbird", desc: "Knows every lady in town worth knowing.", coat: "#7a1f3a", hair: "#d8a040", hat: "feather", lady: true },
+  { id: "grime", name: "Sergeant Barnaby Grime", short: "Grime", role: "Brassmoor Constabulary", desc: "Takes his tea with two sugars and a bribe.", coat: "#1a2440", hair: "#4a3a2a", hat: "helmet" },
+  { id: "fenn", name: "Solomon Fenn", short: "Fenn", role: "Pawnbroker", desc: "Sells everything a sailor on shore leave could want, and buys back what he can't afford.", coat: "#3a3a20", hair: "#222222", hat: "cap" }
 ];
 
-/* ---------- chapters: one brass to find in each ---------- */
-BK.CHAPTERS = [
-  {
-    title: "Chapter I — Ruby Raines",
-    target: "Ruby Raines", nickname: "Ruby",
-    nights: 5, brasses: 10, dosed: 4, lieChance: 0, enemyBoost: 0,
-    intro: [
-      "Brassmoor, 1887. The brig Gannet ties up at the Wharf after seven months at sea, and Captain Ruddock gives the crew five nights' shore leave.",
-      "You are Jack Halyard, able seaman. Every one of those seven months you've thought about Ruby Raines, the finest brass in Brassmoor. She wrote you letters. She never wrote her address.",
-      "Somewhere in this town Ruby works from behind one of the doors. Behind some of the others are brasses who have THE DOSE. The ship's surgeon has warned the whole crew: go up to the wrong room with the wrong brass and you WILL catch it, and you'll be taking mercury for a month.",
-      "Ask around. Every clue tells you which street her door is on, what colour it's painted, or what brass knocker hangs on it. When your notes point to one door, knock and go up to her room. Find the brass. Avoid the dose."
-    ]
-  },
-  {
-    title: "Chapter II — Velvet Violet",
-    target: "Violet Ashdown", nickname: "Velvet Violet",
-    nights: 4, brasses: 12, dosed: 6, lieChance: 0.25, enemyBoost: 2,
-    intro: [
-      "Next voyage, next shore leave. The Gannet's back, and the whole forecastle is talking about one name: Velvet Violet.",
-      "Nobody will say where she works. And the dose has been going round the Rookery like a bad penny.",
-      "Watch out: some folk behind fox-head and mermaid knockers will lie to you now. A sharp eye (WITS) is your only way of telling."
-    ]
-  },
-  {
-    title: "Chapter III — The Brass of Brassmoor",
-    target: "Lady Lucinda Fairweather", nickname: "Lady Lucinda",
-    nights: 4, brasses: 14, dosed: 8, lieChance: 0.35, enemyBoost: 4,
-    intro: [
-      "Your last shore leave before the Gannet sails for the Indies. There's a legend in every port: Lady Lucinda, the Brass of Brassmoor. Nobody you know has found her door.",
-      "The dose is everywhere this winter. The Lock Hospital has a queue round the block.",
-      "One last search, Jack. Knock carefully."
-    ]
-  }
+BK.LEAVE = { nights: 6, pay: 30 };
+BK.INTRO = [
+  "Brassmoor, 1887. The brig Gannet ties up at the Wharf after seven months at sea. Captain Ruddock hands out the pay: thirty shillings each, and six nights' shore leave.",
+  "You are Jack Halyard, able seaman, and you've got money in your pocket and a town full of doors with brass knockers.",
+  "Behind some of those doors are the brasses: the ladies of the night. Knock, see who answers, and take your chances. Some nights you'll have the time of your life. Some nights you'll be robbed, overcharged, or chased off by a jealous fancy-man.",
+  "And some of the ladies have THE DOSE. Go up to the wrong room with the wrong brass and you WILL catch it. Look her over first, listen to the gossip, and keep enough money for the cure.",
+  "Have the best shore leave you can before the Gannet sails. Your score is your GOOD TIMES."
+];
+BK.RANKS = [
+  [0, "Should Have Stayed Aboard"], [40, "Landlubber"], [90, "A Decent Run Ashore"], [150, "Jolly Jack Tar"], [220, "The Toast of the Fo'c'sle"], [300, "Legend of Brassmoor"]
 ];
 
 /* ---------- names ---------- */
@@ -139,7 +119,9 @@ BK.NAMES = {
     "Florence", "Gideon", "Hattie", "Horace", "Ida", "Isaac", "Jemima", "Jonah", "Kezia", "Lemuel", "Lottie", "Mabel",
     "Mordecai", "Nettie", "Obadiah", "Peg", "Percival", "Queenie", "Rufus", "Sal", "Septimus", "Tilly", "Tobias",
     "Ursula", "Victor", "Winnie", "Walter", "Zillah", "Hester", "Silas", "Martha", "Jasper", "Lavinia", "Ned", "Orla", "Cuthbert"],
-  brassFirst: ["Dolly", "Nancy", "Sal", "Bess", "Polly", "Moll", "Rosie", "Lil", "Flo", "Nell", "Jenny", "Kit", "Maggie", "Tess", "Annie", "Peg", "Hetty", "Lizzie"],
+  brassFirst: ["Dolly", "Nancy", "Sal", "Bess", "Polly", "Moll", "Rosie", "Lil", "Flo", "Nell", "Jenny", "Kit", "Maggie", "Tess", "Annie", "Peg", "Hetty", "Lizzie", "Ruby", "Violet", "Daisy", "Kate", "Mary-Ann", "Lottie"],
+  poshFirst: ["Arabella", "Celestine", "Isadora", "Ottoline", "Rosalind", "Seraphina", "Valentina", "Georgiana", "Theodora", "Clementine", "Ophelia", "Evangeline"],
+  poshLast: ["de Vere", "Montague", "Ashcombe", "Delacourt", "Beaumont", "St Clair", "Fairfax", "Lisle", "Devereux"],
   brassNick: ["Bonny", "Lively", "Two-Shilling", "Scarlet", "Lucky", "Sweet", "Saucy", "Sailor's", "Gaslight", "Little", "Dancing", "Honest"],
   last: ["Ashby", "Bramble", "Coggins", "Dimmock", "Eldridge", "Fairweather", "Gudgeon", "Hobbs", "Ingle", "Jessop",
     "Kettle", "Loame", "Marrow", "Nettleship", "Oakes", "Pinch", "Quarrie", "Rudd", "Sallow", "Thrupp", "Umber",
@@ -172,26 +154,18 @@ BK.ITEMS = {
   pie:      { name: "Eel pie", price: 2, desc: "Restores 30 Nerve.", use: { nerve: 30 } },
   rum:      { name: "Tot of rum", price: 2, desc: "Restores 35 Nerve but adds 5 Suspicion.", use: { nerve: 35, suspicion: 5 } },
   tonic:    { name: "Dr Pell's Tonic", price: 5, desc: "Fully restores Nerve.", use: { nerve: 999 } },
-  oil:      { name: "Lantern oil", price: 2, desc: "Your lantern burns wider for the rest of the night.", use: { lantern: 1 } },
-  cologne:  { name: "Bay rum cologne", price: 3, desc: "+2 Charm for the rest of the night.", use: { cologne: 1 } },
-  snuff:    { name: "Pinch of snuff", price: 3, desc: "+2 Wits for the rest of the night.", use: { snuff: 1 } },
+  cologne:  { name: "Bay rum cologne", price: 3, desc: "+2 Charm for the rest of the night: better haggling and better nights.", use: { cologne: 1 } },
+  snuff:    { name: "Pinch of snuff", price: 3, desc: "+2 Wits for the rest of the night: better at spotting the dose and thieves.", use: { snuff: 1 } },
+  violets:  { name: "Bunch of violets", price: 1, desc: "A gift for a lady. Give it at the door: she warms to you and the night goes better.", use: null },
+  rabbit:   { name: "Rabbit's foot", price: 6, desc: "Lucky charm: every night with a lady goes a little better while you carry it.", use: null },
   mercury:  { name: "Mercury pills", price: 8, desc: "The old cure for the dose. Works 7 times in 10, and tastes like a ship's anchor.", use: { cure: 0.7 } },
-  lockpick: { name: "Lockpick", price: 6, desc: "Lets you slip into a house when nobody answers. Breaks after use. Raises Suspicion.", use: null },
   marlin:   { name: "Marlinspike", price: 4, desc: "Weapon: +2 damage.", equip: { slot: "weapon", atk: 2 } },
   cosh:     { name: "Leather cosh", price: 9, desc: "Weapon: +4 damage.", equip: { slot: "weapon", atk: 4 } },
   knuckles: { name: "Brass knuckles", price: 15, desc: "Weapon: +6 damage.", equip: { slot: "weapon", atk: 6 } },
-  peacoat:  { name: "Dark pea-coat", price: 5, desc: "Clothing: Suspicion gains are cut by a third.", equip: { slot: "wear", stealth: 1 } },
-  oilskin:  { name: "Thick oilskins", price: 10, desc: "Clothing: takes 3 off every hit.", equip: { slot: "wear", def: 3 } },
-  // quest trinkets (not sold)
-  locket:   { name: "Silver locket", price: 0, desc: "Somebody is missing this.", quest: true },
-  letter:   { name: "Sealed letter", price: 0, desc: "Addressed in a careful hand.", quest: true },
-  ledger:   { name: "Torn ledger page", price: 0, desc: "Numbers and initials. Someone wants it back.", quest: true },
-  spoon:    { name: "Christening spoon", price: 0, desc: "Engraved with a baby's name.", quest: true },
-  medal:    { name: "Crimean medal", price: 0, desc: "An old soldier's pride.", quest: true },
-  ribbon:   { name: "Blue silk ribbon", price: 0, desc: "A sweetheart's keepsake.", quest: true }
+  jacket:   { name: "Smart shore-going jacket", price: 8, desc: "Clothing: +1 Charm, and the posher ladies take you more seriously.", equip: { slot: "wear", charm: 1 } },
+  oilskin:  { name: "Thick oilskins", price: 10, desc: "Clothing: takes 3 off every hit.", equip: { slot: "wear", def: 3 } }
 };
-BK.SHOP_STOCK = ["bread", "pie", "rum", "tonic", "oil", "cologne", "snuff", "mercury", "lockpick", "marlin", "cosh", "knuckles", "peacoat", "oilskin"];
-BK.QUEST_ITEMS = ["locket", "letter", "ledger", "spoon", "medal", "ribbon"];
+BK.SHOP_STOCK = ["bread", "pie", "rum", "tonic", "cologne", "snuff", "violets", "rabbit", "mercury", "marlin", "cosh", "knuckles", "jacket", "oilskin"];
 
 /* ---------- street enemies ---------- */
 BK.ENEMIES = [
@@ -201,7 +175,7 @@ BK.ENEMIES = [
   { id: "bully", name: "Bully-boy", hp: 28, atk: 6, will: 10, xp: 20, coin: [3, 8], line: "A big man in a stained waistcoat. \"The girls on this street are spoken for, Jack Tar.\"" },
   { id: "crimp", name: "Crimp", hp: 24, atk: 6, will: 11, xp: 22, coin: [2, 9], line: "A crimp with a cosh. He'd sell you to the next whaler for a pound." },
   { id: "brawler", name: "Gin-mad brawler", hp: 34, atk: 7, will: 12, xp: 28, coin: [2, 7], minCh: 1, line: "Eyes like boiled eggs and fists like hams. He swings before he speaks." },
-  { id: "pimp", name: "Jealous fancy-man", hp: 38, atk: 8, will: 13, xp: 34, coin: [5, 12], minCh: 2, line: "A flash cove in a checked suit. \"You've been knocking on MY doors, sailor.\"" }
+  { id: "pimp", name: "Jealous fancy-man", hp: 32, atk: 7, will: 12, xp: 30, coin: [4, 10], line: "A flash cove in a checked suit. \"You've been knocking on MY doors, sailor.\"" }
 ];
 
 /* ---------- flavour ---------- */
